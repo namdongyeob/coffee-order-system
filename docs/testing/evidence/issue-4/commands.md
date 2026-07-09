@@ -28,7 +28,7 @@ AssertionFailedError at MenuControllerTest.java:33
 결과입니다.
 
 ```text
-BUILD SUCCESSFUL in 33s
+BUILD SUCCESSFUL in 35s
 5 actionable tasks: 5 executed
 ```
 
@@ -57,6 +57,6 @@ Review Agent와 QA Agent가 초기 full context HTTP 테스트에서 Gradle test
 결과입니다.
 
 ```text
-BUILD SUCCESSFUL in 1m 17s
-4 actionable tasks: 2 executed, 2 up-to-date
+BUILD SUCCESSFUL in 1m 13s
+4 actionable tasks: 1 executed, 3 up-to-date
 ```

@@ -6,9 +6,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "menu")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Menu {
 
 	@Id
@@ -21,23 +26,8 @@ public class Menu {
 	@Column(nullable = false)
 	private int price;
 
-	protected Menu() {
-	}
-
 	public Menu(String name, int price) {
 		this.name = name;
 		this.price = price;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public int getPrice() {
-		return price;
 	}
 }

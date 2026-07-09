@@ -26,3 +26,16 @@
 - `commands.md`에 RED, QA 재검증 반영, GREEN focused test, full smoke를 남겼습니다.
 - `manual-qa.md`에 Controller surface 검증 방식과 subagent 결과 반영을 기록했습니다.
 - 이 파일에 subagent review 결과를 요약했습니다.
+
+## Dev Agent
+
+결론입니다.
+
+- `MenuController`, `MenuService`에는 `@RequiredArgsConstructor`가 적절합니다.
+- `Menu` Entity는 `@Getter`와 `@NoArgsConstructor(access = AccessLevel.PROTECTED)`가 적절합니다.
+- setter는 추가하지 않는 편이 낫습니다.
+
+반영했습니다.
+
+- 메뉴 API production class의 생성자/getter 보일러플레이트를 Lombok으로 정리했습니다.
+- focused Controller test와 전체 smoke test를 다시 실행했습니다.
