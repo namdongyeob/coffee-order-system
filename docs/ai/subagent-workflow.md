@@ -9,9 +9,9 @@
 | 역할 | 입력 | 출력 |
 | --- | --- | --- |
 | Spec Agent | 과제 발제, 설계안, 강의자료, 현재 문서 | 정책 결정표, 질문 목록, Issue 후보 |
-| Dev Agent | 하나의 Issue, 관련 문서, 현재 코드 | 구현 코드, 테스트, 검증 로그 |
+| Dev Agent | 하나의 Issue, 관련 문서, 현재 코드 | 구현 코드, focused test 결과, 검증 로그 초안 |
 | Review Agent | PR diff, Issue, 관련 문서 | 리뷰 코멘트, 회귀 위험, 수정 필요 항목 |
-| QA Agent | 실행 방법, 테스트 결과, 검증 로그 | 누락된 검증, 재현 절차, follow-up Issue |
+| QA Agent | 실행 방법, 테스트 결과, 검증 로그 | 누락된 검증, evidence 보강 항목, follow-up Issue |
 | Docs Agent | 확정된 결정, 구현 결과, 검증 결과 | README, ADR, API 명세, runbook 갱신 |
 
 ## 사용 순서
@@ -35,6 +35,14 @@ Spec Agent
 - 긴급한 빌드 스크립트 수정, 문서 오탈자, 충돌 해결처럼 Dev Agent 작업을 막는 작은 blocking 작업만 Main Agent가 직접 처리할 수 있습니다.
 - Main Agent가 직접 수정했다면 PR 본문과 evidence에 이유를 남깁니다.
 
+## 테스트 실행 소유권
+
+- Dev Agent는 구현한 변경 범위에 대한 focused test를 실행하고 결과를 보고합니다.
+- Review Agent는 테스트를 재실행하지 않고 diff, 요구사항 충족, 3계층 책임, 테스트 누락 여부만 검토합니다.
+- QA Agent는 테스트를 재실행하지 않고 evidence, verification-log, 미검증 항목, 재현 절차의 충분성을 검토합니다.
+- Main Agent만 최종 focused test와 전체 smoke test를 단일 실행으로 재검증합니다.
+- 같은 워크스페이스에서 여러 에이전트가 동시에 Gradle `test` task를 실행하지 않습니다.
+
 ## 병렬 사용 예시
 
 - Review Agent와 QA Agent는 같은 diff를 읽고 서로 다른 관점으로 검토할 수 있습니다.
@@ -44,6 +52,7 @@ Spec Agent
 ## 금지 예시
 
 - 두 Dev Agent가 같은 Service 또는 Entity를 동시에 수정합니다.
+- 여러 에이전트가 같은 워크스페이스에서 Gradle `test` task를 동시에 실행합니다.
 - 정책이 확정되지 않은 상태에서 Dev Agent가 구현을 시작합니다.
 - QA Agent가 검증 누락을 발견하고 직접 코드를 수정합니다.
 - Review Agent가 요구사항을 바꿔서 구현 범위를 넓힙니다.

@@ -20,15 +20,16 @@
 1. 대상 Issue와 연결된 문서를 먼저 읽습니다.
 2. 한 번에 하나의 Issue 범위만 작업합니다.
 3. 구현 Issue에서는 사용자가 명시적으로 허용하지 않는 한 Main Agent가 production/test 코드를 직접 수정하지 않습니다.
-4. Main Agent는 Coordinator 역할로 Issue 범위 확인, Dev Agent 지시, diff 검토, 테스트 재실행, evidence 정리, PR 업데이트를 담당합니다.
-5. PR 본문에 실제로 읽은 문서 목록과 서브에이전트 사용 여부를 남깁니다.
-6. 정책이 불명확하면 구현하지 않고 `docs/product/questions-for-tutor.md` 또는 질문 Issue 후보로 분리합니다.
-7. 의존성 추가가 필요하면 먼저 `build.gradle` 변경 이유와 검증 방법을 남깁니다.
-8. 기본 구조는 Controller-Service-Repository 3계층을 우선합니다.
-9. Facade, Generic Manager, 공통 프레임워크성 구조, 광범위한 리팩터링은 명시된 Issue가 없으면 만들지 않습니다.
-10. 동작, 계약, 검증 기준이 바뀌면 문서도 함께 갱신합니다.
-11. PR을 열기 전 `docs/ai/issue-completion-checklist.md`를 확인합니다.
-12. 완료 주장은 검증 근거를 남긴 뒤에만 합니다.
+4. Main Agent는 Coordinator 역할로 Issue 범위 확인, Dev Agent 지시, diff 검토, 최종 테스트 재실행, evidence 정리, PR 업데이트를 담당합니다.
+5. 같은 워크스페이스에서 Gradle 테스트를 재실행하는 주체는 Main Agent 하나로 제한합니다.
+6. PR 본문에 실제로 읽은 문서 목록과 서브에이전트 사용 여부를 남깁니다.
+7. 정책이 불명확하면 구현하지 않고 `docs/product/questions-for-tutor.md` 또는 질문 Issue 후보로 분리합니다.
+8. 의존성 추가가 필요하면 먼저 `build.gradle` 변경 이유와 검증 방법을 남깁니다.
+9. 기본 구조는 Controller-Service-Repository 3계층을 우선합니다.
+10. Facade, Generic Manager, 공통 프레임워크성 구조, 광범위한 리팩터링은 명시된 Issue가 없으면 만들지 않습니다.
+11. 동작, 계약, 검증 기준이 바뀌면 문서도 함께 갱신합니다.
+12. PR을 열기 전 `docs/ai/issue-completion-checklist.md`를 확인합니다.
+13. 완료 주장은 검증 근거를 남긴 뒤에만 합니다.
 
 ## 아키텍처 경계
 
@@ -55,6 +56,8 @@
 - 작은 Controller API는 먼저 `@WebMvcTest`와 `MockMvc`로 HTTP 계약을 검증합니다.
 - DB, Redis, Kafka, Redisson 동작을 검증해야 하는 Issue에서만 Testcontainers 기반 통합 테스트를 사용합니다.
 - 개발 중에는 변경 범위에 맞는 focused test를 우선 실행하고, PR 업데이트 전에는 전체 `./gradlew.bat test --no-daemon` smoke test를 실행합니다.
+- Review Agent와 QA Agent는 같은 워크스페이스에서 Gradle 테스트를 재실행하지 않습니다. 이 둘은 diff, 테스트 설계, evidence, 미검증 항목을 검토합니다.
+- Dev Agent는 자기 변경 범위의 focused test만 실행하고, 전체 smoke test와 최종 재검증은 Main Agent가 단일 실행으로 수행합니다.
 - Mock 테스트가 상위 레벨 검증을 대체하지는 않습니다. 필요한 상위 검증이 남아 있으면 미검증 항목으로 명시합니다.
 
 ## 완료 주장 규칙
