@@ -15,7 +15,7 @@
 | Lombok | 포함 | DTO와 엔티티 보일러플레이트 감소에 사용합니다. |
 | Actuator | 포함 | 상태 확인과 관찰용입니다. |
 | Testcontainers | 포함 | MySQL, Redis, Kafka 통합 테스트에 사용합니다. |
-| Spring REST Docs | 포함 여부 확인 필요 | 현재 `build.gradle`에는 명시적으로 보이지 않습니다. API 문서는 Markdown 우선으로 진행합니다. |
+| Spring REST Docs | 미포함 | 현재 `build.gradle`에는 명시적으로 포함하지 않습니다. API 문서는 Markdown 우선으로 진행합니다. |
 | Flyway Migration | 포함 | DB schema 고정에 사용합니다. |
 
 ## 추가 검토가 필요한 의존성
@@ -28,9 +28,16 @@
 
 ## 버전 점검
 
-현재 `build.gradle`의 Spring Boot 버전은 `4.1.0`입니다. 강의와 실습 자료가 Spring Boot 3.x 기준이라면 3.5.x 계열로 맞추는 것이 학습 자료와 오류 검색에 유리합니다.
+현재 `build.gradle`의 Spring Boot 버전은 `4.1.0`입니다. Spring 공식 릴리스 공지 기준 Spring Boot 4.1.0은 2026-06-10에 Maven Central에 공개된 정식 릴리스입니다.
 
-변경 여부는 첫 번째 Issue에서 확정합니다. 이미 테스트가 통과했다면 당장 막히는 문제는 아니지만, 라이브러리 호환성과 강의 재현성을 기준으로 다시 확인해야 합니다.
+이번 프로젝트는 Spring Boot 4.1.0 기준으로 유지합니다. Redisson은 `redisson-spring-boot-starter:4.6.1`을 사용합니다. Redisson 4.6.1 릴리스 노트에는 Spring Boot 4.1.0 integration 항목이 포함되어 있습니다.
+
+강의 자료가 Spring Boot 3.x 중심일 수 있으므로 예제 코드나 문서와 충돌이 생기면 해당 Issue에서만 다운그레이드 여부를 다시 판단합니다. 충돌이 없다면 버전 변경은 하지 않습니다.
+
+참고입니다.
+
+- Spring Boot 4.1.0 릴리스 공지: https://spring.io/blog/2026/06/10/spring-boot-4
+- Redisson release notes: https://github.com/redisson/redisson/releases
 
 ## Testcontainers 이미지 점검
 
@@ -48,3 +55,4 @@
 - QueryDSL은 MVP 구현 후 검증 조회 Issue에서 추가합니다.
 - Spring REST Docs는 선택으로 두고, Markdown API 명세와 http/Postman 산출물을 먼저 만듭니다.
 - Testcontainers 이미지는 고정 tag로 바꿨습니다.
+- Spring Boot는 4.1.0을 유지합니다.
