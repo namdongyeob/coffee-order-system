@@ -50,4 +50,14 @@ public class UserPoint {
 		}
 		this.balance = (int) chargedBalance;
 	}
+
+	public void pay(int amount) {
+		if (amount < 1) {
+			throw new ApiException(ErrorCode.INSUFFICIENT_POINT);
+		}
+		if (balance < amount) {
+			throw new ApiException(ErrorCode.INSUFFICIENT_POINT);
+		}
+		this.balance -= amount;
+	}
 }

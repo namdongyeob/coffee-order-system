@@ -62,9 +62,11 @@ Base path는 `/api`입니다.
 - 메뉴가 없으면 주문을 생성하지 않습니다.
 - 사용자 포인트 row가 없으면 주문을 생성하지 않습니다.
 - 잔액이 부족하면 주문을 생성하지 않습니다.
-- 같은 사용자 주문은 Redisson 진입 락과 DB 비관적 락으로 보호합니다.
+- 이 과제의 주문 결제는 외부 PG/포트원/토스페이먼츠 연동 없이 사전 충전된 포인트 차감으로 처리합니다.
+- Issue #6 범위에서는 `UserPoint` DB 비관적 쓰기 락으로 포인트 차감 정합성을 보호합니다.
+- 같은 사용자 주문의 Redisson 진입 락은 별도 Issue에서 추가합니다.
 - 주문 저장과 포인트 차감은 하나의 DB 트랜잭션으로 처리합니다.
-- 주문 완료 후 `OrderCompletedEvent`를 Kafka로 발행합니다.
+- 주문 완료 후 `OrderCompletedEvent` Kafka 발행은 별도 Issue에서 추가합니다.
 
 ### 응답
 
@@ -75,7 +77,7 @@ Base path는 `/api`입니다.
   "menuId": 1,
   "menuName": "아메리카노",
   "paidAmount": 4500,
-  "status": "COMPLETED",
+  "status": "PAID",
   "orderedAt": "2026-07-09T10:00:00"
 }
 ```

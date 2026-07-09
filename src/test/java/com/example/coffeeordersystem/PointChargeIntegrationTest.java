@@ -1,4 +1,4 @@
-// 포인트 충전 서비스와 DB 정합성을 검증하는 통합 테스트입니다.
+// 포인트 충전 서비스의 DB 정합성을 검증하는 통합 테스트입니다.
 package com.example.coffeeordersystem;
 
 import static org.assertj.core.api.Assertions.assertThat;
