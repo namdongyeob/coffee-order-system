@@ -10,6 +10,8 @@
 - [ ] Issue 범위 밖 구현이나 리팩터링을 하지 않았습니다.
 - [ ] Controller, Service, Repository 책임이 섞이지 않았습니다.
 - [ ] 필요한 테스트 또는 검증 명령을 실행했습니다.
+- [ ] Review Agent와 QA Agent가 같은 워크스페이스에서 테스트를 재실행하지 않았습니다.
+- [ ] Main Agent가 최종 focused test와 전체 smoke test를 단일 실행으로 재검증했습니다.
 - [ ] 작업 종류에 맞는 evidence 파일 또는 산출물을 남겼습니다.
 - [ ] `docs/testing/verification-log.md`에 검증 결과를 기록했습니다.
 - [ ] 새로 발견한 반복 실수나 주의점이 있으면 `docs/ai/agent-mistakes.md`에 기록했습니다.

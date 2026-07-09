@@ -12,3 +12,5 @@
 | 2026-07-09 | Issue #3 Flyway schema | Level 1 smoke | `./gradlew.bat test` | PASS | 전체 Gradle 테스트가 1분 21초 만에 통과했습니다. |
 | 2026-07-09 | Issue #4 menu list API | Level 2 Controller | `./gradlew.bat clean test --tests com.example.coffeeordersystem.menu.controller.MenuControllerTest --no-daemon` | PASS | `@WebMvcTest`와 `MockMvc`로 `GET /api/menus` 응답을 검증했고 35초 만에 통과했습니다. |
 | 2026-07-09 | Issue #4 menu list API | Level 1 smoke | `./gradlew.bat test --no-daemon` | PASS | 전체 Gradle 테스트가 1분 13초 만에 통과했습니다. |
+| 2026-07-09 | Issue #5 point charge API | Level 2 + Level 3 focused | `./gradlew.bat clean test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon` | PASS | Controller 계약과 Testcontainers MySQL 기반 포인트 충전 DB 흐름이 1분 30초 만에 통과했습니다. |
+| 2026-07-09 | Issue #5 point charge API | Level 1 smoke | `./gradlew.bat test --no-daemon` | PASS | 전체 Gradle 테스트가 1분 20초 만에 통과했습니다. |

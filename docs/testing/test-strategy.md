@@ -22,6 +22,14 @@
 - PR 업데이트 전에는 전체 `./gradlew.bat test --no-daemon` smoke test를 실행합니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 
+## 에이전트별 검증 분담
+
+- Dev Agent는 자기 변경 범위의 focused test를 실행합니다.
+- Review Agent는 테스트를 재실행하지 않습니다. 대신 diff, 요구사항, 설계 경계, 테스트 케이스 누락을 검토합니다.
+- QA Agent는 테스트를 재실행하지 않습니다. 대신 evidence와 verification-log가 완료 주장을 뒷받침하는지 검토합니다.
+- Main Agent가 최종 focused test와 전체 smoke test를 단일 실행으로 재검증합니다.
+- 같은 워크스페이스에서 Gradle 테스트를 병렬 실행하지 않습니다. 병렬 실행이 필요하면 별도 worktree 또는 별도 build directory를 사용합니다.
+
 ## k6 우선순위
 
 1. Load Test.
