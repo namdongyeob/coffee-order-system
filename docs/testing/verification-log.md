@@ -10,3 +10,5 @@
 | 2026-07-09 | Issue #2 project standards | Level 1 smoke | `./gradlew.bat test` | PASS | 변경 후 전체 Gradle 테스트가 6초 만에 통과했습니다. |
 | 2026-07-09 | Issue #3 Flyway schema | Level 3 DB Integration | `./gradlew.bat test --tests com.example.coffeeordersystem.DatabaseSchemaIntegrationTest` | PASS | Flyway table 생성, 메뉴 seed, JPA repository 저장/조회 검증이 1분 14초 만에 통과했습니다. |
 | 2026-07-09 | Issue #3 Flyway schema | Level 1 smoke | `./gradlew.bat test` | PASS | 전체 Gradle 테스트가 1분 21초 만에 통과했습니다. |
+| 2026-07-09 | Issue #4 menu list API | Level 2 Controller | `./gradlew.bat clean test --tests com.example.coffeeordersystem.menu.controller.MenuControllerTest --no-daemon` | PASS | `@WebMvcTest`와 `MockMvc`로 `GET /api/menus` 응답을 검증했고 35초 만에 통과했습니다. |
+| 2026-07-09 | Issue #4 menu list API | Level 1 smoke | `./gradlew.bat test --no-daemon` | PASS | 전체 Gradle 테스트가 1분 13초 만에 통과했습니다. |

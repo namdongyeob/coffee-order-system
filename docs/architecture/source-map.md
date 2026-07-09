@@ -19,6 +19,7 @@
 | 영역 | 파일 |
 | --- | --- |
 | 메뉴 Entity/Repository | `menu.domain.Menu`, `menu.repository.MenuRepository` |
+| 메뉴 API | `menu.controller.MenuController`, `menu.service.MenuService`, `menu.dto.MenuResponse` |
 | 포인트 Entity/Repository | `point.domain.UserPoint`, `point.repository.UserPointRepository` |
 | 주문 Entity/Repository | `order.domain.Order`, `order.domain.OrderStatus`, `order.repository.OrderRepository` |
 | 이벤트 처리 Entity/Repository | `event.domain.ProcessedEvent`, `event.repository.ProcessedEventRepository` |

@@ -27,6 +27,14 @@ Spec Agent
   -> 사람이 merge/close
 ```
 
+## Main Agent 역할
+
+- Main Agent는 기본적으로 Coordinator입니다.
+- 구현 Issue에서 Main Agent는 사용자가 명시적으로 허용하지 않는 한 production/test 코드를 직접 수정하지 않습니다.
+- Main Agent는 Issue 범위 확인, 관련 문서 제공, Dev Agent 지시, diff 검토, 검증 재실행, evidence 정리, PR 업데이트를 담당합니다.
+- 긴급한 빌드 스크립트 수정, 문서 오탈자, 충돌 해결처럼 Dev Agent 작업을 막는 작은 blocking 작업만 Main Agent가 직접 처리할 수 있습니다.
+- Main Agent가 직접 수정했다면 PR 본문과 evidence에 이유를 남깁니다.
+
 ## 병렬 사용 예시
 
 - Review Agent와 QA Agent는 같은 diff를 읽고 서로 다른 관점으로 검토할 수 있습니다.
