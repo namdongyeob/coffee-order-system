@@ -21,6 +21,8 @@
 | 메뉴 Entity/Repository | `menu.domain.Menu`, `menu.repository.MenuRepository` |
 | 메뉴 API | `menu.controller.MenuController`, `menu.service.MenuService`, `menu.dto.MenuResponse` |
 | 포인트 Entity/Repository | `point.domain.UserPoint`, `point.repository.UserPointRepository` |
+| 포인트 API | `point.controller.PointController`, `point.service.PointService`, `point.dto.PointChargeRequest`, `point.dto.PointChargeResponse` |
+| 공통 예외 | `common.ApiException`, `common.ErrorCode`, `common.ErrorResponse`, `common.GlobalExceptionHandler` |
 | 주문 Entity/Repository | `order.domain.Order`, `order.domain.OrderStatus`, `order.repository.OrderRepository` |
 | 이벤트 처리 Entity/Repository | `event.domain.ProcessedEvent`, `event.repository.ProcessedEventRepository` |
 | DB migration | `src/main/resources/db/migration/V1__create_menu.sql` ~ `V4__create_processed_event.sql` |

@@ -1,5 +1,7 @@
 package com.example.coffeeordersystem.point.domain;
 
+import com.example.coffeeordersystem.common.ApiException;
+import com.example.coffeeordersystem.common.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -39,5 +41,13 @@ public class UserPoint {
 
 	public int getBalance() {
 		return balance;
+	}
+
+	public void charge(int amount) {
+		long chargedBalance = (long) balance + amount;
+		if (chargedBalance < 0 || chargedBalance > Integer.MAX_VALUE) {
+			throw new ApiException(ErrorCode.INVALID_CHARGE_AMOUNT);
+		}
+		this.balance = (int) chargedBalance;
 	}
 }
