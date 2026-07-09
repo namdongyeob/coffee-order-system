@@ -14,6 +14,16 @@
 | Kafka 이벤트 | `com.example.coffeeordersystem.event` |
 | 설정 | `com.example.coffeeordersystem.config` |
 
+## 현재 구현 파일
+
+| 영역 | 파일 |
+| --- | --- |
+| 메뉴 Entity/Repository | `menu.domain.Menu`, `menu.repository.MenuRepository` |
+| 포인트 Entity/Repository | `point.domain.UserPoint`, `point.repository.UserPointRepository` |
+| 주문 Entity/Repository | `order.domain.Order`, `order.domain.OrderStatus`, `order.repository.OrderRepository` |
+| 이벤트 처리 Entity/Repository | `event.domain.ProcessedEvent`, `event.repository.ProcessedEventRepository` |
+| DB migration | `src/main/resources/db/migration/V1__create_menu.sql` ~ `V4__create_processed_event.sql` |
+
 ## 구현 원칙
 
 - Controller, Service, Repository 구조로 시작합니다.

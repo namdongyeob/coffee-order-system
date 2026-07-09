@@ -2,13 +2,13 @@
 
 ## 기본 원칙
 
-LazyCodex는 한 번에 큰 기능을 통째로 구현하는 방식이 아니라, 작은 Issue를 반복 루프로 처리하는 방식으로 사용합니다.
+LazyCodex는 한 번에 큰 기능을 통째로 구현하는 방식이 아니라, 작은 Issue를 반복 루프로 처리하는 방식으로 사용합니다. 이 프로젝트에서는 원본 LazyCodex 런타임의 `.omo` 상태 관리를 직접 쓰지 않고, GitHub Issue, PR 본문, 검증 로그, evidence 파일로 같은 운영 원칙을 적용합니다.
 
 ```text
-Specify -> Clarify -> Plan -> Implement -> Verify -> Review -> Document -> Next Issue
+Explore -> Plan -> Implement -> Verify -> Manually QA -> Review -> Document -> Next Issue
 ```
 
-이 루프의 목적은 AI가 정책을 추측하지 않게 하고, 각 작업의 요구사항, 구현 범위, 검증 결과를 남기는 것입니다.
+이 루프의 목적은 AI가 정책을 추측하지 않게 하고, 각 작업의 요구사항, 구현 범위, 검증 결과, 실제 evidence를 남기는 것입니다.
 
 ## Issue 루프
 
@@ -16,11 +16,13 @@ Specify -> Clarify -> Plan -> Implement -> Verify -> Review -> Document -> Next 
 2. Issue에 목표, 범위, 제외 범위, 완료 기준, 검증 레벨을 적습니다.
 3. 격리된 worktree 또는 브랜치를 사용합니다.
 4. Issue 본문과 관련 문서를 에이전트에게 제공합니다.
-5. Dev Agent에게 해당 Issue만 구현하게 합니다.
-6. Review Agent에게 diff 리뷰를 요청합니다.
-7. QA Agent에게 검증 누락과 재현 절차를 확인하게 합니다.
-8. 필요한 문서를 갱신합니다.
-9. 사람이 merge와 close를 결정합니다.
+5. PR 본문에 읽은 문서 목록을 남깁니다.
+6. Dev Agent에게 해당 Issue만 구현하게 합니다.
+7. 자동 검증과 Manual QA evidence를 남깁니다.
+8. Review Agent에게 diff 리뷰를 요청합니다.
+9. QA Agent에게 검증 누락과 재현 절차를 확인하게 합니다.
+10. 필요한 문서를 갱신합니다.
+11. 사람이 merge와 close를 결정합니다.
 
 ## 서브에이전트 역할
 
@@ -52,13 +54,31 @@ Specify -> Clarify -> Plan -> Implement -> Verify -> Review -> Document -> Next 
 
 | 단계 | 산출물 |
 | --- | --- |
-| Specify | 요구사항 요약, MVP 범위, 제외 범위. |
-| Clarify | 튜터 질문, 정책 빈칸, ADR 후보. |
-| Plan | 구현 순서, 영향 파일, 검증 계획. |
+| Explore | 읽은 문서 목록, 영향 파일, 현재 코드 상태. |
+| Plan | 구현 순서, 제외 범위, 검증 계획. |
 | Implement | 코드, 테스트, 최소 문서 갱신. |
-| Verify | `docs/testing/verification-log.md` 기록. |
+| Verify | 자동 테스트 결과, `docs/testing/verification-log.md` 기록. |
+| Manually QA | API 응답, DB query, CLI output, screenshot 등 작업 종류에 맞는 evidence. |
 | Review | 리뷰 코멘트, 회귀 위험, 후속 Issue 후보. |
 | Document | README, API 명세, ADR, runbook 갱신. |
+
+## Evidence 기준
+
+완료 주장은 말이 아니라 관찰 가능한 evidence로 뒷받침합니다.
+
+| 작업 종류 | Evidence 후보 |
+| --- | --- |
+| DB migration | migration 파일, JPA schema 테스트, DB query 결과. |
+| API | `.http` 요청, curl output, Postman collection, 응답 JSON. |
+| Kafka/Redis | CLI output, Testcontainers 통합 테스트 로그, topic/key 확인 결과. |
+| 성능 | k6 script, 실행 결과, 관찰된 병목. |
+| UI/TUI | screenshot 또는 terminal capture. |
+
+Evidence 위치는 `docs/testing/evidence-guide.md`를 따릅니다.
+
+## Parent ownership
+
+서브에이전트의 self-report만으로 완료 처리하지 않습니다. 최종 완료 판단은 부모 세션이 직접 diff, 테스트, evidence를 확인한 뒤 내립니다.
 
 ## 에이전트에게 줄 기본 프롬프트 형식
 
@@ -71,6 +91,7 @@ AGENTS.md를 먼저 읽어라.
 범위 밖 작업은 하지 마라.
 정책이 불명확하면 구현하지 말고 질문으로 남겨라.
 완료 주장은 검증 로그를 남긴 뒤에만 해라.
+작업 종류에 맞는 evidence를 남겨라.
 ```
 
 ## 이번 프로젝트 적용 순서

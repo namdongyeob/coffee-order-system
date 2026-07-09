@@ -12,19 +12,21 @@
 - 강의 개념과 구현 연결은 `docs/architecture/lecture-mapping.md`를 봅니다.
 - 의존성 차이는 `docs/onboarding/dependency-check.md`를 봅니다.
 - 모든 Issue의 완료 전 체크리스트는 `docs/ai/issue-completion-checklist.md`를 봅니다.
+- 서브에이전트와 병렬 작업 기준은 `docs/ai/subagent-workflow.md`와 `docs/ai/lazycodex-runbook.md`를 봅니다.
 - 완료 주장 전에는 `docs/testing/test-strategy.md`와 `docs/testing/verification-log.md`를 확인합니다.
 
 ## 작업 순서
 
 1. 대상 Issue와 연결된 문서를 먼저 읽습니다.
 2. 한 번에 하나의 Issue 범위만 작업합니다.
-3. 정책이 불명확하면 구현하지 않고 `docs/product/questions-for-tutor.md` 또는 질문 Issue 후보로 분리합니다.
-4. 의존성 추가가 필요하면 먼저 `build.gradle` 변경 이유와 검증 방법을 남깁니다.
-5. 기본 구조는 Controller-Service-Repository 3계층을 우선합니다.
-6. Facade, Generic Manager, 공통 프레임워크성 구조, 광범위한 리팩터링은 명시된 Issue가 없으면 만들지 않습니다.
-7. 동작, 계약, 검증 기준이 바뀌면 문서도 함께 갱신합니다.
-8. PR을 열기 전 `docs/ai/issue-completion-checklist.md`를 확인합니다.
-9. 완료 주장은 검증 근거를 남긴 뒤에만 합니다.
+3. PR 본문에 실제로 읽은 문서 목록을 남깁니다.
+4. 정책이 불명확하면 구현하지 않고 `docs/product/questions-for-tutor.md` 또는 질문 Issue 후보로 분리합니다.
+5. 의존성 추가가 필요하면 먼저 `build.gradle` 변경 이유와 검증 방법을 남깁니다.
+6. 기본 구조는 Controller-Service-Repository 3계층을 우선합니다.
+7. Facade, Generic Manager, 공통 프레임워크성 구조, 광범위한 리팩터링은 명시된 Issue가 없으면 만들지 않습니다.
+8. 동작, 계약, 검증 기준이 바뀌면 문서도 함께 갱신합니다.
+9. PR을 열기 전 `docs/ai/issue-completion-checklist.md`를 확인합니다.
+10. 완료 주장은 검증 근거를 남긴 뒤에만 합니다.
 
 ## 아키텍처 경계
 

@@ -44,7 +44,7 @@ erDiagram
 - `menu.price`는 0보다 커야 합니다.
 - `user_point.user_id`는 unique입니다.
 - `user_point.balance`는 0 이상이어야 합니다.
-- `orders.status`는 `COMPLETED`, `FAILED` 후보 중 MVP에서는 `COMPLETED` 중심으로 시작합니다.
+- `orders.status`는 MVP에서 `PAID`로 시작합니다.
 - `processed_event.event_id`는 unique입니다.
 - 재처리 대상 Consumer가 분리될 수 있으므로 `consumer_group`을 함께 기록하는 방안을 우선 검토합니다.
 
