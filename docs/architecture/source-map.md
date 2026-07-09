@@ -21,6 +21,7 @@
 - 엔티티는 도메인 패키지 안에 두고, 지나친 공통 상속 구조는 만들지 않습니다.
 - Kafka payload는 `event` 패키지에서 관리합니다.
 - Redis key 생성 규칙은 한 곳에서 관리합니다.
+- 레이어 책임과 금지 규칙은 `docs/architecture/layered-design-policy.md`를 따릅니다.
 
 ## 갱신 규칙
 
