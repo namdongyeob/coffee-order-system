@@ -10,6 +10,10 @@ assignees: ""
 
 ## 실제 실행 검증 결정
 
+<!-- SOLO, STANDARD, STRICT 중 하나를 남기고 이유를 작성합니다. 구현 없는 질문 Issue의 기본값은 SOLO입니다. -->
+Execution mode: SOLO
+Execution mode reason: 구현 없이 정책 결정을 준비하는 질문 작업입니다.
+
 <!-- 각 required 값은 YES 또는 NO 하나만 남기고 이유를 작성합니다. 질문 전용 Issue의 기본값은 NO입니다. -->
 Level 5 required: NO
 Level 5 reason: 구현 없이 정책 결정을 준비하는 질문 작업입니다.

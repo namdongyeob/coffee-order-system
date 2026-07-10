@@ -29,6 +29,18 @@ ATTEMPT_LOG_SECTIONS = (
 REFERENCE_LINK_PATTERN = re.compile(
     r"^\s*\[[^\]]+\]:\s*(?:<([^>]+)>|([^\s]+))", re.MULTILINE
 )
+EXECUTION_MODE_DECLARATION_PATTERN = re.compile(
+    r"^Execution mode:[^\r\n]*$", re.MULTILINE
+)
+EXECUTION_MODE_REASON_DECLARATION_PATTERN = re.compile(
+    r"^Execution mode reason:[^\r\n]*$", re.MULTILINE
+)
+VALID_EXECUTION_MODE_PATTERN = re.compile(
+    r"^Execution mode:[ \t]*(SOLO|STANDARD|STRICT)[ \t]*$"
+)
+VALID_EXECUTION_MODE_REASON_PATTERN = re.compile(
+    r"^Execution mode reason:[ \t]*\S[^\r\n]*$"
+)
 
 
 def validate_branch(branch: str) -> list[str]:
@@ -52,10 +64,39 @@ def infer_issue_number(branch: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def validate_acceptance_criteria(markdown: str, path: Path | None = None) -> list[str]:
-    """Require machine-readable Level 5/6 decisions and non-empty reasons."""
+def validate_execution_mode_fields(markdown: str, path: Path | None = None) -> list[str]:
+    """Require exactly one valid execution mode and one non-empty reason."""
     location = f"{path}: " if path else ""
     errors: list[str] = []
+
+    mode_declarations = EXECUTION_MODE_DECLARATION_PATTERN.findall(markdown)
+    if len(mode_declarations) > 1:
+        errors.append(f"{location}duplicate Execution mode declarations are not allowed.")
+    elif len(mode_declarations) == 0 or VALID_EXECUTION_MODE_PATTERN.fullmatch(
+        mode_declarations[0]
+    ) is None:
+        errors.append(f"{location}Execution mode: SOLO|STANDARD|STRICT 선언이 없습니다.")
+
+    reason_declarations = EXECUTION_MODE_REASON_DECLARATION_PATTERN.findall(markdown)
+    if len(reason_declarations) > 1:
+        errors.append(f"{location}duplicate Execution mode reason declarations are not allowed.")
+    elif len(reason_declarations) == 0 or VALID_EXECUTION_MODE_REASON_PATTERN.fullmatch(
+        reason_declarations[0]
+    ) is None:
+        errors.append(f"{location}Execution mode reason이 비어 있습니다.")
+
+    return errors
+
+
+def validate_pr_body(markdown: str, path: Path | None = None) -> list[str]:
+    """Validate machine-readable execution fields in a pull request body."""
+    return validate_execution_mode_fields(markdown, path)
+
+
+def validate_acceptance_criteria(markdown: str, path: Path | None = None) -> list[str]:
+    """Require machine-readable execution and Level 5/6 decisions."""
+    location = f"{path}: " if path else ""
+    errors = validate_execution_mode_fields(markdown, path)
     for level in (5, 6):
         required_pattern = rf"^Level {level} required:[ \t]*(YES|NO)[ \t]*$"
         reason_pattern = rf"^Level {level} reason:[ \t]*\S[^\r\n]*$"
@@ -240,6 +281,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--links-only", action="store_true", help="Run only the changed Markdown link check.")
     parser.add_argument("--check-branch", action="store_true", help="Check whether the current branch allows direct commits.")
     parser.add_argument("--include-worktree", action="store_true", help="Include uncommitted and untracked Markdown files in link checks.")
+    parser.add_argument(
+        "--pr-body-file",
+        type=Path,
+        help="Read and validate Execution mode fields from a pull request body file.",
+    )
     args = parser.parse_args(argv)
 
     repository_root = Path(__file__).resolve().parents[1]
@@ -254,6 +300,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check_branch:
         errors.extend(validate_branch(branch))
+
+    if args.pr_body_file is not None:
+        try:
+            pr_body = args.pr_body_file.read_text(encoding="utf-8")
+            errors.extend(validate_pr_body(pr_body, args.pr_body_file))
+        except OSError as error:
+            errors.append(f"ERROR: cannot read pull request body file {args.pr_body_file}: {error}")
 
     if not args.links_only and not args.check_branch:
         issue = args.issue if args.issue is not None else infer_issue_number(branch)

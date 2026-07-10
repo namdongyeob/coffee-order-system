@@ -24,5 +24,10 @@
 | QA Agent: `python -m unittest discover -s scripts/tests -p "test_*.py"` | Coordinator-only 계약 포함 하네스 재검증 | PASS, 17건. |
 | QA Agent: `python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links --include-worktree` | evidence와 변경 링크 독립 재검증 | PASS. |
 | QA Agent: `git diff --check` | whitespace 오류 독립 검사 | PASS. LF/CRLF 경고만 확인. |
+| QA Agent: `python -m unittest discover -s scripts/tests -p "test_*.py"` | 전체 하네스 및 오케스트레이션 계약 검증 | PASS, 28건. |
+| QA Agent: `python -m unittest scripts.tests.test_harness_gate.PullRequestBodyValidationTest` | PR body 필드 검증 | PASS. |
+| QA Agent: `python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links --include-worktree` | Issue evidence와 변경 링크 하네스 검증 | PASS. |
+| QA Agent: `git diff --check` | 변경 diff whitespace 검증 | PASS. |
+| QA Agent: `python -c "import yaml; yaml.safe_load(open('.github/workflows/harness-quality.yml', encoding='utf-8'))"` | GitHub Actions YAML 파싱 검증 | PASS. |
 
 독립 Review 결과와 반영 여부는 PR 본문에 추가합니다.

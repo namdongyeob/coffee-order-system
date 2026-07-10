@@ -26,7 +26,10 @@ jobs:
         env:
           ISSUE_BRANCH: ${{ github.head_ref }}
           BASE_REF: origin/${{ github.base_ref }}
-        run: python scripts/harness_gate.py --branch "$ISSUE_BRANCH" --base-ref "$BASE_REF" --check-links
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          python scripts/harness_gate.py --branch "$ISSUE_BRANCH" --base-ref "$BASE_REF" --check-links --pr-body-file "$RUNNER_TEMP/pr-body.md"
       - name: Compile production Java
         run: ./gradlew compileJava --no-daemon
       - name: Run Gradle tests

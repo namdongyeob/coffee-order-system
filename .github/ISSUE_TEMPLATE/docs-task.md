@@ -22,6 +22,10 @@ assignees: ""
 
 ## 실제 실행 검증 결정
 
+<!-- SOLO, STANDARD, STRICT 중 하나를 남기고 이유를 작성합니다. 문서 전용 Issue의 기본값은 SOLO입니다. -->
+Execution mode: SOLO
+Execution mode reason: 애플리케이션 동작, build, runtime을 변경하지 않는 문서 작업입니다.
+
 <!-- 각 required 값은 YES 또는 NO 하나만 남기고 이유를 작성합니다. 문서 전용 Issue의 기본값은 NO입니다. -->
 Level 5 required: NO
 Level 5 reason: 애플리케이션 런타임을 변경하지 않는 문서 전용 작업입니다.

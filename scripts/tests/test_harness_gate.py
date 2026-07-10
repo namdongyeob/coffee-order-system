@@ -1,6 +1,8 @@
 # 하네스 품질 게이트의 성공과 실패 조건을 검증하는 테스트
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from scripts import harness_gate
@@ -8,10 +10,18 @@ from scripts import harness_gate
 
 VALID_ACCEPTANCE = """# Issue #23 Acceptance Criteria
 
+Execution mode: STRICT
+Execution mode reason: 하네스와 워크플로 정책을 변경하는 작업이므로 독립 Review와 QA가 필요합니다.
 Level 5 required: NO
 Level 5 reason: 애플리케이션 동작을 변경하지 않는 저장소 운영 작업입니다.
 Level 6 required: NO
 Level 6 reason: 호출할 API가 없는 저장소 운영 작업입니다.
+"""
+
+VALID_PR_BODY = """# Pull Request
+
+Execution mode: STRICT
+Execution mode reason: 하네스와 워크플로 정책을 변경하므로 STRICT 검증이 필요합니다.
 """
 
 VALID_ATTEMPT = """# Attempt Log
@@ -59,6 +69,44 @@ class EvidenceValidationTest(unittest.TestCase):
 		)
 		errors = harness_gate.validate_acceptance_criteria(content)
 		self.assertTrue(any("Level 5 reason" in error for error in errors))
+
+	def test_execution_mode_is_required(self):
+		content = VALID_ACCEPTANCE.replace("Execution mode: STRICT\n", "")
+
+		errors = harness_gate.validate_acceptance_criteria(content)
+
+		self.assertTrue(any("Execution mode:" in error for error in errors))
+
+	def test_execution_mode_must_be_solo_standard_or_strict(self):
+		content = VALID_ACCEPTANCE.replace("Execution mode: STRICT", "Execution mode: FAST")
+
+		errors = harness_gate.validate_acceptance_criteria(content)
+
+		self.assertTrue(any("Execution mode: SOLO|STANDARD|STRICT" in error for error in errors))
+
+	def test_execution_mode_reason_is_required(self):
+		content = VALID_ACCEPTANCE.replace(
+			"Execution mode reason: 하네스와 워크플로 정책을 변경하는 작업이므로 독립 Review와 QA가 필요합니다.\n",
+			"Execution mode reason:\n",
+		)
+
+		errors = harness_gate.validate_acceptance_criteria(content)
+
+		self.assertTrue(any("Execution mode reason" in error for error in errors))
+
+	def test_duplicate_execution_mode_is_rejected(self):
+		content = VALID_ACCEPTANCE + "Execution mode: SOLO\n"
+
+		errors = harness_gate.validate_acceptance_criteria(content)
+
+		self.assertTrue(any("duplicate Execution mode" in error for error in errors))
+
+	def test_duplicate_execution_mode_reason_is_rejected(self):
+		content = VALID_ACCEPTANCE + "Execution mode reason: 두 번째 근거입니다.\n"
+
+		errors = harness_gate.validate_acceptance_criteria(content)
+
+		self.assertTrue(any("duplicate Execution mode reason" in error for error in errors))
 
 	def test_attempt_log_sections_are_required(self):
 		errors = harness_gate.validate_attempt_log("## Attempt 1\n### Generate\n")
@@ -114,6 +162,41 @@ class EvidenceValidationTest(unittest.TestCase):
 			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
 
 
+class PullRequestBodyValidationTest(unittest.TestCase):
+	def test_valid_pr_body_passes(self):
+		self.assertEqual([], harness_gate.validate_pr_body(VALID_PR_BODY))
+
+	def test_pr_body_requires_execution_mode_reason(self):
+		content = VALID_PR_BODY.replace(
+			"Execution mode reason: 하네스와 워크플로 정책을 변경하므로 STRICT 검증이 필요합니다.\n",
+			"",
+		)
+
+		errors = harness_gate.validate_pr_body(content)
+
+		self.assertTrue(any("Execution mode reason" in error for error in errors))
+
+	def test_pr_body_file_cli_rejects_invalid_body_without_network(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			body_path = Path(temp_dir) / "pr-body.md"
+			body_path.write_text("Execution mode: FAST\n", encoding="utf-8")
+			output = io.StringIO()
+
+			with redirect_stdout(output):
+				result = harness_gate.main(
+					[
+						"--branch",
+						"issue-23-test",
+						"--check-branch",
+						"--pr-body-file",
+						str(body_path),
+					]
+				)
+
+			self.assertEqual(1, result)
+			self.assertIn("Execution mode", output.getvalue())
+
+
 class MarkdownLinkTest(unittest.TestCase):
 	def test_broken_relative_link_fails(self):
 		with tempfile.TemporaryDirectory() as temp_dir:
@@ -129,19 +212,73 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
-	def test_main_is_coordinator_only_and_qa_verifies(self):
+	def test_execution_modes_keep_sources_separated(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		skill = (
 			repository_root / ".codex" / "skills" / "coffee-order-issue-loop" / "SKILL.md"
 		).read_text(encoding="utf-8")
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+		test_strategy = (repository_root / "docs" / "testing" / "test-strategy.md").read_text(
+			encoding="utf-8"
+		)
 
+		self.assertIn("Execution mode: SOLO|STANDARD|STRICT", policy)
+		self.assertIn("독립 Combined Verifier", policy)
+		self.assertIn("Dev 동시성의 최대치는 2", policy)
+		self.assertIn("실행 모드 선택과 역할 구성은 `docs/ai/orchestration-policy.md`", test_strategy)
+		self.assertIn("BLOCKED: EXECUTION MODE REQUIRED", skill)
 		self.assertIn("BLOCKED: COORDINATOR ONLY", skill)
-		self.assertIn("Review와 QA를 병렬 배정", skill)
-		self.assertIn("독립 Issue는 별도 worktree", skill)
+		self.assertIn("BLOCKED: DEV CONCURRENCY LIMIT", skill)
+		self.assertNotIn("동시성은 2", skill)
+		self.assertNotIn("Solo Agent 한 명", skill)
+		self.assertIn("전체 대화 fork 없이", skill)
+		self.assertIn("같은 Dev에게 한 번만", skill)
 		self.assertIn("BLOCKED: AGENT STALLED", skill)
-		self.assertIn("commit, push, merge", skill)
 		self.assertIn("docs/testing/test-strategy.md", skill)
-		self.assertNotIn("BLOCKED: MAIN VERIFIES", skill)
+		self.assertNotIn("역할과 쓰기 권한:", skill)
+
+	def test_policy_is_the_single_execution_mode_contract(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+		agent_rules = (repository_root / "docs" / "ai" / "agent-rules.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertRegex(policy, r"`SOLO`.*문서 전용.*Solo Agent 한 명")
+		self.assertRegex(policy, r"`STANDARD`.*Dev Agent.*Combined Verifier.*CI")
+		self.assertNotRegex(policy, r"`STANDARD`[^\n]*Docs Agent")
+		self.assertRegex(
+			policy, r"`STRICT`.*Dev Agent.*Review Agent.*QA Agent.*Docs Agent.*CI"
+		)
+		self.assertIn("실행 모드별 역할 구성은 `docs/ai/orchestration-policy.md`", agent_rules)
+		self.assertNotIn("Combined Verifier", agent_rules)
+
+	def test_pull_request_workflow_validates_body_from_temp_file(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		workflow = (repository_root / ".github" / "workflows" / "harness-quality.yml").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn("PR_BODY: ${{ github.event.pull_request.body }}", workflow)
+		self.assertIn("printf '%s' \"$PR_BODY\" > \"$RUNNER_TEMP/pr-body.md\"", workflow)
+		self.assertIn('--pr-body-file "$RUNNER_TEMP/pr-body.md"', workflow)
+
+	def test_issue_and_pr_templates_include_execution_mode_fields(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		templates = [
+			*(repository_root / ".github" / "ISSUE_TEMPLATE").glob("*.md"),
+			repository_root / ".github" / "PULL_REQUEST_TEMPLATE.md",
+		]
+
+		for template in templates:
+			content = template.read_text(encoding="utf-8")
+			with self.subTest(template=template.name):
+				self.assertRegex(content, r"(?m)^Execution mode: (SOLO|STANDARD|STRICT)$")
+				self.assertRegex(content, r"(?m)^Execution mode reason: \S.+$")
 
 	def test_existing_relative_link_passes(self):
 		with tempfile.TemporaryDirectory() as temp_dir:

@@ -152,3 +152,33 @@ Branch: codex/issue-23-harness-quality-gates
 ### Next Attempt
 
 - 변경을 PR #24에 push하고 GitHub Actions 결과를 확인합니다.
+
+## Attempt 6
+
+### Generate
+
+- `SOLO`/`STANDARD`/`STRICT`를 적응적으로 선택하고, 첫 Dev가 stalled 상태가 된 뒤 replacement Dev를 재배정했습니다.
+
+### Evaluate
+
+- 최초 Review는 SSOT, PR body validation, hard concurrency wording, duplicate declarations를 지적했습니다.
+- Dev가 지적 사항을 수정했습니다.
+- QA는 28개 테스트, harness, diff, YAML 검증을 PASS로 판정했습니다.
+- Reviewer는 exact slot wording을 포함한 runtime Skill gate를 승인했습니다.
+
+### Failure Cause
+
+- 최초 결과의 SSOT와 PR body 검증이 불충분했고, 동시성 제한 문구와 역할 선언이 중복되었습니다.
+
+### Change Scope
+
+- 오케스트레이션 정책과 Issue #23 evidence 문서만 반영했습니다. Java 변경은 없습니다.
+
+### Reverification
+
+- QA: 28개 테스트, harness, diff, YAML PASS.
+- Reviewer: runtime Skill gate와 exact slot wording PASS.
+
+### Next Attempt
+
+- push 후 CI 결과를 확인합니다.

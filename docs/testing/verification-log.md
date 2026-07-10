@@ -25,3 +25,4 @@
 | 2026-07-10 | Issue #23 full regression | Level 1 smoke | `.\gradlew.bat test --no-daemon` | PASS | 최초 Docker daemon 미가동 실패 후 daemon을 시작하고 동일 명령을 재실행해 1분 48초에 통과했습니다. |
 | 2026-07-10 | Issue #23 final regression | Level 1 smoke | `.\gradlew.bat test --no-daemon` | PASS | 독립 Review 수정 후 전체 Gradle 테스트가 31초에 통과했습니다. |
 | 2026-07-10 | Issue #23 coordinator-only follow-up | Level 0 tooling | QA Agent가 하네스 테스트, repository gate, diff check 실행 | PASS | 하네스 17건과 repository gate가 통과했고 Review Agent가 Main 비실행 역할 경계를 확인했습니다. |
+| 2026-07-10 | Issue #23 adaptive orchestration | Level 0 tooling | QA Agent의 28건 테스트, PR body validation, harness, diff, YAML 검증과 Reviewer 확인 | PASS | adaptive SOLO/STANDARD/STRICT 생성, Dev stalled replacement, runtime Skill gate의 exact slot wording을 확인했습니다. Java 변경은 없습니다. |

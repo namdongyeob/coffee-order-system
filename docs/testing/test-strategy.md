@@ -23,13 +23,18 @@
 - 문서·Issue 템플릿만 바꾼 PR은 로컬에서 하네스 테스트와 링크 검사를 우선하고, 전체 Gradle 테스트는 GitHub Actions 결과로 확인할 수 있습니다. workflow나 검증 스크립트를 바꾼 PR은 로컬에서도 관련 전체 검증을 한 번 실행합니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 
+## 실행 모드와 테스트 수준
+
+실행 모드 선택과 역할 구성은 `docs/ai/orchestration-policy.md`의 실행 모드 표만 따릅니다. 이 문서는 그 역할이 실행할 검증 수준과 명령만 정의합니다. 선택한 mode는 필요한 검증 Level을 낮추지 않으며 transaction, lock, Kafka, Redis, Redisson, DLT, runtime 변경의 Level 3~6 검증은 Issue evidence에 결정과 이유를 남깁니다.
+
 ## 에이전트별 검증 분담
 
 - Dev Agent는 자기 변경 범위의 focused test를 실행합니다.
+- Combined Verifier는 독립 focused verification을 실행합니다.
 - Review Agent는 테스트를 재실행하지 않습니다. 대신 diff, 요구사항, 설계 경계, 테스트 케이스 누락을 검토합니다.
 - QA Agent는 Dev와 독립적으로 필요한 focused test, 전체 smoke test, Level 3~6 실제 검증을 실행하고 결과를 보고합니다.
-- Docs Agent는 QA 명령과 결과를 evidence와 verification-log에 옮깁니다. 결과를 추측하거나 다시 실행하지 않습니다.
-- Main Coordinator는 테스트를 실행하거나 결과 내용을 재판정하지 않고 QA 보고와 GitHub Actions 상태의 존재만 확인합니다.
+- Docs Agent는 확정된 검증 명령과 결과를 evidence와 verification-log에 옮깁니다. 결과를 추측하거나 다시 실행하지 않습니다.
+- Main Coordinator는 테스트를 실행하거나 결과 내용을 재판정하지 않고 선택된 모드의 독립 검증 보고와 GitHub Actions 상태의 존재만 확인합니다.
 - GitHub Actions가 컴파일과 전체 테스트의 최종 기계적 gate입니다.
 - 같은 워크스페이스에서 Gradle 테스트를 병렬 실행하지 않습니다. 병렬 실행이 필요하면 별도 worktree 또는 별도 build directory를 사용합니다.
 
