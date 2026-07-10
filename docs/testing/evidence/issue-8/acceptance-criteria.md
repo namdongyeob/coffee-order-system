@@ -20,9 +20,9 @@ Level 6 reason: 실제 주문 API 요청이 DB 커밋 뒤 Kafka 이벤트 발행
 - [x] producer 직렬화 설정으로 이벤트 JSON payload를 전송합니다.
 - [x] focused unit test에서 payload, topic, key, producer 호출과 `TransactionTemplate.execute` 반환 이후 호출 순서를 검증합니다.
 - [x] broker ack 비동기 실패는 event/order/user/topic context와 함께 오류 로그로 관찰할 수 있습니다.
-- [x] broker ack 비동기 실패는 이미 성공한 API 응답이나 DB 작업을 rollback하지 않으며, Outbox 없는 현재 범위에서는 이벤트가 유실될 수 있습니다.
+- [x] DB commit 후 Kafka publish를 비동기로 요청합니다. 발행 실패는 로그로 관찰하지만 API 응답과 DB 작업을 rollback하지 않습니다. DB-Kafka 원자성 및 Outbox가 없으므로 이벤트 유실 가능성이 남습니다.
 - [x] Level 4 Kafka Testcontainers에서 실제 topic에 발행된 JSON 이벤트를 소비해 계약을 검증합니다.
 - [x] Level 5 애플리케이션 기동 결과를 보존합니다.
-- [ ] Level 6 실제 주문 요청, request JSON, response JSON, Kafka 이벤트 관찰 원문을 재현 가능한 evidence로 보존합니다.
+- [x] Level 6 실제 주문 요청, request JSON, response JSON, Kafka 이벤트 key/value 관찰 원문을 재현 가능한 evidence로 보존합니다.
 - [x] 전체 `./gradlew.bat test --no-daemon` 회귀 테스트를 통과합니다.
 - [x] Consumer 랭킹, Consumer 멱등성, DLT, Outbox, 공통 이벤트 framework는 구현하지 않습니다.

@@ -57,3 +57,23 @@ $order=Invoke-WebRequest -Uri 'http://localhost:8080/api/orders' -Method Post -C
 - Focused + Level 4 result: `BUILD SUCCESSFUL in 1m 18s`.
 - Full regression command: `./gradlew.bat test --no-daemon`.
 - Full regression result: `BUILD SUCCESSFUL in 1m 21s`.
+
+## 독립 Review와 QA 최종 결과
+
+- Review result: 수정 필요 항목 없음, PASS. Review는 테스트를 실행하지 않았습니다.
+- QA Level 4 command scope: `OrderCompletedEventTest`, `OrderEventPublisherTest`, `OrderServiceLockTest`, `OrderEventKafkaIntegrationTest` focused suite.
+- QA Level 4 result: 7 tests, failures 0, `BUILD SUCCESSFUL in 1m 17s`.
+- QA Level 1 command: `./gradlew.bat test --no-daemon`.
+- QA Level 1 result: 29 tests, failures 0, `BUILD SUCCESSFUL in 1m 23s`.
+- QA Level 5 result: 앱과 MySQL/Kafka/Redis가 기동됐고 `Started CoffeeOrderSystemApplication in 43.23 seconds`, health HTTP 200 `UP`을 확인했습니다.
+- QA Level 6 HTTP result: userId 808 충전 HTTP 200, 주문 HTTP 201. 실제 request/status/response는 `http/issue-8-order-completed-event.http`와 `manual-qa.md`에 보존했습니다.
+- QA Kafka consumer method: Kafka container bridge IP에 연결하고 `--add-host`로 container ID를 매핑해 내부 BROKER listener `:9093`을 kcat에서 사용했습니다.
+- QA Kafka observation result: key `808`과 eventId `13247f60-c5a7-4a7c-a771-39b225d191a4`인 JSON value를 소비했습니다. QA 리소스는 정리했습니다.
+
+## Metrics Timestamp Evidence
+
+- Start timestamp command: `(Get-Item docs/testing/evidence/issue-8/acceptance-criteria.md).CreationTime.ToString('yyyy-MM-dd HH:mm:ss')`.
+- Start timestamp result: `2026-07-11 08:06:56`.
+- Commit timestamp command: `git show -s --format=%cI 8576010`.
+- Commit timestamp result: `2026-07-11T08:33:24+09:00`. 이 값은 독립 재현 가능한 commit 시각이지만 마지막 Reverification 종료 시각으로 사용하지 않습니다.
+- Exact duration decision: 마지막 Reverification 종료 시각을 독립적으로 재구성할 수 없어 최초 Generate부터 마지막 Reverification까지의 작업 시간은 추정하지 않고 `미측정`으로 기록합니다.

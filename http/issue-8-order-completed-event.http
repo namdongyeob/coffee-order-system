@@ -1,4 +1,5 @@
-# Issue #8 Level 6 실제 요청 재현 파일입니다.
+# Issue #8 Level 6 실행 가능한 요청 템플릿과 별도 QA 관찰 원문입니다.
+### 실행 가능한 요청 템플릿
 ### 주문용 포인트 충전
 POST http://localhost:8080/api/points/charge
 Content-Type: application/json
@@ -7,10 +8,6 @@ Content-Type: application/json
   "userId": 808,
   "amount": 10000
 }
-
-# 2026-07-11 실제 응답
-# HTTP 200
-# {"userId":808,"balance":10000}
 
 ### 주문 생성과 Kafka producer 연결
 POST http://localhost:8080/api/orders
@@ -21,6 +18,15 @@ Content-Type: application/json
   "menuId": 1
 }
 
-# 2026-07-11 실제 응답
-# HTTP 201
-# {"orderId":1,"userId":808,"menuId":1,"menuName":"아메리카노","paidAmount":4500,"status":"PAID","orderedAt":"2026-07-11T08:17:00.722201"}
+
+### 2026-07-11 독립 QA 관찰 원문. 아래는 실행 블록이 아닙니다.
+# charge request: {"userId":808,"amount":10000}
+# charge status: 200
+# charge response: {"userId":808,"balance":10000}
+# order request: {"userId":808,"menuId":1}
+# order status: 201
+# order response: {"orderId":2,"userId":808,"menuId":1,"menuName":"아메리카노","paidAmount":4500,"status":"PAID","orderedAt":"2026-07-11T08:41:11.7107765"}
+# Kafka consumer method: Kafka container bridge IP + --add-host container ID mapping + internal BROKER listener :9093 + kcat
+# Kafka key: 808
+# Kafka value: {"eventId":"13247f60-c5a7-4a7c-a771-39b225d191a4","orderId":2,"userId":808,"menuId":1,"paidAmount":4500,"orderedAt":"2026-07-11T08:41:11.7107765"}
+# QA cleanup: application and infrastructure resources cleaned
