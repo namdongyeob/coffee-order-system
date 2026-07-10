@@ -23,6 +23,7 @@
 - Kafka, Redis, Redisson, DLT가 핵심인 Issue는 Level 4 Infra Integration으로 검증합니다.
 - Testcontainers는 필요한 검증 레벨에서만 사용합니다. Controller 계약만 확인하는 Issue에 무거운 full context 테스트를 기본값으로 두지 않습니다.
 - production 코드, 테스트, 의존성, build 설정을 바꾼 PR은 업데이트 전 전체 `./gradlew.bat test --no-daemon` smoke test를 실행합니다.
+- Level 1 전체 회귀 smoke는 전체 suite 상태를 기록할 뿐이며 Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다.
 - 문서·Issue 템플릿만 바꾼 PR은 로컬에서 하네스 테스트와 링크 검사를 우선하고, 전체 Gradle 테스트는 GitHub Actions 결과로 확인할 수 있습니다. workflow나 검증 스크립트를 바꾼 PR은 로컬에서도 관련 전체 검증을 한 번 실행합니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 

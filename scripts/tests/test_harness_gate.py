@@ -51,6 +51,94 @@ VERIFICATION_HEADER = """# 검증 로그
 | --- | --- | --- | --- | --- | --- | --- |
 """
 
+LEGACY_VERIFICATION_IDENTIFIERS = {
+	("project bootstrap inspection", "Level 1", "`./gradlew.bat test`"),
+	("dependency and docs audit", "Level 1", "`./gradlew.bat test`"),
+	(
+		"Issue #2 project standards",
+		"Level 0",
+		'`rg -n "issue-completion-checklist|agent-mistakes|verification-log|layered-design-policy" AGENTS.md .github docs`',
+	),
+	("Issue #2 project standards", "Level 1", "`./gradlew.bat test`"),
+	(
+		"Issue #3 Flyway schema",
+		"Level 3",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.DatabaseSchemaIntegrationTest`",
+	),
+	("Issue #3 Flyway schema", "Level 1", "`./gradlew.bat test`"),
+	(
+		"Issue #4 menu list API",
+		"Level 2",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.menu.controller.MenuControllerTest --no-daemon`",
+	),
+	("Issue #4 menu list API", "Level 1", "`./gradlew.bat test --no-daemon`"),
+	(
+		"Issue #5 point charge API",
+		"Level 2",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #5 point charge API",
+		"Level 3",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	("Issue #5 point charge API", "Level 1", "`./gradlew.bat test --no-daemon`"),
+	(
+		"Issue #6 order payment API",
+		"Level 2",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.order.controller.OrderControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 order payment API",
+		"Level 3",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.order.controller.OrderControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 order payment concurrency fix",
+		"Level 3",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 related point regression",
+		"Level 2",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 related point regression",
+		"Level 3",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	("Issue #6 order payment API", "Level 1", "`./gradlew.bat test --no-daemon`"),
+	(
+		"Issue #23 harness quality gates",
+		"Level 0",
+		'`python -m unittest discover -s scripts/tests -p "test_*.py"`',
+	),
+	(
+		"Issue #23 harness repository gate",
+		"Level 0",
+		"`python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links`",
+	),
+	(
+		"Issue #23 Git hooks",
+		"Level 0",
+		"`git hook run pre-commit`, `git hook run pre-push`",
+	),
+	("Issue #23 Java compile", "Level 1", "`.\\gradlew.bat compileJava --no-daemon`"),
+	("Issue #23 full regression", "Level 1", "`.\\gradlew.bat test --no-daemon`"),
+	("Issue #23 final regression", "Level 1", "`.\\gradlew.bat test --no-daemon`"),
+	(
+		"Issue #23 coordinator-only follow-up",
+		"Level 0",
+		"QA Agent가 하네스 테스트, repository gate, diff check 실행",
+	),
+	(
+		"Issue #23 adaptive orchestration",
+		"Level 0",
+		"QA Agent의 28건 테스트, PR body validation, harness, diff, YAML 검증과 Reviewer 확인",
+	),
+}
+
 
 def verification_log(*rows: str) -> str:
 	return VERIFICATION_HEADER + "\n".join(rows) + "\n"
@@ -204,6 +292,27 @@ class EvidenceValidationTest(unittest.TestCase):
 
 
 class VerificationLogValidationTest(unittest.TestCase):
+	def test_code_span_delimiter_length_preserves_internal_pipes(self):
+		commands = (
+			'`printf "single|pipe"`',
+			'``printf "double|pipe"``',
+			'```printf "triple|pipe"```',
+			'````printf "quadruple|pipe"````',
+		)
+		for command in commands:
+			with self.subTest(command=command):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | {command} | 완료 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_escaped_pipe_is_not_a_column_separator(self):
+		markdown = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | printf a\\|b | 완료 |"
+		)
+
+		self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
 	def test_levels_zero_through_seven_are_valid(self):
 		for level in range(8):
 			with self.subTest(level=level):
@@ -229,6 +338,14 @@ class VerificationLogValidationTest(unittest.TestCase):
 		errors = harness_gate.validate_verification_log(markdown, 23)
 
 		self.assertTrue(any("invalid 결과 'SUCCESS'" in error for error in errors))
+
+	def test_fail_and_partial_are_valid_log_results(self):
+		for result in ("FAIL", "PARTIAL"):
+			with self.subTest(result=result):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level 0 | {result} | 범위 | `command` | 비고 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
 
 	def test_every_data_row_must_have_seven_columns(self):
 		markdown = verification_log(
@@ -284,6 +401,32 @@ class VerificationLogValidationTest(unittest.TestCase):
 			write_issue_evidence(root, VALID_ACCEPTANCE, log)
 			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
 
+	def test_required_level_6_pass_for_same_issue_succeeds(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 6 required: NO", "Level 6 required: YES")
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 6 | PASS | 실제 HTTP | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, acceptance, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_required_level_6_rejects_missing_wrong_issue_wrong_level_and_partial(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 6 required: NO", "Level 6 required: YES")
+		rows = (
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #22 | Level 6 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #23 | Level 5 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #23 | Level 6 | PARTIAL | 범위 | `command` | 비고 |",
+		)
+		for row in rows:
+			with self.subTest(row=row):
+				with tempfile.TemporaryDirectory() as temp_dir:
+					root = Path(temp_dir)
+					write_issue_evidence(root, acceptance, verification_log(row))
+					errors = harness_gate.validate_issue_evidence(root, 23)
+					self.assertTrue(any("Issue #23 required Level 6 PASS" in error for error in errors))
+
 	def test_repository_verification_log_is_normalized(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		markdown = (repository_root / "docs" / "testing" / "verification-log.md").read_text(
@@ -291,6 +434,30 @@ class VerificationLogValidationTest(unittest.TestCase):
 		)
 
 		self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_repository_keeps_legacy_verification_identifiers(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		markdown = (repository_root / "docs" / "testing" / "verification-log.md").read_text(
+			encoding="utf-8"
+		)
+		rows, errors = harness_gate._verification_rows(markdown)
+		actual_identifiers = {
+			(row["Issue"], row["Level"], row["명령/Evidence"])
+			for row in rows
+		}
+
+		self.assertEqual([], errors)
+		self.assertEqual(25, len(LEGACY_VERIFICATION_IDENTIFIERS))
+		self.assertEqual(set(), LEGACY_VERIFICATION_IDENTIFIERS - actual_identifiers)
+
+	def test_level_1_smoke_does_not_replace_focused_evidence(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		strategy = (repository_root / "docs" / "testing" / "test-strategy.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn("Level 1 전체 회귀 smoke는 전체 suite 상태를 기록", strategy)
+		self.assertIn("Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다", strategy)
 
 
 class PullRequestBodyValidationTest(unittest.TestCase):

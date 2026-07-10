@@ -141,17 +141,32 @@ def _split_markdown_table_row(line: str) -> list[str]:
 
     cells: list[str] = []
     cell: list[str] = []
-    in_code = False
+    code_delimiter_length: int | None = None
     escaped = False
-    for char in stripped[1:-1]:
+    content = stripped[1:-1]
+    index = 0
+    while index < len(content):
+        char = content[index]
         if char == "`" and not escaped:
-            in_code = not in_code
-        if char == "|" and not in_code and not escaped:
+            end = index
+            while end < len(content) and content[end] == "`":
+                end += 1
+            delimiter_length = end - index
+            if code_delimiter_length is None:
+                code_delimiter_length = delimiter_length
+            elif delimiter_length == code_delimiter_length:
+                code_delimiter_length = None
+            cell.append(content[index:end])
+            escaped = False
+            index = end
+            continue
+        if char == "|" and code_delimiter_length is None and not escaped:
             cells.append("".join(cell).strip())
             cell = []
         else:
             cell.append(char)
         escaped = char == "\\" and not escaped
+        index += 1
     cells.append("".join(cell).strip())
     return cells
 
