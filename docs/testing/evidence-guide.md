@@ -14,6 +14,8 @@ docs/testing/evidence/issue-{number}/
 
 | 파일 | 내용 |
 | --- | --- |
+| `acceptance-criteria.md` | Issue 완료 조건, Execution mode, Level 5/6 필요 여부·이유. |
+| `attempt-log.md` | Generate, Evaluate, 실패 원인, 수정 범위, 재검증, 다음 Attempt 입력. |
 | `commands.md` | 실행한 명령, 목적, 결과 요약. |
 | `manual-qa.md` | 사람이 확인한 API 응답, DB query, CLI output, 스크린샷 위치. |
 | `test-output.txt` | 필요한 경우 테스트 출력 원문 또는 핵심 발췌. |
@@ -28,6 +30,21 @@ docs/testing/evidence/issue-{number}/
 | k6 | script, summary output, 관찰 결과. |
 | UI/TUI | screenshot, terminal capture, visual QA 메모. |
 
+## Attempt 연결 규칙
+
+`docs/testing/evidence/attempt-log-template.md`를 복사해 Issue별 디렉터리에 둡니다. Evaluate가 FAIL이면 실패 원인과 허용된 수정 범위를 적고, 다음 Agent에는 마지막 `Next Attempt` 절만 전달합니다. PASS인 경우에도 재검증 명령과 결과를 남기고 `Next Attempt`를 `없음`으로 닫습니다.
+
+Execution mode와 Level 5/6 결정은 다음 고정 형식을 사용합니다. `scripts/harness_gate.py`가 이 필드를 검사합니다.
+
+```text
+Execution mode: SOLO, STANDARD, STRICT 중 하나
+Execution mode reason: 비어 있지 않은 선택 근거
+Level 5 required: YES 또는 NO
+Level 5 reason: 비어 있지 않은 이유
+Level 6 required: YES 또는 NO
+Level 6 reason: 비어 있지 않은 이유
+```
+
 ## PR 작성 기준
 
 PR 본문에는 다음을 남깁니다.
@@ -37,6 +54,7 @@ PR 본문에는 다음을 남깁니다.
 - Adversarial QA.
 - Cleanup receipt.
 - Evidence files.
+- Codex를 사용했다면 CLI version, model, reasoning effort, 실제 관찰된 sandbox/approval.
 
 ## 주의
 

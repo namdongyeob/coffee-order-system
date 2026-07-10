@@ -21,6 +21,23 @@
 | --- | --- | --- |
 |  |  |  |
 
+## 실제 실행 검증 결정
+
+<!-- Issue evidence의 Execution mode, reason, YES 또는 NO 값을 그대로 복사합니다. -->
+Execution mode: STANDARD
+Execution mode reason: Issue evidence의 선택 근거를 복사하고 이 안내 문구를 바꿉니다.
+Level 5 required: NO
+Level 5 reason: Issue evidence의 결정을 복사하고 이 안내 문구를 바꿉니다.
+Level 6 required: NO
+Level 6 reason: Issue evidence의 결정을 복사하고 이 안내 문구를 바꿉니다.
+
+## Agent 실행 환경
+
+- CLI version:
+- Model:
+- Reasoning effort:
+- Observed sandbox / approval:
+
 ## Evidence
 
 - Automated verification:
@@ -31,16 +48,9 @@
 
 ## 완료 전 체크리스트
 
-- [ ] 관련 문서와 대상 Issue 본문을 읽었습니다.
-- [ ] 읽은 문서와 서브에이전트 사용 여부를 PR 본문에 적었습니다.
-- [ ] Issue 범위 밖 구현이나 리팩터링을 하지 않았습니다.
-- [ ] Controller, Service, Repository 책임이 섞이지 않았습니다.
-- [ ] 필요한 테스트 또는 검증 명령을 실행했습니다.
-- [ ] 작업 종류에 맞는 evidence를 남겼습니다.
-- [ ] `docs/testing/verification-log.md`에 검증 결과를 기록했습니다.
-- [ ] 새로 발견한 반복 실수나 주의점이 있으면 `docs/ai/agent-mistakes.md`에 기록했습니다.
-- [ ] API, DB, 정책, 복구 방식이 바뀌면 관련 문서를 함께 갱신했습니다.
-- [ ] PR 본문에 검증 결과와 남은 위험을 적었습니다.
+- [ ] `docs/ai/issue-completion-checklist.md`의 해당 항목을 모두 확인했습니다.
+- [ ] Issue evidence의 Execution mode, Level 5/6 결정, 검증 결과, 남은 위험을 이 PR 본문과 일치시켰습니다.
+- [ ] Merge와 Issue close는 사람의 승인을 기다립니다.
 
 ## 미검증 항목
 

@@ -27,4 +27,5 @@
 - Mock 테스트만 있는 경우 실제 검증 미완료로 표시합니다.
 - Kafka/Redis 통합 검증이 없으면 Level 4 미완료로 표시합니다.
 - 로컬 서버 기동과 실제 API 호출이 없으면 Level 5, Level 6 미완료로 표시합니다.
+- Dev 결과와 독립적으로 필요한 focused test, 전체 smoke test, 실제 환경 검증을 실행합니다.
 - 검증 누락은 직접 수정하지 않고 follow-up Issue 후보로 남깁니다.

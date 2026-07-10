@@ -1,0 +1,7 @@
+interface:
+  display_name: "Coffee Order Issue Loop"
+  short_description: "Issue 단위 구현과 검증 품질 루프를 적용합니다"
+  default_prompt: "Use $coffee-order-issue-loop to require a machine-readable SOLO, STANDARD, or STRICT mode before dispatch. Read the project policy for role and write permissions, the test strategy for test execution, and use this Skill only for mechanical blocking, minimal dispatch packets, and bounded retry."
+
+policy:
+  allow_implicit_invocation: true

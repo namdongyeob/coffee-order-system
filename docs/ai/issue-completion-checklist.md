@@ -5,18 +5,28 @@
 ## 공통 체크리스트
 
 - [ ] 관련 문서와 대상 Issue 본문을 읽었습니다.
+- [ ] `acceptance-criteria.md`에 `Execution mode: SOLO|STANDARD|STRICT`와 비어 있지 않은 선택 이유를 기록했습니다.
+- [ ] `acceptance-criteria.md`에 Level 5/6 필요 여부와 이유를 기록했습니다.
+- [ ] `attempt-log.md`에 실패 원인, 수정 범위, 재검증 결과, 다음 입력을 기록했습니다.
 - [ ] PR 본문에 읽은 문서 목록을 남겼습니다.
 - [ ] PR 본문에 서브에이전트 사용 여부와 이유를 남겼습니다.
 - [ ] Issue 범위 밖 구현이나 리팩터링을 하지 않았습니다.
 - [ ] Controller, Service, Repository 책임이 섞이지 않았습니다.
 - [ ] 필요한 테스트 또는 검증 명령을 실행했습니다.
-- [ ] Review Agent와 QA Agent가 같은 워크스페이스에서 테스트를 재실행하지 않았습니다.
-- [ ] Main Agent가 최종 focused test와 전체 smoke test를 단일 실행으로 재검증했습니다.
+- [ ] 선택한 execution mode의 필수 역할, 독립 검증, Docs 조건을 `docs/ai/orchestration-policy.md`와 일치시켰습니다.
+- [ ] `STANDARD` 또는 `STRICT`에서 Main Coordinator가 파일 수정, 코드리뷰, 테스트, commit, push를 수행하지 않았습니다.
+- [ ] GitHub Actions의 컴파일과 전체 테스트 결과를 확인했습니다.
 - [ ] 작업 종류에 맞는 evidence 파일 또는 산출물을 남겼습니다.
 - [ ] `docs/testing/verification-log.md`에 검증 결과를 기록했습니다.
 - [ ] 새로 발견한 반복 실수나 주의점이 있으면 `docs/ai/agent-mistakes.md`에 기록했습니다.
 - [ ] API, DB, 정책, 복구 방식이 바뀌면 관련 문서를 함께 갱신했습니다.
 - [ ] PR 본문에 검증 결과와 남은 위험을 적었습니다.
+
+## Execution Mode 확인
+
+- [ ] `SOLO`는 애플리케이션 동작, build, runtime 변경이 없고 Solo Agent 한 명의 빠른 문서·하네스 검사만 수행했습니다.
+- [ ] `STANDARD`는 제한된 단일 모듈 변경이며 STRICT 위험 조건이 없고 정책의 Combined Verifier와 CI 결과를 확인했습니다.
+- [ ] `STRICT`는 schema, transaction, lock, concurrency, Kafka, Redis, Redisson, DLT, security, cross-module 또는 event contract, performance, recovery, harness 또는 workflow policy 위험을 분류하고 정책의 별도 Review, QA, Docs, CI 결과를 확인했습니다.
 
 ## 기록 기준
 
