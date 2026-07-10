@@ -1,18 +1,22 @@
 # Issue #25 Manual QA
 
-## Status
+## QA Pre-evidence 상태
 
-- PENDING: Issue #25 구현 전이므로 사람 확인, API 응답, DB query, CLI output, 스크린샷이 아직 없습니다.
+- Final pre-evidence QA는 전체 `unittest` 45건 PASS, `py_compile` PASS, `git diff --check` PASS를 보고했습니다.
+- Final Review는 PASS였고 findings는 없었습니다.
+- pre-evidence repository gate는 Issue #25 결과 행이 아직 없어 한 건으로만 BLOCKED였습니다.
+- 이 문서와 verification-log 행을 추가한 뒤에는 repository gate를 다시 실행하지 않았습니다.
 
-## Planned Manual Checks
+## API 및 런타임 수동 검사
 
-| Check | Evidence | Result |
+| 확인 항목 | 상태 | 사유 |
 | --- | --- | --- |
-| 잘못된 Level 값 거부 | harness gate 또는 단위 테스트 출력 | PENDING: not executed |
-| 복합 Level 표기 거부 | harness gate 또는 단위 테스트 출력 | PENDING: not executed |
-| required YES와 동일 Issue/Level PASS 누락 검출 | harness gate 또는 단위 테스트 출력 | PENDING: not executed |
-| required NO에서 PASS 행 미강제 | harness gate 또는 단위 테스트 출력 | PENDING: not executed |
+| Java/Gradle 실행 | NO | Issue #25는 Java 애플리케이션 런타임을 변경하지 않는 저장소 하네스 작업이며 Level 5 required가 NO입니다. |
+| Level 5 수동 검증 | NO | Java 애플리케이션 런타임 변경이 없고 Level 5 required가 NO입니다. |
+| Level 6 API 수동 검증 | NO | 실제 HTTP API 계약 또는 요청 경로 변경이 없고 Level 6 required가 NO입니다. |
+| API manual test | NO | Issue 범위가 parser, verification-log 형식, evidence 교차 검사에 한정되어 API를 실행하지 않았습니다. |
 
-## Notes
+## 미검증 항목
 
-- PENDING: 구현과 검증을 완료한 뒤 실제 관찰 결과만 기록합니다. 추측한 PASS 또는 FAIL은 기록하지 않습니다.
+- evidence 추가 후 최종 repository gate는 미검증입니다. pre-evidence 결과의 유일한 차단 사유는 Issue #25 결과 행 부재였습니다.
+- GitHub Actions CI는 미검증입니다. 이번 범위에서 push와 PR 생성이 금지되었습니다.
