@@ -56,8 +56,35 @@ Branch: codex/issue-29-harness-baseline
 
 - 없음.
 
+## Attempt 3
+
+### Generate
+
+- 외부 Review가 발견한 metrics 명령 기록 불일치, stale PR 본문 snapshot, 반복 실수 기록 조건 누락을 수정했습니다.
+
+### Evaluate
+
+- 외부 Review가 반환한 수정 필요 3건을 반영했습니다. GitHub PR 본문을 정본으로 유지하고 저장소 내부 snapshot과 직접 참조는 제거했습니다.
+
+### Failure Cause
+
+- `commands.md`의 metrics 행이 이후 확정된 Agent 수를 반영하지 못했고, 완료 주장 별도 파일 금지 원칙과 달리 PR 본문 snapshot이 남아 있었습니다. 반복 실수 기록 조건도 실제 하네스 실패만 허용해 evidence가 있는 반복 workflow·오케스트레이션 절차 실패를 포괄하지 못했습니다.
+
+### Change Scope
+
+- `agent-mistakes.md`, Issue #29 attempt·commands·metrics, verification log와 stale PR 본문 snapshot 삭제만 허용합니다.
+
+### Reverification
+
+- focused harness unit, 삭제된 snapshot 없이 Issue #29 repository gate와 링크 검사, stale snapshot 참조 검색, `git diff --check`을 실행합니다.
+
+### Next Attempt
+
+- 없음.
+
 ## 최종 독립 검증
 
-- Review 재검토는 PASS했습니다. Review는 테스트를 실행하지 않았으며, 재현 명령 존재, metrics의 0 이상 정수 형식, Legacy/backfill 단일 정본과 Test Strategy 링크, Issue #29 Acceptance Criteria 범위를 확인했습니다.
+- 최초 Review 재검토는 PASS했습니다. Review는 테스트를 실행하지 않았으며, 재현 명령 존재, metrics의 0 이상 정수 형식, Legacy/backfill 단일 정본과 Test Strategy 링크, Issue #29 Acceptance Criteria 범위를 확인했습니다. 이후 외부 Review가 추가 수정 필요 3건을 반환해 Attempt 3에서 반영했습니다.
 - QA는 HEAD `f3b8e03`에서 PASS했습니다. harness unit 48건, repository gate, Issue branch 허용과 main 보호 branch 거부, diff 정적 검사와 `origin/main...HEAD` 범위, metrics 정수 필드 7개를 확인했습니다.
 - QA 결함은 0건입니다. 애플리케이션, build, 인프라 경로는 변경되지 않았습니다.
+- Attempt 3 Dev 재검증은 harness unit 48건, snapshot 삭제 후 repository link gate, Issue #29 stale 직접 참조 0건, `git diff --check` 종료 코드 0을 확인했습니다. 독립 재검토와 GitHub Actions CI는 pending입니다.

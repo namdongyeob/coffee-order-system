@@ -7,12 +7,12 @@ Measured at: 2026-07-11
 
 | 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| STRICT | 4 | 미측정 | 1 | 0 | 3 | 0 | 0 | 5 |
+| STRICT | 4 | 미측정 | 2 | 0 | 6 | 0 | 0 | 5 |
 
 ## 측정 근거
 
-- Dev, Review, QA, Docs Agent의 실행 기록입니다. 최초 Review FAIL에서 수정 필요 3건이 반환됐고 최종 재검토는 PASS했습니다. QA는 HEAD `f3b8e03`에서 결함 0건으로 PASS했습니다.
-- 재시도는 Review FAIL 뒤 허용된 1회 Dev 재시도이며, 정체는 없습니다.
+- Dev, Review, QA, Docs Agent의 역할 실행 기록입니다. 최초 Review FAIL과 후속 외부 Review에서 각각 수정 필요 3건이 반환돼 Review 결함은 총 6건입니다. QA는 HEAD `f3b8e03`에서 결함 0건으로 PASS했습니다.
+- 재시도는 최초 Review FAIL과 후속 외부 Review 뒤 실행한 Dev 수정 Attempt 2건이며, 정체는 없습니다.
 - 읽은 핵심 문서는 `rule-source-map.md`와 정본 네 파일입니다. Issue 본문은 수에 포함하지 않습니다.
 
 ## Evidence links
