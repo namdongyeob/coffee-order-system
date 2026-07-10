@@ -1,0 +1,8 @@
+Baseline: BUILD SUCCESSFUL in 1m 44s
+TDD RED: compileTestJava failed with 6 cannot find symbol errors for missing OrderCompletedEvent and OrderEventPublisher
+Focused and Level 4 final after self-review: BUILD SUCCESSFUL in 1m 23s
+Level 5: Started CoffeeOrderSystemApplication in 45.924 seconds
+Level 6 HTTP: charge 200, order 201
+Level 6 Kafka payload CLI: PARTIAL, Broker transport failure caused by Testcontainers advertised listener reachability
+Full regression final after self-review: BUILD SUCCESSFUL in 1m 26s
+Pre-push hook: FAIL, Issue #8 Level 5/6 PASS rows are pending in Docs-owned verification-log.md

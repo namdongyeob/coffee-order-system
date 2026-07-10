@@ -1,0 +1,26 @@
+# Issue #8 Level 6 실제 요청 재현 파일입니다.
+### 주문용 포인트 충전
+POST http://localhost:8080/api/points/charge
+Content-Type: application/json
+
+{
+  "userId": 808,
+  "amount": 10000
+}
+
+# 2026-07-11 실제 응답
+# HTTP 200
+# {"userId":808,"balance":10000}
+
+### 주문 생성과 Kafka producer 연결
+POST http://localhost:8080/api/orders
+Content-Type: application/json
+
+{
+  "userId": 808,
+  "menuId": 1
+}
+
+# 2026-07-11 실제 응답
+# HTTP 201
+# {"orderId":1,"userId":808,"menuId":1,"menuName":"아메리카노","paidAmount":4500,"status":"PAID","orderedAt":"2026-07-11T08:17:00.722201"}
