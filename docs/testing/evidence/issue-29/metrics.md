@@ -7,13 +7,13 @@ Measured at: 2026-07-11
 
 | 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| STRICT | 1 | 미측정 | 0 | 0 | 미측정 | 미측정 | 0 | 4 |
+| STRICT | 2 | 미측정 | 1 | 0 | 3 | 0 | 0 | 5 |
 
 ## 측정 근거
 
-- 현재 Dev 실행 기록의 snapshot입니다. STRICT의 독립 Review·QA와 CI 결과는 이 시점에 pending이므로 결함 수를 추정하지 않았습니다.
-- 재시도와 정체는 `attempt-log.md`의 Attempt 1과 Main 상태 기록을 기준으로 합니다.
-- 읽은 핵심 문서는 Issue #29와 정본 네 파일이며, metrics 수에는 Issue 본문을 포함하지 않습니다.
+- Dev와 Review Agent의 실행 기록 snapshot입니다. Review FAIL에서 수정 필요 3건이 반환됐고, QA는 아직 실행되지 않아 QA 결함 수는 정수 `0`이며 pending 상태를 추정하지 않았습니다.
+- 재시도는 Review FAIL 뒤 허용된 1회 Dev 재시도이며, 정체는 없습니다.
+- 읽은 핵심 문서는 `rule-source-map.md`와 정본 네 파일입니다. Issue 본문은 수에 포함하지 않습니다.
 
 ## Evidence links
 

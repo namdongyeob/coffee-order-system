@@ -28,4 +28,30 @@ Branch: codex/issue-29-harness-baseline
 
 ### Next Attempt
 
+- Review FAIL의 허용된 1회 Dev 재시도에서 재현 조건, metrics 정수, Legacy 정본 중복만 수정합니다.
+
+## Attempt 2
+
+### Generate
+
+- PR #31 failure log 확인 명령을 기록하고, metrics의 count 값을 0 이상의 정수로 정규화했으며, Legacy/backfill 설명은 Evidence Guide 정본만 유지했습니다.
+
+### Evaluate
+
+- Review FAIL의 세 지적사항만 수정했습니다. Review 재검토와 QA는 다음 역할의 독립 검증 대상입니다.
+
+### Failure Cause
+
+- Attempt 1은 PR #31 실패 기록에 재현 확인 명령이 없었고 metrics count가 정수 형식을 따르지 않았으며, Legacy/backfill 규칙을 test-strategy에 복제했습니다.
+
+### Change Scope
+
+- `agent-mistakes.md`, `test-strategy.md`, metrics template, Issue #29 metrics·attempt·commands·verification log만 수정합니다.
+
+### Reverification
+
+- `gh run view 29086275802 --repo namdongyeob/coffee-order-system --log-failed`, focused harness unit, repository gate, diff 검사를 실행합니다.
+
+### Next Attempt
+
 - 없음.

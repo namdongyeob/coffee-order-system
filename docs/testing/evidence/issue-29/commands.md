@@ -9,3 +9,8 @@
 | `python -m unittest scripts.tests.test_harness_gate` | 관련 전체 harness unit 검증 | PASS. 48건이 종료 코드 0으로 통과했습니다. |
 | `python scripts/harness_gate.py --issue 29 --base-ref origin/main --check-links --include-worktree` | #29 evidence와 변경 Markdown 링크 검사 | PASS. 종료 코드 0. |
 | `git diff --check` | 공백·패치 형식 정적 검사 | PASS. 오류 출력이 없었습니다. CRLF 변환 경고는 Git 작업 트리 경고이며 diff 오류가 아닙니다. |
+| `gh run view 29086275802 --repo namdongyeob/coffee-order-system --log-failed` | PR #31 실제 harness 실패 재현 조건 확인 | PASS. 누락된 Execution mode·reason과 종료 코드 1을 확인했습니다. |
+| `python -m unittest scripts.tests.test_harness_gate` | focused harness unit 재실행 | PASS. 48건이 종료 코드 0으로 통과했습니다. |
+| `python scripts/harness_gate.py --issue 29 --base-ref origin/main --check-links --include-worktree` | Issue #29 repository gate 재실행 | PASS. 종료 코드 0. |
+| metrics integer·Legacy canonical-link PowerShell 검사 | metrics count 정수와 Legacy/backfill 단일 정본 확인 | PASS. `STRICT | 2 | 미측정 | 1 | 0 | 3 | 0 | 0 | 5` 행과 Evidence Guide 링크를 확인했습니다. |
+| `git diff --check` | Review FAIL 수정 후 공백·패치 형식 검사 | PASS. 오류 출력이 없었습니다. |
