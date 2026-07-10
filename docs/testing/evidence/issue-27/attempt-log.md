@@ -31,3 +31,31 @@ Branch: codex/issue-27-review-qa-gates
 ### Next Attempt
 
 - 없음.
+
+## Attempt 2
+
+### Generate
+
+- Claude 리뷰에서 누락으로 지적한 Review Router의 반복 실수와 계층 설계 정책을 필수 문서에 복원했습니다.
+- Review Gate에 DLT의 테스트·검증 가능성과 동작 변경 문서 갱신 검토를 추가했습니다.
+- 규칙 정본 지도에 QA 판정 기준 행을 추가했습니다.
+
+### Evaluate
+
+- Level 0 링크, 삭제·이동 참조, Review hot path 5개, diff 검사를 재실행해 PASS했습니다.
+
+### Failure Cause
+
+- 최초 Review hot path가 반복 실수와 계층 설계 정책을 읽지 않아 기존 Review 흐름의 검토 범위를 축소했습니다.
+
+### Change Scope
+
+- 리뷰 지적을 반영한 `context-router.md`, `review-gate.md`, `rule-source-map.md`와 #27 evidence, verification log만 허용합니다.
+
+### Reverification
+
+- `harness_gate` 링크 검사, 삭제·이동 참조 검색, 고정 문자열 기반 Review hot path 링크 수 확인, `git diff --check`을 실행해 PASS했습니다.
+
+### Next Attempt
+
+- 없음.

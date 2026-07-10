@@ -11,6 +11,7 @@
 | 실제 LazyCodex 또는 하이브리드 적용 | `docs/ai/lazycodex-runbook.md` | 오케스트레이션 정책 |
 | 검증 Level과 테스트 실행 소유권 | `docs/testing/test-strategy.md` | `qa-gate.md`, Skill |
 | Review 판정 기준 | `docs/ai/review-gate.md` | `implementation-guardrails.md`, Context Router |
+| QA 판정 기준 | `docs/ai/qa-gate.md` | `test-strategy.md`, Context Router |
 | evidence 파일, Execution mode, Attempt 형식 | `docs/testing/evidence-guide.md` | Issue/PR 템플릿, harness gate |
 | 완료 전 검사 목록 | `docs/ai/issue-completion-checklist.md` | PR 템플릿 |
 | 검증 실행 결과 | `docs/testing/verification-log.md` | Issue별 evidence |
