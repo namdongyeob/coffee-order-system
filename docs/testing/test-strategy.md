@@ -4,13 +4,16 @@
 
 | Level | 대상 |
 | --- | --- |
-| Level 1 Unit | 서비스와 도메인 정책. |
-| Level 2 Controller | 요청, 응답, 검증, 에러 포맷. |
-| Level 3 DB Integration | JPA, 트랜잭션, 비관적 락, 동시성. |
-| Level 4 Infra Integration | Kafka, Redis, Redisson, DLT. |
-| Level 5 Local Run | 로컬 애플리케이션 기동 후 API 호출. |
-| Level 6 Postman/curl/http | 실제 API 요청 산출물. |
-| Level 7 k6 | Load, Stress, Spike 관찰. |
+| Level 0 | 문서, 정적 검사, 저장소 하네스, 검증 도구 자체. |
+| Level 1 | 빌드, Unit 테스트, 전체 회귀 smoke. |
+| Level 2 | Controller/API 요청·응답·검증·에러 계약. |
+| Level 3 | DB, 트랜잭션, JPA, 락, 동시성 통합. |
+| Level 4 | Kafka, Redis, Redisson, DLT 인프라 통합. |
+| Level 5 | 로컬 애플리케이션 기동. |
+| Level 6 | 실제 Postman, curl, http 요청. |
+| Level 7 | k6 Load, Stress, Spike 관찰. |
+
+`verification-log.md`의 Level 열에는 위 표의 `Level 0`부터 `Level 7`까지만 기록합니다. 한 행에는 하나의 Level만 기록하고 세부 대상은 검증 범위 열에 적습니다. 결과 열의 허용값은 `PASS`, `FAIL`, `PARTIAL`이며 완료 근거에는 `PASS`만 사용합니다.
 
 ## 실행 속도와 신뢰성 기준
 
@@ -20,6 +23,7 @@
 - Kafka, Redis, Redisson, DLT가 핵심인 Issue는 Level 4 Infra Integration으로 검증합니다.
 - Testcontainers는 필요한 검증 레벨에서만 사용합니다. Controller 계약만 확인하는 Issue에 무거운 full context 테스트를 기본값으로 두지 않습니다.
 - production 코드, 테스트, 의존성, build 설정을 바꾼 PR은 업데이트 전 전체 `./gradlew.bat test --no-daemon` smoke test를 실행합니다.
+- Level 1 전체 회귀 smoke는 전체 suite 상태를 기록할 뿐이며 Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다.
 - 문서·Issue 템플릿만 바꾼 PR은 로컬에서 하네스 테스트와 링크 검사를 우선하고, 전체 Gradle 테스트는 GitHub Actions 결과로 확인할 수 있습니다. workflow나 검증 스크립트를 바꾼 PR은 로컬에서도 관련 전체 검증을 한 번 실행합니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 

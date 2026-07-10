@@ -45,6 +45,120 @@ Branch: codex/issue-23-harness-quality-gates
 - 없음
 """
 
+VERIFICATION_HEADER = """# 검증 로그
+
+| 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
+| --- | --- | --- | --- | --- | --- | --- |
+"""
+
+LEGACY_VERIFICATION_IDENTIFIERS = {
+	("project bootstrap inspection", "Level 1", "`./gradlew.bat test`"),
+	("dependency and docs audit", "Level 1", "`./gradlew.bat test`"),
+	(
+		"Issue #2 project standards",
+		"Level 0",
+		'`rg -n "issue-completion-checklist|agent-mistakes|verification-log|layered-design-policy" AGENTS.md .github docs`',
+	),
+	("Issue #2 project standards", "Level 1", "`./gradlew.bat test`"),
+	(
+		"Issue #3 Flyway schema",
+		"Level 3",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.DatabaseSchemaIntegrationTest`",
+	),
+	("Issue #3 Flyway schema", "Level 1", "`./gradlew.bat test`"),
+	(
+		"Issue #4 menu list API",
+		"Level 2",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.menu.controller.MenuControllerTest --no-daemon`",
+	),
+	("Issue #4 menu list API", "Level 1", "`./gradlew.bat test --no-daemon`"),
+	(
+		"Issue #5 point charge API",
+		"Level 2",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #5 point charge API",
+		"Level 3",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	("Issue #5 point charge API", "Level 1", "`./gradlew.bat test --no-daemon`"),
+	(
+		"Issue #6 order payment API",
+		"Level 2",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.order.controller.OrderControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 order payment API",
+		"Level 3",
+		"`./gradlew.bat clean test --tests com.example.coffeeordersystem.order.controller.OrderControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 order payment concurrency fix",
+		"Level 3",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 related point regression",
+		"Level 2",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	(
+		"Issue #6 related point regression",
+		"Level 3",
+		"`./gradlew.bat test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon`",
+	),
+	("Issue #6 order payment API", "Level 1", "`./gradlew.bat test --no-daemon`"),
+	(
+		"Issue #23 harness quality gates",
+		"Level 0",
+		'`python -m unittest discover -s scripts/tests -p "test_*.py"`',
+	),
+	(
+		"Issue #23 harness repository gate",
+		"Level 0",
+		"`python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links`",
+	),
+	(
+		"Issue #23 Git hooks",
+		"Level 0",
+		"`git hook run pre-commit`, `git hook run pre-push`",
+	),
+	("Issue #23 Java compile", "Level 1", "`.\\gradlew.bat compileJava --no-daemon`"),
+	("Issue #23 full regression", "Level 1", "`.\\gradlew.bat test --no-daemon`"),
+	("Issue #23 final regression", "Level 1", "`.\\gradlew.bat test --no-daemon`"),
+	(
+		"Issue #23 coordinator-only follow-up",
+		"Level 0",
+		"QA Agent가 하네스 테스트, repository gate, diff check 실행",
+	),
+	(
+		"Issue #23 adaptive orchestration",
+		"Level 0",
+		"QA Agent의 28건 테스트, PR body validation, harness, diff, YAML 검증과 Reviewer 확인",
+	),
+}
+
+
+def verification_log(*rows: str) -> str:
+	return VERIFICATION_HEADER + "\n".join(rows) + "\n"
+
+
+def write_issue_evidence(
+	root: Path,
+	acceptance: str,
+	verification: str,
+	issue: int = 23,
+) -> None:
+	evidence = root / "docs" / "testing" / "evidence" / f"issue-{issue}"
+	evidence.mkdir(parents=True)
+	(evidence / "acceptance-criteria.md").write_text(acceptance, encoding="utf-8")
+	(evidence / "attempt-log.md").write_text(VALID_ATTEMPT, encoding="utf-8")
+	(evidence / "commands.md").write_text("# Commands\n- unittest: PASS\n", encoding="utf-8")
+	(evidence / "manual-qa.md").write_text("# Manual QA\n- harness: PASS\n", encoding="utf-8")
+	verification_path = root / "docs" / "testing" / "verification-log.md"
+	verification_path.write_text(verification, encoding="utf-8")
+
 
 class BranchGuardTest(unittest.TestCase):
 	def test_main_branch_is_blocked(self):
@@ -119,12 +233,17 @@ class EvidenceValidationTest(unittest.TestCase):
 		self.assertTrue(any("Issue URL" in error for error in errors))
 
 	def test_verification_log_must_reference_issue(self):
-		errors = harness_gate.validate_verification_log("| Issue #22 | PASS |", 23)
+		errors = harness_gate.validate_verification_log(
+			verification_log(
+				"| 2026-07-10 | Issue #22 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
+			),
+			23,
+		)
 		self.assertEqual(["verification-log.md에 Issue #23 기록이 없습니다."], errors)
 
 	def test_verification_log_requires_result_row(self):
 		errors = harness_gate.validate_verification_log("Issue #23", 23)
-		self.assertEqual(["verification-log.md에 Issue #23 결과 행이 없습니다."], errors)
+		self.assertTrue(any("Issue #23 결과 행이 없습니다" in error for error in errors))
 
 	def test_empty_commands_and_manual_qa_fail(self):
 		with tempfile.TemporaryDirectory() as temp_dir:
@@ -136,7 +255,12 @@ class EvidenceValidationTest(unittest.TestCase):
 			(evidence / "commands.md").write_text("# Commands\n", encoding="utf-8")
 			(evidence / "manual-qa.md").write_text("# Manual QA\n", encoding="utf-8")
 			verification = root / "docs" / "testing" / "verification-log.md"
-			verification.write_text("| 2026-07-10 | Issue #23 | PASS |", encoding="utf-8")
+			verification.write_text(
+				verification_log(
+					"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
+				),
+				encoding="utf-8",
+			)
 
 			errors = harness_gate.validate_issue_evidence(root, 23)
 
@@ -157,9 +281,195 @@ class EvidenceValidationTest(unittest.TestCase):
 				"# Manual QA\n- main branch guard: PASS\n", encoding="utf-8"
 			)
 			verification = root / "docs" / "testing" / "verification-log.md"
-			verification.write_text("| 2026-07-10 | Issue #23 | PASS |", encoding="utf-8")
+			verification.write_text(
+				verification_log(
+					"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
+				),
+				encoding="utf-8",
+			)
 
 			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+
+class VerificationLogValidationTest(unittest.TestCase):
+	def test_code_span_delimiter_length_preserves_internal_pipes(self):
+		commands = (
+			'`printf "single|pipe"`',
+			'``printf "double|pipe"``',
+			'```printf "triple|pipe"```',
+			'````printf "quadruple|pipe"````',
+		)
+		for command in commands:
+			with self.subTest(command=command):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | {command} | 완료 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_windows_trailing_backslash_does_not_escape_code_span_closer(self):
+		commands = (
+			r'`dir C:\temp\`',
+			r'``dir C:\temp\``',
+		)
+		for command in commands:
+			with self.subTest(command=command):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | {command} | 완료 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_escaped_pipe_is_not_a_column_separator(self):
+		markdown = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | printf a\\|b | 완료 |"
+		)
+
+		self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_levels_zero_through_seven_are_valid(self):
+		for level in range(8):
+			with self.subTest(level=level):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level {level} | PASS | 범위 | `command` | 비고 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_out_of_range_free_form_and_composite_levels_are_invalid(self):
+		for level in ("Level 8", "Level 1 smoke", "Level 2 + Level 3"):
+			with self.subTest(level=level):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | {level} | PASS | 범위 | `command` | 비고 |"
+				)
+				errors = harness_gate.validate_verification_log(markdown, 23)
+				self.assertTrue(any(f"invalid Level '{level}'" in error for error in errors))
+
+	def test_result_must_be_pass_fail_or_partial(self):
+		markdown = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 0 | SUCCESS | 범위 | `command` | 비고 |"
+		)
+
+		errors = harness_gate.validate_verification_log(markdown, 23)
+
+		self.assertTrue(any("invalid 결과 'SUCCESS'" in error for error in errors))
+
+	def test_fail_and_partial_are_valid_log_results(self):
+		for result in ("FAIL", "PARTIAL"):
+			with self.subTest(result=result):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level 0 | {result} | 범위 | `command` | 비고 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_every_data_row_must_have_seven_columns(self):
+		markdown = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | 범위 | `command` |"
+		)
+
+		errors = harness_gate.validate_verification_log(markdown, 23)
+
+		self.assertTrue(any("expected 7 columns" in error for error in errors))
+
+	def test_required_level_pass_for_same_issue_succeeds(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 5 required: NO", "Level 5 required: YES")
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 5 | PASS | 로컬 앱 기동 | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, acceptance, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_required_level_fails_when_pass_is_missing(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 5 required: NO", "Level 5 required: YES")
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, acceptance, log)
+			errors = harness_gate.validate_issue_evidence(root, 23)
+			self.assertTrue(any("Issue #23 required Level 5 PASS" in error for error in errors))
+
+	def test_required_level_rejects_wrong_issue_wrong_level_and_partial(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 5 required: NO", "Level 5 required: YES")
+		rows = (
+			"| 2026-07-10 | Issue #22 | Level 5 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #23 | Level 6 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #23 | Level 5 | PARTIAL | 범위 | `command` | 비고 |",
+		)
+		for row in rows:
+			with self.subTest(row=row):
+				with tempfile.TemporaryDirectory() as temp_dir:
+					root = Path(temp_dir)
+					write_issue_evidence(root, acceptance, verification_log(row))
+					errors = harness_gate.validate_issue_evidence(root, 23)
+					self.assertTrue(any("Issue #23 required Level 5 PASS" in error for error in errors))
+
+	def test_required_level_no_does_not_require_pass(self):
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, VALID_ACCEPTANCE, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_required_level_6_pass_for_same_issue_succeeds(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 6 required: NO", "Level 6 required: YES")
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 6 | PASS | 실제 HTTP | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, acceptance, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_required_level_6_rejects_missing_wrong_issue_wrong_level_and_partial(self):
+		acceptance = VALID_ACCEPTANCE.replace("Level 6 required: NO", "Level 6 required: YES")
+		rows = (
+			"| 2026-07-10 | Issue #23 | Level 0 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #22 | Level 6 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #23 | Level 5 | PASS | 범위 | `command` | 비고 |",
+			"| 2026-07-10 | Issue #23 | Level 6 | PARTIAL | 범위 | `command` | 비고 |",
+		)
+		for row in rows:
+			with self.subTest(row=row):
+				with tempfile.TemporaryDirectory() as temp_dir:
+					root = Path(temp_dir)
+					write_issue_evidence(root, acceptance, verification_log(row))
+					errors = harness_gate.validate_issue_evidence(root, 23)
+					self.assertTrue(any("Issue #23 required Level 6 PASS" in error for error in errors))
+
+	def test_repository_verification_log_is_normalized(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		markdown = (repository_root / "docs" / "testing" / "verification-log.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
+	def test_repository_keeps_legacy_verification_identifiers(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		markdown = (repository_root / "docs" / "testing" / "verification-log.md").read_text(
+			encoding="utf-8"
+		)
+		rows, errors = harness_gate._verification_rows(markdown)
+		actual_identifiers = {
+			(row["Issue"], row["Level"], row["명령/Evidence"])
+			for row in rows
+		}
+
+		self.assertEqual([], errors)
+		self.assertEqual(25, len(LEGACY_VERIFICATION_IDENTIFIERS))
+		self.assertEqual(set(), LEGACY_VERIFICATION_IDENTIFIERS - actual_identifiers)
+
+	def test_level_1_smoke_does_not_replace_focused_evidence(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		strategy = (repository_root / "docs" / "testing" / "test-strategy.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn("Level 1 전체 회귀 smoke는 전체 suite 상태를 기록", strategy)
+		self.assertIn("Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다", strategy)
 
 
 class PullRequestBodyValidationTest(unittest.TestCase):
