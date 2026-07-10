@@ -20,7 +20,7 @@
 
 ### Kafka와 복구
 
-- 필수. [Kafka 이벤트 흐름](../architecture/kafka-event-flow.md), [Kafka 선택 ADR](../adr/ADR-003-kafka-vs-rabbitmq-vs-db.md), [재생·복구 ADR](../adr/ADR-005-kafka-replay-recovery.md), [복구 전략](../architecture/recovery-strategy.md)를 읽습니다.
+- 필수. [Kafka 이벤트 흐름](../architecture/kafka-event-flow.md), [Kafka 선택 ADR](../adr/ADR-003-kafka-vs-rabbitmq-vs-db.md), [재생·복구 ADR](../adr/ADR-005-kafka-replay-recovery.md), [복구 전략](../architecture/recovery-strategy.md)을 읽습니다.
 - 조건부. 주문 이벤트 payload가 바뀌면 [주문 정책](../domain/order-policy.md)을 추가합니다.
 - 제외. Redis 랭킹과 HTTP API 세부 명세는 직접 계약이 바뀌지 않으면 읽지 않습니다.
 - 추가 탐색. 재처리, DLT, 멱등성의 정책이 불명확할 때 [도메인 규칙](../domain/domain-rules.md)을 추가합니다.
@@ -30,7 +30,7 @@
 - 필수. [Redis 랭킹 설계](../architecture/redis-ranking.md), [Redis ZSET ADR](../adr/ADR-004-redis-zset-ranking.md), [인기 메뉴 정책](../domain/popular-menu-policy.md), [도메인 규칙](../domain/domain-rules.md)을 읽습니다.
 - 조건부. 동시 갱신 또는 원자성이 바뀌면 [동시성 전략](../architecture/concurrency-strategy.md)을 추가합니다.
 - 제외. Kafka 재생·복구 문서는 이벤트 복구 계약을 바꾸지 않으면 읽지 않습니다.
-- 추가 탐색. 랭킹 조회 API가 바뀔 때 [API 명세](../api/api-spec.md)을 추가합니다.
+- 추가 탐색. 랭킹 조회 API가 바뀔 때 [API 명세](../api/api-spec.md)를 추가합니다.
 
 ### 동시성
 
