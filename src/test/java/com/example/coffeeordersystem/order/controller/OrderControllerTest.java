@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.coffeeordersystem.common.ApiException;
@@ -88,6 +89,17 @@ class OrderControllerTest {
 						"""));
 	}
 
+	@Test
+	void createOrderReturnsConflictWhenUserLockCannotBeAcquired() throws Exception {
+		mockMvc.perform(post("/api/orders")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+							{"userId": 3, "menuId": 1}
+							"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("ORDER_LOCK_NOT_ACQUIRED"));
+	}
+
 	@TestConfiguration
 	static class OrderControllerTestConfig {
 
@@ -106,6 +118,7 @@ class OrderControllerTest {
 			when(orderService.createOrder(eq(1L), eq(404L))).thenThrow(new ApiException(ErrorCode.MENU_NOT_FOUND));
 			when(orderService.createOrder(eq(404L), eq(1L))).thenThrow(new ApiException(ErrorCode.USER_POINT_NOT_FOUND));
 			when(orderService.createOrder(eq(2L), eq(1L))).thenThrow(new ApiException(ErrorCode.INSUFFICIENT_POINT));
+			when(orderService.createOrder(eq(3L), eq(1L))).thenThrow(new ApiException(ErrorCode.ORDER_LOCK_NOT_ACQUIRED));
 			return orderService;
 		}
 	}
