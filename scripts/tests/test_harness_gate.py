@@ -508,6 +508,37 @@ class PullRequestBodyValidationTest(unittest.TestCase):
 
 
 class MarkdownLinkTest(unittest.TestCase):
+	def test_repository_context_router_declared_paths_pass(self):
+		repository_root = Path(__file__).resolve().parents[2]
+
+		self.assertEqual([], harness_gate.validate_context_router_paths(repository_root))
+
+	def test_context_router_paths_pass_when_every_declared_path_exists(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			router = root / "docs" / "ai" / "context-router.md"
+			target = root / "docs" / "testing" / "evidence-guide.md"
+			router.parent.mkdir(parents=True)
+			target.parent.mkdir(parents=True)
+			router.write_text(
+				"[Evidence guide](../testing/evidence-guide.md)\n", encoding="utf-8"
+			)
+			target.write_text("# Evidence guide\n", encoding="utf-8")
+
+			self.assertEqual([], harness_gate.validate_context_router_paths(root))
+
+	def test_context_router_paths_fail_when_a_declared_path_is_missing(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			router = root / "docs" / "ai" / "context-router.md"
+			router.parent.mkdir(parents=True)
+			router.write_text("[Missing](missing.md)\n", encoding="utf-8")
+
+			errors = harness_gate.validate_context_router_paths(root)
+
+			self.assertEqual(1, len(errors))
+			self.assertIn("missing.md", errors[0])
+
 	def test_broken_relative_link_fails(self):
 		with tempfile.TemporaryDirectory() as temp_dir:
 			root = Path(temp_dir)

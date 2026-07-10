@@ -386,6 +386,14 @@ def validate_markdown_links(repository_root: Path, markdown_files: list[Path]) -
     return check_relative_links(repository_root, markdown_files)
 
 
+def validate_context_router_paths(repository_root: Path) -> list[str]:
+    """Validate every repository-relative Markdown link declared by the Context Router."""
+    router = repository_root / "docs" / "ai" / "context-router.md"
+    if not router.is_file():
+        return [f"ERROR: missing Context Router: {router}"]
+    return check_relative_links(repository_root, [router])
+
+
 def _git_output(repository_root: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", *args],
@@ -472,6 +480,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             markdown_files = changed_markdown_files(repository_root, args.base_ref, args.include_worktree)
             errors.extend(check_relative_links(repository_root, markdown_files))
+            errors.extend(validate_context_router_paths(repository_root))
         except RuntimeError as error:
             errors.append(f"ERROR: cannot determine changed Markdown files from {args.base_ref}: {error}")
 
