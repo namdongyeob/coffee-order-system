@@ -4,7 +4,7 @@
 
 ## 연결 Issue
 
-- Closes #
+- Related: #
 
 ## 읽은 문서
 
