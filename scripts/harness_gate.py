@@ -147,7 +147,7 @@ def _split_markdown_table_row(line: str) -> list[str]:
     index = 0
     while index < len(content):
         char = content[index]
-        if char == "`" and not escaped:
+        if char == "`" and (code_delimiter_length is not None or not escaped):
             end = index
             while end < len(content) and content[end] == "`":
                 end += 1
@@ -165,7 +165,7 @@ def _split_markdown_table_row(line: str) -> list[str]:
             cell = []
         else:
             cell.append(char)
-        escaped = char == "\\" and not escaped
+        escaped = char == "\\" and not escaped if code_delimiter_length is None else False
         index += 1
     cells.append("".join(cell).strip())
     return cells

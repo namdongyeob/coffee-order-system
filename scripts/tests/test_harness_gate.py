@@ -306,6 +306,18 @@ class VerificationLogValidationTest(unittest.TestCase):
 				)
 				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
 
+	def test_windows_trailing_backslash_does_not_escape_code_span_closer(self):
+		commands = (
+			r'`dir C:\temp\`',
+			r'``dir C:\temp\``',
+		)
+		for command in commands:
+			with self.subTest(command=command):
+				markdown = verification_log(
+					f"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | {command} | 완료 |"
+				)
+				self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
+
 	def test_escaped_pipe_is_not_a_column_separator(self):
 		markdown = verification_log(
 			"| 2026-07-10 | Issue #23 | Level 0 | PASS | parser | printf a\\|b | 완료 |"
