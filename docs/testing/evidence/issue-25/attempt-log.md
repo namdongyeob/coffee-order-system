@@ -105,7 +105,8 @@ Branch: codex/issue-25-verification-level-gate
 - `git diff --check`: PASS.
 - Final Review: PASS, findings 없음.
 - Final pre-evidence QA: 45건 PASS, `py_compile` PASS, `git diff --check` PASS. repository gate는 Issue #25 결과 행 부재 한 건으로만 BLOCKED.
+- QA final at HEAD `53a6301`: 전체 `unittest` 45건, `py_compile`, `python scripts/harness_gate.py --issue 25 --base-ref origin/main --check-links`, `git diff --check`이 모두 종료 코드 0으로 PASS했고 worktree status는 clean이었습니다.
 
 ### Next Attempt
 
-- 최종 repository gate와 CI 확인
+- GitHub Actions 확인

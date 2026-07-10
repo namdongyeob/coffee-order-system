@@ -20,8 +20,13 @@
 | Attempt 3 Final QA | QA | `py_compile` | final pre-evidence Python 문법 검사 | 종료 코드 0, PASS. |
 | Attempt 3 Final QA | QA | `git diff --check` | final pre-evidence 변경 diff 공백 오류 검사 | 종료 코드 0, PASS. |
 | Attempt 3 Final QA | QA | final pre-evidence repository gate | evidence 행 추가 전 Issue evidence와 verification-log 교차 검사 | 종료 코드 1, Issue #25 결과 행 부재 한 건으로만 BLOCKED. |
+| Attempt 3 QA final | QA | `python -m unittest discover -s scripts/tests -p "test_*.py"` | HEAD `53a6301` 최종 전체 하네스 검증 | 종료 코드 0, 45건 PASS. |
+| Attempt 3 QA final | QA | `py_compile` | HEAD `53a6301` 최종 Python 문법 검사 | 종료 코드 0, PASS. |
+| Attempt 3 QA final | QA | `python scripts/harness_gate.py --issue 25 --base-ref origin/main --check-links` | evidence 행 추가 후 최종 repository gate | 종료 코드 0, `Harness gate PASSED`. |
+| Attempt 3 QA final | QA | `git diff --check` | HEAD `53a6301` 최종 변경 diff 공백 오류 검사 | 종료 코드 0, PASS. |
+| Attempt 3 QA final | QA | `git status --short` | HEAD `53a6301` worktree 상태 확인 | 출력 없음, clean. |
 
-## 미실행 최종 검사
+## 남은 최종 검사
 
-- evidence 행을 추가한 뒤의 최종 repository gate는 실행하지 않았습니다. 이번 Docs Agent 범위는 테스트 재실행 금지입니다.
+- evidence 행을 추가한 뒤의 최종 repository gate는 QA가 HEAD `53a6301`에서 실행했고 PASS했습니다.
 - GitHub Actions CI는 push와 PR 생성 금지로 실행 또는 확인하지 않았습니다.

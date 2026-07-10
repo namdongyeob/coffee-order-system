@@ -5,7 +5,8 @@
 - Final pre-evidence QA는 전체 `unittest` 45건 PASS, `py_compile` PASS, `git diff --check` PASS를 보고했습니다.
 - Final Review는 PASS였고 findings는 없었습니다.
 - pre-evidence repository gate는 Issue #25 결과 행이 아직 없어 한 건으로만 BLOCKED였습니다.
-- 이 문서와 verification-log 행을 추가한 뒤에는 repository gate를 다시 실행하지 않았습니다.
+- QA final은 HEAD `53a6301`에서 전체 `unittest` 45건, `py_compile`, repository gate, `git diff --check`이 모두 종료 코드 0으로 PASS했고 worktree status가 clean임을 확인했습니다.
+- QA final repository gate 명령은 `python scripts/harness_gate.py --issue 25 --base-ref origin/main --check-links`였고 `Harness gate PASSED`를 반환했습니다.
 
 ## API 및 런타임 수동 검사
 
@@ -18,5 +19,4 @@
 
 ## 미검증 항목
 
-- evidence 추가 후 최종 repository gate는 미검증입니다. pre-evidence 결과의 유일한 차단 사유는 Issue #25 결과 행 부재였습니다.
 - GitHub Actions CI는 미검증입니다. 이번 범위에서 push와 PR 생성이 금지되었습니다.
