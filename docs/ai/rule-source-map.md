@@ -4,7 +4,7 @@
 
 | 규칙 영역 | 단일 정본 | 참조하는 문서·도구 |
 | --- | --- | --- |
-| 프로젝트 진입과 문서 라우팅 | `AGENTS.md` | 새 Codex 작업 |
+| 프로젝트 진입과 문서 라우팅 | `AGENTS.md` | `docs/ai/context-router.md`(문서 hot path 선택), `CLAUDE.md`(Claude 작업 진입, `AGENTS.md` 참조), 새 Codex 작업 |
 | Issue 실행 순서와 기본 개발 흐름 | `docs/ai/agent-rules.md` | Issue/PR 템플릿 |
 | 실행 모드 선택, 역할, 쓰기 권한, 모델 | `docs/ai/orchestration-policy.md` | `subagent-workflow.md`, Skill |
 | 기계적 BLOCKED 판정 | `.codex/skills/coffee-order-issue-loop/SKILL.md` | Main Coordinator |
