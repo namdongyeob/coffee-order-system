@@ -62,6 +62,13 @@
 - 제외. 구현 코드와 전체 도메인 문서는 evidence에 필요한 근거가 없으면 읽지 않습니다.
 - 추가 탐색. evidence와 실제 명령·결과가 일치하지 않을 때 해당 명령의 소유 문서와 변경 diff만 추가합니다.
 
+### 하네스와 스크립트
+
+- 필수. [실행 모드와 역할](orchestration-policy.md), [Issue 실행 흐름](agent-rules.md), [테스트 전략](../testing/test-strategy.md), [evidence 안내](../testing/evidence-guide.md)를 읽습니다.
+- 조건부. 변경하는 명령의 사용법이나 계약이 바뀌면 해당 스크립트와 직접 연결된 테스트·README만 추가합니다.
+- 제외. 애플리케이션 코드, build·infra 설정, 도메인·ADR 문서는 하네스 계약이 직접 참조하지 않으면 읽지 않습니다.
+- 추가 탐색. 필수 문서 사이에 실행 주체·Gate·evidence 계약 충돌이 있을 때만 [규칙 정본 지도](rule-source-map.md)에서 충돌한 정본을 찾아 한 단계 확장합니다.
+
 ## 하네스 계약
 
 이 문서에 선언한 저장소 상대 Markdown 링크는 [harness gate](../../scripts/harness_gate.py)가 `--check-links` 또는 `--links-only` 실행 때 존재 여부를 검사합니다. 경로를 추가·변경할 때는 성공과 의도된 누락 실패를 [harness 단위 테스트](../../scripts/tests/test_harness_gate.py)로 함께 검증합니다.

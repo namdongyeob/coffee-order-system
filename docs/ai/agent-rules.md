@@ -10,7 +10,7 @@
 6. 문서 반영은 실행 모드 표에 지정된 경우에만 확정된 결과를 기록합니다.
 7. `STANDARD`와 `STRICT`의 FAIL은 Main Coordinator가 Skill의 제한된 재시도 패킷으로 원래 Dev Agent에게 반환합니다. Main은 직접 수정하거나 리뷰하지 않습니다.
 8. GitHub Actions가 `STANDARD`와 `STRICT`의 컴파일과 전체 테스트를 최종 기계 판정합니다.
-9. Main Coordinator는 필수 보고서와 CI 상태만 확인해 `READY_FOR_HUMAN`, `FAIL`, `BLOCKED` 중 하나로 표시합니다.
+9. draft PR은 독립 검증과 CI를 시작하기 위한 중간 상태이며 완료가 아닙니다. Main Coordinator는 `docs/ai/orchestration-policy.md`가 정한 모드별 필수 독립 검증 보고와 CI PASS를 모두 확인한 뒤에만 `READY_FOR_HUMAN`으로 표시하며, pending 상태를 `READY_FOR_HUMAN`으로 표시하지 않습니다.
 10. 사람이 PR merge와 Issue close를 결정합니다.
 
 역할과 쓰기 권한은 `docs/ai/orchestration-policy.md`, 검증 기준은 `docs/testing/test-strategy.md`, evidence 형식은 `docs/testing/evidence-guide.md`를 따릅니다.
