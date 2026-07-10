@@ -68,3 +68,16 @@ python scripts/harness_gate.py --issue 7 --base-ref origin/main --check-links --
 
 - 결과: FAIL. Dev 범위의 evidence와 링크가 아니라 Docs Agent 소유 `verification-log.md`의 Issue #7 행, 그리고 아직 독립 QA가 실행하지 않은 필수 Level 5/6 PASS가 없음을 정확히 거부했습니다.
 - 처리: Dev가 결과를 추측해 `verification-log.md`를 수정하지 않습니다. 독립 QA의 Level 5/6 결과와 Docs Agent 반영 후 같은 명령을 재실행해야 합니다.
+
+## Independent QA Verification
+
+```powershell
+.\gradlew.bat test --tests com.example.coffeeordersystem.RedisOrderLockIntegrationTest --no-daemon
+.\gradlew.bat test --no-daemon
+```
+
+- Level 4 결과: PASS. 실제 `redis:7.4.2`, 1 test, failures 0, errors 0, BUILD SUCCESSFUL 1분 15초, test 53.107초.
+- Level 1 결과: PASS. 전체 25 tests, failures 0, errors 0, skipped 0, BUILD SUCCESSFUL 1분 23초.
+- Level 5/6: 독립 QA 역할 보고의 로컬 앱·인프라 기동 및 실제 HTTP/DB 관찰 절차로 PASS했습니다. 역할 보고에 정확한 실행 명령은 제공되지 않아 추측해 기록하지 않으며 관찰 결과는 `manual-qa.md`에 기록합니다.
+- 정리: QA가 MySQL, Redis, 애플리케이션 리소스와 사용 포트를 정리했습니다.
+- CI: remote branch와 PR이 아직 없어 pending입니다.

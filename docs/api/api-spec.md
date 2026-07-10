@@ -122,7 +122,7 @@ Base path는 `/api`입니다.
 | USER_POINT_NOT_FOUND | 404 |
 | INVALID_CHARGE_AMOUNT | 400 |
 | INSUFFICIENT_POINT | 409 |
-| ORDER_LOCK_FAILED | 409 |
+| ORDER_LOCK_NOT_ACQUIRED | 409 |
 | INTERNAL_ERROR | 500 |
 
 ## 상태 코드 기준
