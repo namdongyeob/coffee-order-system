@@ -24,6 +24,7 @@
 | 포인트 API | `point.controller.PointController`, `point.service.PointService`, `point.dto.PointChargeRequest`, `point.dto.PointChargeResponse` |
 | 공통 예외 | `common.ApiException`, `common.ErrorCode`, `common.ErrorResponse`, `common.GlobalExceptionHandler` |
 | 주문 Entity/Repository | `order.domain.Order`, `order.domain.OrderStatus`, `order.repository.OrderRepository` |
+| 주문 API | `order.controller.OrderController`, `order.service.OrderService`, `order.dto.OrderCreateRequest`, `order.dto.OrderResponse` |
 | 이벤트 처리 Entity/Repository | `event.domain.ProcessedEvent`, `event.repository.ProcessedEventRepository` |
 | DB migration | `src/main/resources/db/migration/V1__create_menu.sql` ~ `V4__create_processed_event.sql` |
 
