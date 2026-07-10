@@ -41,6 +41,17 @@ VALID_EXECUTION_MODE_PATTERN = re.compile(
 VALID_EXECUTION_MODE_REASON_PATTERN = re.compile(
     r"^Execution mode reason:[ \t]*\S[^\r\n]*$"
 )
+VERIFICATION_LOG_COLUMNS = (
+    "날짜",
+    "Issue",
+    "Level",
+    "결과",
+    "검증 범위",
+    "명령/Evidence",
+    "비고",
+)
+VALID_VERIFICATION_LEVELS = tuple(f"Level {level}" for level in range(8))
+VALID_VERIFICATION_RESULTS = ("PASS", "FAIL", "PARTIAL")
 
 
 def validate_branch(branch: str) -> list[str]:
@@ -122,16 +133,134 @@ def validate_attempt_log(markdown: str, path: Path | None = None) -> list[str]:
     return errors
 
 
-def validate_verification_log(markdown: str, issue: int) -> list[str]:
-    if re.search(rf"Issue\s*#\s*{issue}\b", markdown) is None:
-        return [f"verification-log.md에 Issue #{issue} 기록이 없습니다."]
-    result_row = re.compile(
-        rf"^\|[^\r\n]*Issue\s*#\s*{issue}\b[^\r\n]*\|\s*(?:PASS|FAIL|PARTIAL)\s*\|",
-        re.IGNORECASE | re.MULTILINE,
+def _split_markdown_table_row(line: str) -> list[str]:
+    """Split a Markdown table row while preserving pipes inside inline code."""
+    stripped = line.strip()
+    if not (stripped.startswith("|") and stripped.endswith("|")):
+        return []
+
+    cells: list[str] = []
+    cell: list[str] = []
+    in_code = False
+    escaped = False
+    for char in stripped[1:-1]:
+        if char == "`" and not escaped:
+            in_code = not in_code
+        if char == "|" and not in_code and not escaped:
+            cells.append("".join(cell).strip())
+            cell = []
+        else:
+            cell.append(char)
+        escaped = char == "\\" and not escaped
+    cells.append("".join(cell).strip())
+    return cells
+
+
+def _verification_rows(markdown: str) -> tuple[list[dict[str, str]], list[str]]:
+    lines = markdown.splitlines()
+    expected_header = "| " + " | ".join(VERIFICATION_LOG_COLUMNS) + " |"
+    expected_separator = "| " + " | ".join("---" for _ in VERIFICATION_LOG_COLUMNS) + " |"
+    errors: list[str] = []
+    rows: list[dict[str, str]] = []
+
+    try:
+        header_index = next(
+            index for index, line in enumerate(lines) if line.strip() == expected_header
+        )
+    except StopIteration:
+        return [], [
+            "verification-log.md: expected header "
+            "'날짜|Issue|Level|결과|검증 범위|명령/Evidence|비고'."
+        ]
+
+    separator_index = header_index + 1
+    if separator_index >= len(lines) or lines[separator_index].strip() != expected_separator:
+        errors.append(
+            f"verification-log.md line {separator_index + 1}: expected seven-column table separator."
+        )
+
+    for index in range(separator_index + 1, len(lines)):
+        line = lines[index]
+        if not line.strip():
+            continue
+        if not line.lstrip().startswith("|"):
+            continue
+
+        cells = _split_markdown_table_row(line)
+        if len(cells) != len(VERIFICATION_LOG_COLUMNS):
+            errors.append(
+                f"verification-log.md line {index + 1}: expected 7 columns "
+                "(날짜|Issue|Level|결과|검증 범위|명령/Evidence|비고), "
+                f"found {len(cells)}."
+            )
+            continue
+
+        row = dict(zip(VERIFICATION_LOG_COLUMNS, cells))
+        for column in VERIFICATION_LOG_COLUMNS:
+            if not row[column]:
+                errors.append(
+                    f"verification-log.md line {index + 1}: column '{column}' must not be empty."
+                )
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", row["날짜"]) is None:
+            errors.append(
+                f"verification-log.md line {index + 1}: invalid 날짜 '{row['날짜']}'; "
+                "expected YYYY-MM-DD."
+            )
+        if row["Level"] not in VALID_VERIFICATION_LEVELS:
+            errors.append(
+                f"verification-log.md line {index + 1}: invalid Level '{row['Level']}'; "
+                "allowed values are Level 0..Level 7."
+            )
+        if row["결과"] not in VALID_VERIFICATION_RESULTS:
+            errors.append(
+                f"verification-log.md line {index + 1}: invalid 결과 '{row['결과']}'; "
+                "allowed values are PASS, FAIL, PARTIAL."
+            )
+        rows.append(row)
+
+    return rows, errors
+
+
+def validate_verification_log(
+    markdown: str, issue: int, required_levels: tuple[int, ...] = ()
+) -> list[str]:
+    """Validate every log row and required PASS evidence for one Issue."""
+    rows, errors = _verification_rows(markdown)
+    issue_pattern = re.compile(rf"\bIssue\s*#\s*{issue}\b", re.IGNORECASE)
+    issue_rows = [row for row in rows if issue_pattern.search(row["Issue"])]
+
+    if not issue_rows:
+        if issue_pattern.search(markdown) is None:
+            errors.append(f"verification-log.md에 Issue #{issue} 기록이 없습니다.")
+        else:
+            errors.append(f"verification-log.md에 Issue #{issue} 결과 행이 없습니다.")
+
+    for level in required_levels:
+        expected_level = f"Level {level}"
+        has_required_pass = any(
+            row["Level"] == expected_level and row["결과"] == "PASS"
+            for row in issue_rows
+        )
+        if not has_required_pass:
+            errors.append(
+                f"verification-log.md: Issue #{issue} required {expected_level} PASS is missing; "
+                f"add a row with the same Issue, Level '{expected_level}', and result 'PASS'."
+            )
+    return errors
+
+
+def required_verification_levels(acceptance_markdown: str) -> tuple[int, ...]:
+    """Return Level 5/6 declarations that explicitly require PASS evidence."""
+    return tuple(
+        level
+        for level in (5, 6)
+        if re.search(
+            rf"^Level {level} required:[ \t]*YES[ \t]*$",
+            acceptance_markdown,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        is not None
     )
-    if result_row.search(markdown) is None:
-        return [f"verification-log.md에 Issue #{issue} 결과 행이 없습니다."]
-    return []
 
 
 def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
@@ -154,6 +283,7 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
             if not meaningful_lines:
                 errors.append(f"ERROR: {path} has no evidence content.")
 
+    acceptance = ""
     acceptance_path = evidence_dir / "acceptance-criteria.md"
     if acceptance_path.is_file():
         acceptance = acceptance_path.read_text(encoding="utf-8")
@@ -168,7 +298,13 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
     if not verification_log.is_file():
         errors.append(f"ERROR: missing verification log: {verification_log}")
     else:
-        errors.extend(validate_verification_log(verification_log.read_text(encoding="utf-8"), issue))
+        errors.extend(
+            validate_verification_log(
+                verification_log.read_text(encoding="utf-8"),
+                issue,
+                required_verification_levels(acceptance),
+            )
+        )
 
     return errors
 

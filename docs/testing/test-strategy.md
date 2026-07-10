@@ -4,13 +4,16 @@
 
 | Level | 대상 |
 | --- | --- |
-| Level 1 Unit | 서비스와 도메인 정책. |
-| Level 2 Controller | 요청, 응답, 검증, 에러 포맷. |
-| Level 3 DB Integration | JPA, 트랜잭션, 비관적 락, 동시성. |
-| Level 4 Infra Integration | Kafka, Redis, Redisson, DLT. |
-| Level 5 Local Run | 로컬 애플리케이션 기동 후 API 호출. |
-| Level 6 Postman/curl/http | 실제 API 요청 산출물. |
-| Level 7 k6 | Load, Stress, Spike 관찰. |
+| Level 0 | 문서, 정적 검사, 저장소 하네스, 검증 도구 자체. |
+| Level 1 | 빌드, Unit 테스트, 전체 회귀 smoke. |
+| Level 2 | Controller/API 요청·응답·검증·에러 계약. |
+| Level 3 | DB, 트랜잭션, JPA, 락, 동시성 통합. |
+| Level 4 | Kafka, Redis, Redisson, DLT 인프라 통합. |
+| Level 5 | 로컬 애플리케이션 기동. |
+| Level 6 | 실제 Postman, curl, http 요청. |
+| Level 7 | k6 Load, Stress, Spike 관찰. |
+
+`verification-log.md`의 Level 열에는 위 표의 `Level 0`부터 `Level 7`까지만 기록합니다. 한 행에는 하나의 Level만 기록하고 세부 대상은 검증 범위 열에 적습니다. 결과 열의 허용값은 `PASS`, `FAIL`, `PARTIAL`이며 완료 근거에는 `PASS`만 사용합니다.
 
 ## 실행 속도와 신뢰성 기준
 
