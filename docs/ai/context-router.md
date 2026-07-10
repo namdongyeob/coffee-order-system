@@ -43,14 +43,14 @@
 
 ### Review
 
-- 필수. [Issue 실행 흐름](agent-rules.md), [계층 설계 정책](../architecture/layered-design-policy.md), [완료 전 검사 목록](issue-completion-checklist.md), [반복 실수](agent-mistakes.md)를 읽습니다.
-- 조건부. 변경 영역의 개발 hot path와 테스트 전략을 추가합니다.
+- 필수. [Review Gate](review-gate.md), [구현 가드레일](implementation-guardrails.md), [테스트 전략](../testing/test-strategy.md)을 읽습니다.
+- 조건부. 변경 영역의 개발 hot path와 [오케스트레이션 정책](orchestration-policy.md)을 추가합니다.
 - 제외. 변경과 무관한 도메인·ADR 전체는 읽지 않습니다.
 - 추가 탐색. 설계 원칙과 Issue 요구사항이 충돌할 때 [요구사항](../product/requirements.md)을 추가합니다.
 
 ### QA
 
-- 필수. [테스트 전략](../testing/test-strategy.md), [evidence 안내](../testing/evidence-guide.md), [완료 전 검사 목록](issue-completion-checklist.md), [실행 모드와 역할](orchestration-policy.md)을 읽습니다.
+- 필수. [QA Gate](qa-gate.md), [테스트 전략](../testing/test-strategy.md), [evidence 안내](../testing/evidence-guide.md), [실행 모드와 역할](orchestration-policy.md)을 읽습니다.
 - 조건부. 실제 변경 영역의 개발 hot path와 기존 [검증 로그](../testing/verification-log.md)를 추가합니다.
 - 제외. 구현과 무관한 ADR·도메인 문서는 읽지 않습니다.
 - 추가 탐색. 필수 검증 Level의 근거가 불명확할 때 [요구사항](../product/requirements.md)을 추가합니다.

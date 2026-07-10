@@ -41,8 +41,8 @@ Execution mode reason: 비어 있지 않은 선택 근거
 | Spec Agent | 미결정 정책, 대안, 질문, Acceptance Criteria 정리 | 질문 문서와 Issue 초안만 허용합니다. |
 | Dev Agent | 하나의 Issue 구현과 focused test | 지정된 production/test 파일의 유일한 작성자입니다. |
 | Combined Verifier | `STANDARD`의 독립 코드 검토와 focused verification | 읽기와 검증 실행만 허용합니다. 수정은 Dev에게 반환합니다. |
-| Review Agent | `STRICT`의 코드리뷰 | 읽기 전용입니다. 검토 기준은 `implementation-guardrails.md`를 따르고 수정은 Dev에게 반환합니다. |
-| QA Agent | `STRICT`의 독립 검증 | production/test/docs 수정 금지. 실행 책임과 Level은 `docs/testing/test-strategy.md`를 따릅니다. |
+| Review Agent | `STRICT`의 코드리뷰 | 읽기 전용입니다. 검토 기준은 [Review Gate](review-gate.md)를 따르고 수정은 Dev에게 반환합니다. |
+| QA Agent | `STRICT`의 독립 검증 | production/test/docs 수정 금지. 실행 책임과 Level은 [QA Gate](qa-gate.md), [테스트 전략](../testing/test-strategy.md)을 따릅니다. |
 | Docs Agent | `STRICT`에서 확정 결과와 evidence 반영 | 지정된 문서만 수정합니다. |
 
 두 Dev Agent가 같은 Service, Entity, migration을 동시에 수정하지 않습니다. 파일이 달라도 하나의 트랜잭션 경계나 이벤트 계약을 함께 바꾸면 순차 작업으로 처리합니다.

@@ -1,32 +1,14 @@
-# 서브에이전트 핸드오프
+# 서브에이전트 핸드오프 계약
 
-역할과 쓰기 권한의 정본은 `docs/ai/orchestration-policy.md`입니다. 이 문서는 역할 사이에 전달할 최소 컨텍스트만 정의합니다.
+이 문서는 역할별 입력·출력 계약만 정의합니다. 역할과 쓰기 권한은 [오케스트레이션 정책](orchestration-policy.md), Issue 실행 순서는 [Issue 실행 흐름](agent-rules.md), evidence 형식은 [Evidence Guide](../testing/evidence-guide.md)를 따릅니다.
 
-Issue 실행 순서는 `docs/ai/agent-rules.md`만 따릅니다.
+| 역할 | 필수 입력 | 필수 출력 |
+| --- | --- | --- |
+| Dev Agent | Issue와 AC, execution mode와 reason, 직접 읽을 문서, 허용 쓰기 범위, 제외 범위, focused test, 마지막 Next Attempt | 변경 파일, 실행한 focused test, 결과, 미검증 Level과 이유, evidence 입력, 다음 Attempt |
+| Combined Verifier | Dev diff, Issue와 AC, focused verification 명령, evidence 위치 | 독립 검토·검증 결과, 발견한 위험, Dev 반환 범위 또는 PASS, 다음 Attempt |
+| Review Agent | Dev diff, Issue와 AC, Review Gate, 변경 영역의 직접 문서 | 요구사항·회귀·테스트·추상화·문서 품질 판정, Dev 반환 범위 또는 Follow-up Issue 후보 |
+| QA Agent | Dev 결과, Issue evidence, 필요한 검증 명령과 환경 조건 | PASS/FAIL/BLOCKED/PARTIAL, 실행 결과, 미검증 Level과 이유, evidence 누락, Dev 반환 범위 또는 Follow-up Issue 후보 |
+| Docs Agent | 확정된 검증 명령과 결과, Issue evidence 위치, 허용 문서 범위 | evidence와 verification log 반영 파일, 기록한 결과, 남은 위험 |
+| Main Coordinator | 역할별 보고, evidence 존재 여부, CI 상태 | 선택 mode 충족 여부와 다음 역할에 전달할 최소 상태 |
 
-## 필수 입력
-
-- 대상 Issue 번호와 Acceptance Criteria.
-- `Execution mode`와 비어 있지 않은 reason.
-- 직접 읽어야 할 정본 문서 2~4개.
-- 허용된 쓰기 파일 또는 모듈.
-- 제외 범위.
-- focused test 명령과 필요한 검증 Level.
-- 이전 Attempt가 실패했다면 마지막 `Next Attempt` 입력.
-
-전체 대화 fork, 전체 attempt-log, 전체 테스트 출력은 전달하지 않습니다. 재시도에도 Issue, AC, 직접 문서, write scope, test command, 마지막 `Next Attempt`만 사용합니다.
-
-## 필수 출력
-
-```text
-역할:
-대상 Issue와 execution mode:
-읽은 문서:
-허용된 쓰기 또는 검토 범위:
-실행한 검증:
-미검증 Level과 이유:
-발견한 위험:
-다음 역할에 전달할 내용:
-```
-
-역할 보고는 위 항목만 간결하게 작성합니다. 서브에이전트의 완료 문장만으로는 완료하지 않습니다. `STANDARD`와 `STRICT`에서 Main Coordinator는 선택된 mode의 필수 보고와 CI 상태가 모두 존재하는지만 확인하며, diff 내용 검토나 테스트 재실행은 하지 않습니다.
+모든 역할은 전체 대화 fork, 전체 attempt-log, 전체 테스트 출력 대신 Issue, AC, 직접 문서, 허용 범위, 명령, 마지막 `Next Attempt`만 전달합니다.

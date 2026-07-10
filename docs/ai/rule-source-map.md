@@ -9,7 +9,8 @@
 | 실행 모드 선택, 역할, 쓰기 권한, 모델 | `docs/ai/orchestration-policy.md` | `subagent-workflow.md`, Skill |
 | 기계적 BLOCKED 판정 | `.codex/skills/coffee-order-issue-loop/SKILL.md` | Main Coordinator |
 | 실제 LazyCodex 또는 하이브리드 적용 | `docs/ai/lazycodex-runbook.md` | 오케스트레이션 정책 |
-| 검증 Level과 테스트 실행 소유권 | `docs/testing/test-strategy.md` | QA Gate, Skill |
+| 검증 Level과 테스트 실행 소유권 | `docs/testing/test-strategy.md` | `qa-gate.md`, Skill |
+| Review 판정 기준 | `docs/ai/review-gate.md` | `implementation-guardrails.md`, Context Router |
 | evidence 파일, Execution mode, Attempt 형식 | `docs/testing/evidence-guide.md` | Issue/PR 템플릿, harness gate |
 | 완료 전 검사 목록 | `docs/ai/issue-completion-checklist.md` | PR 템플릿 |
 | 검증 실행 결과 | `docs/testing/verification-log.md` | Issue별 evidence |

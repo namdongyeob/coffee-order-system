@@ -47,14 +47,18 @@ Level 6 reason: 비어 있지 않은 이유
 
 ## PR 작성 기준
 
-PR 본문에는 다음을 남깁니다.
+PR 본문에는 `Related: #번호`로 Issue를 연결하고 다음을 남깁니다. PR이 Issue를 자동 종료하면 안 되므로 `Closes`는 사용하지 않습니다.
 
 - Automated verification.
 - Manual QA.
 - Adversarial QA.
 - Cleanup receipt.
 - Evidence files.
+- 읽은 문서, subagent 사용 여부와 이유, Execution mode와 reason, Level 5/6 결정과 이유.
+- 실행한 검증별 Level, 명령 또는 확인, 결과와 미검증 항목·남은 위험.
 - Codex를 사용했다면 CLI version, model, reasoning effort, 실제 관찰된 sandbox/approval.
+
+완료 주장 템플릿을 별도 파일로 두지 않습니다. PR template과 이 절의 항목, Issue evidence가 완료 주장에 필요한 정본입니다.
 
 ## 주의
 
