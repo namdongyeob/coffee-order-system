@@ -12,9 +12,12 @@ import com.example.coffeeordersystem.order.repository.OrderRepository;
 import com.example.coffeeordersystem.point.domain.UserPoint;
 import com.example.coffeeordersystem.point.repository.UserPointRepository;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -23,9 +26,29 @@ public class OrderService {
 	private final MenuRepository menuRepository;
 	private final UserPointRepository userPointRepository;
 	private final OrderRepository orderRepository;
+	private final RedissonClient redissonClient;
+	private final TransactionTemplate transactionTemplate;
 
-	@Transactional
 	public OrderResponse createOrder(Long userId, Long menuId) {
+		RLock lock = redissonClient.getLock("lock:order:user:" + userId);
+		boolean acquired = false;
+		try {
+			acquired = lock.tryLock(2, 5, TimeUnit.SECONDS);
+			if (!acquired) {
+				throw new ApiException(ErrorCode.ORDER_LOCK_NOT_ACQUIRED);
+			}
+			return transactionTemplate.execute(status -> payAndCreateOrder(userId, menuId));
+		} catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			throw new ApiException(ErrorCode.ORDER_LOCK_NOT_ACQUIRED);
+		} finally {
+			if (acquired && lock.isHeldByCurrentThread()) {
+				lock.unlock();
+			}
+		}
+	}
+
+	private OrderResponse payAndCreateOrder(Long userId, Long menuId) {
 		Menu menu = menuRepository.findById(menuId)
 				.orElseThrow(() -> new ApiException(ErrorCode.MENU_NOT_FOUND));
 		UserPoint userPoint = userPointRepository.findByUserIdForUpdate(userId)
