@@ -127,6 +127,22 @@ class MarkdownLinkTest(unittest.TestCase):
 			self.assertEqual(1, len(errors))
 			self.assertIn("missing.md", errors[0])
 
+
+class OrchestrationContractTest(unittest.TestCase):
+	def test_main_is_coordinator_only_and_qa_verifies(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		skill = (
+			repository_root / ".codex" / "skills" / "coffee-order-issue-loop" / "SKILL.md"
+		).read_text(encoding="utf-8")
+
+		self.assertIn("BLOCKED: COORDINATOR ONLY", skill)
+		self.assertIn("Review와 QA를 병렬 배정", skill)
+		self.assertIn("독립 Issue는 별도 worktree", skill)
+		self.assertIn("BLOCKED: AGENT STALLED", skill)
+		self.assertIn("commit, push, merge", skill)
+		self.assertIn("docs/testing/test-strategy.md", skill)
+		self.assertNotIn("BLOCKED: MAIN VERIFIES", skill)
+
 	def test_existing_relative_link_passes(self):
 		with tempfile.TemporaryDirectory() as temp_dir:
 			root = Path(temp_dir)

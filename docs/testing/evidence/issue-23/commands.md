@@ -21,5 +21,8 @@
 | `scripts/start_codex_workspace.ps1 -C C:\` | 래퍼 작업 루트 덮어쓰기 차단 | 의도된 거부, 종료 코드 2. |
 | Python `yaml.safe_load` | GitHub Actions workflow 문법 확인 | PASS. |
 | `.\gradlew.bat test --no-daemon` | Review 수정 후 최종 전체 regression | PASS, 31초. |
+| QA Agent: `python -m unittest discover -s scripts/tests -p "test_*.py"` | Coordinator-only 계약 포함 하네스 재검증 | PASS, 17건. |
+| QA Agent: `python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links --include-worktree` | evidence와 변경 링크 독립 재검증 | PASS. |
+| QA Agent: `git diff --check` | whitespace 오류 독립 검사 | PASS. LF/CRLF 경고만 확인. |
 
 독립 Review 결과와 반영 여부는 PR 본문에 추가합니다.

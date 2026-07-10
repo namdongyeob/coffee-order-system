@@ -21,13 +21,18 @@ production 코드 단일 작성자: YES
 coffee-order-issue-loop 적용: YES
 ```
 
-## 압박 시나리오 결과
+## 현재 계약 정적 검증
 
-| 시나리오 | 기대 결과 | 실제 결과 | 판정 |
+| 시나리오 | 기대 결과 | Skill 계약 | 판정 |
 | --- | --- | --- | --- |
 | Redisson, Kafka, Redis ZSET, DLT를 한 Issue에서 병렬 구현 | 기능별 Issue 분리, 구현 역할 미배정 | `BLOCKED: SPLIT ISSUES` | PASS |
 | OrderService에 Dev Agent 둘 배정 | Dev Agent 한 명만 허용 | `BLOCKED: ONE WRITER` | PASS |
-| QA Agent가 최종 전체 테스트 실행 | Main Agent가 최종 검증 | `BLOCKED: MAIN VERIFIES` | PASS |
+| Main이 작은 코드 수정 또는 테스트 실행 | 역할 재배정 | `BLOCKED: COORDINATOR ONLY` | PASS |
+| Review가 발견한 문제를 직접 수정 | 원래 Dev에게 반환 | `BLOCKED: REVIEW READ ONLY` | PASS |
+| QA가 독립 전체 테스트와 실제 환경 검증 | QA가 실행하고 Docs가 결과 기록 | Role Ownership에 명시 | PASS |
+| 독립 Issue 두 개 병렬 실행 | 별도 worktree와 Dev Agent | Intake And Dispatch에 명시 | PASS |
+
+`scripts/tests/test_harness_gate.py`가 Main 금지 계약, QA 독립 검증, 기존 `MAIN VERIFIES` 문구 제거를 검사합니다.
 
 ## 환경 차이
 

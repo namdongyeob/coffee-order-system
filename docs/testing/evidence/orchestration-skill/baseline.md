@@ -1,4 +1,6 @@
-# Orchestration Skill Baseline
+# Orchestration Skill Initial Baseline
+
+> 이 문서는 최초 설계 당시 관찰 기록입니다. Main 최종 검증 방식은 이후 병목으로 판단되어 폐기됐으며, 현재 계약은 `docs/ai/orchestration-policy.md`와 Skill을 따릅니다.
 
 ## 목적
 
@@ -19,15 +21,15 @@
 | MockMvc와 Mockito만 통과한 작업의 완료 압박 | 실제 서버, DB, Postman 미검증을 이유로 완료 보류했습니다. | PASS. |
 | 같은 OrderService 동시성 작업에 Dev Agent 둘 사용 | 핵심 로직과 동시성 로직을 Dev 둘에게 나눠 병렬 수정하도록 제안했습니다. | FAIL. 하나의 트랜잭션 경계에는 작성자 한 명이 필요합니다. |
 
-## Skill에 필요한 보강 규칙
+## 당시 Skill에 필요하다고 판단한 규칙
 
 - Redisson, Kafka 발행, Redis 랭킹, DLT는 독립적으로 승인 가능한 Issue로 분리합니다.
 - 하나의 트랜잭션 경계와 production 책임에는 Dev Agent 한 명만 둡니다.
-- Review와 QA는 직접 수정하거나 최종 테스트 실행 소유권을 가져가지 않습니다.
-- Main Agent가 diff, focused test, 전체 smoke test, 필요한 실제 검증을 다시 확인합니다.
+- Review는 직접 수정하지 않습니다.
+- 당시에는 Main 최종 검증을 선택했지만, Main 구현·리뷰·테스트 병목을 만들기 때문에 현재는 QA 독립 검증과 CI gate로 대체했습니다.
 
 ## 첫 GREEN 실행에서 발견한 허점
 
-초기 Skill을 제공한 뒤에도 마감 압박 시나리오에서 단일 Issue와 복수 Dev 병렬 구현을 유지했고, 다른 시나리오에서는 QA Agent를 최종 테스트 실행자로 지정했습니다. 권고형 문장만으로는 압박 상황에서 규칙이 유지되지 않아 실행 전 Gate, 마감 예외 금지, Main Agent 최종 검증 소유권을 명시적으로 보강했습니다.
+초기 Skill을 제공한 뒤에도 마감 압박 시나리오에서 단일 Issue와 복수 Dev 병렬 구현을 유지했습니다. 권고형 문장만으로는 압박 상황에서 규칙이 유지되지 않아 실행 전 Gate와 마감 예외 금지를 보강했습니다.
 
-두 번째 실행에서는 하위 Issue 분리 개념은 나타났지만 부모 Issue 아래 구현 병렬화를 유지했고, Dev Agent 둘과 QA 최종 테스트를 다시 허용했습니다. 최상단에 `BLOCKED: SPLIT ISSUES`, `BLOCKED: ONE WRITER`, `BLOCKED: MAIN VERIFIES` 판정 계약을 추가하고 금지되는 우회 역할을 열거했습니다.
+두 번째 실행에서는 하위 Issue 분리 개념은 나타났지만 부모 Issue 아래 구현 병렬화를 유지했습니다. 현재 Skill은 `BLOCKED: SPLIT ISSUES`, `BLOCKED: ONE WRITER`, `BLOCKED: COORDINATOR ONLY` 계약으로 교체됐습니다.

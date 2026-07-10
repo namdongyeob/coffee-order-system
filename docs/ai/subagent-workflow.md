@@ -26,4 +26,4 @@ Issue 실행 순서는 `docs/ai/agent-rules.md`만 따릅니다.
 다음 역할에 전달할 내용:
 ```
 
-서브에이전트의 완료 보고는 evidence가 아니며, Main Agent가 diff와 검증 결과를 다시 확인합니다.
+서브에이전트의 완료 문장만으로는 완료하지 않습니다. Main Coordinator는 Dev·Review·QA·Docs의 필수 보고와 CI 상태가 모두 존재하는지만 확인하며, diff 내용 검토나 테스트 재실행은 하지 않습니다.

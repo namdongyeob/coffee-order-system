@@ -9,9 +9,9 @@
 
 ## 반드시 지킬 경계
 
-- 한 번에 하나의 Issue만 처리하고, 같은 production/test 책임의 작성자는 Dev Agent 한 명으로 제한합니다.
+- 각 Dev Agent와 worktree는 한 번에 Issue 하나만 처리합니다. Main Coordinator는 쓰기 범위와 도메인 계약이 겹치지 않는 독립 Issue 여러 개를 병렬 조정할 수 있습니다.
 - 정책이 불명확하면 구현하지 않고 질문 Issue 또는 ADR 초안으로 분리합니다.
-- Review Agent와 QA Agent는 읽기 전용이며, Main Agent가 최종 검증을 직접 재실행합니다.
+- Main Coordinator는 저장소 파일을 수정하거나 코드리뷰·테스트를 수행하지 않습니다. Dev가 구현하고 Review가 검토하며 QA가 독립 검증합니다.
 - 범위 밖 리팩터링과 Facade, Generic Manager, 공통 프레임워크성 추상화를 추가하지 않습니다.
 - merge와 Issue close는 사람이 승인한 뒤 수행합니다.
 

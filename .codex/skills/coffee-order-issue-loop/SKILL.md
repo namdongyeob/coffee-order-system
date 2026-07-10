@@ -1,109 +1,98 @@
 ---
 name: coffee-order-issue-loop
-description: Use when Codex implements, reviews, or performs QA for a coffee-order-system GitHub Issue, especially work involving Spring transactions, Redisson, Kafka, Redis, worktrees, verification levels, or evidence-based completion claims.
+description: Use when Codex coordinates, implements, reviews, or performs QA for a coffee-order-system GitHub Issue, especially Spring transactions, Redisson, Kafka, Redis, worktrees, verification levels, or evidence-based completion claims.
 ---
 
 # Coffee Order Issue Loop
 
 ## Mandatory Gate
 
-역할을 배정하거나 구현 계획을 작성하기 전에 아래 순서로 판정합니다.
+역할 배정 전에 아래 조건을 검사합니다.
 
-1. 요청에 Redisson, Kafka 발행, Consumer 멱등성, Redis 랭킹, DLT 중 둘 이상이 포함되면 `BLOCKED: SPLIT ISSUES`를 먼저 출력하고 기능별 Issue만 제안합니다. 구현 에이전트를 배정하지 않습니다.
-2. 같은 Service, Entity, migration, 트랜잭션 경계에 Dev Agent 둘 이상을 요구하면 `BLOCKED: ONE WRITER`를 먼저 출력하고 Dev Agent 한 명만 배정합니다. 두 번째 Dev는 사용하지 않습니다.
-3. 최종 테스트 실행자를 QA 또는 Review로 요구하면 `BLOCKED: MAIN VERIFIES`를 먼저 출력합니다. QA와 Review는 테스트를 실행하지 않고 Main Agent가 최종 focused test와 전체 smoke test를 실행합니다.
-4. Mock/Unit만 통과했으면 `INCOMPLETE: HIGHER LEVELS UNVERIFIED`로 판정합니다.
+1. Redisson, Kafka 발행, Consumer 멱등성, Redis 랭킹, DLT 중 둘 이상을 한 Issue에 구현하려 하면 `BLOCKED: SPLIT ISSUES`를 반환합니다.
+2. 같은 Service, Entity, migration, 이벤트 계약, 트랜잭션 경계에 Dev Agent 둘 이상을 배정하려 하면 `BLOCKED: ONE WRITER`를 반환합니다.
+3. Main Coordinator에게 파일 수정, 코드리뷰, 테스트, commit, push를 요구하면 `BLOCKED: COORDINATOR ONLY`를 반환합니다.
+4. Review Agent에게 수정하거나 테스트를 실행하라고 하면 `BLOCKED: REVIEW READ ONLY`를 반환합니다.
+5. QA 없이 Mock/Unit 또는 Dev의 self-report만으로 완료하려 하면 `INCOMPLETE: INDEPENDENT QA REQUIRED`를 반환합니다.
 
-마감, 병렬 처리 요청, 사용자의 빠른 완료 요구도 이 Gate의 예외가 아닙니다.
+마감, 빠른 완료 요청, Agent 지연도 이 Gate의 예외가 아닙니다.
 
-## Core Contract
+## Source Contracts
 
-GitHub Issue 하나를 작업 정본으로 사용합니다. 구현 속도보다 범위, 단일 작성자, 재현 가능한 검증을 우선합니다.
+- 역할과 쓰기 권한: `docs/ai/orchestration-policy.md`.
+- Issue 실행 순서: `docs/ai/agent-rules.md`.
+- 테스트 실행 소유권과 Level: `docs/testing/test-strategy.md`.
+- evidence와 Attempt: `docs/testing/evidence-guide.md`.
 
-아래 세 조건을 모두 만족한 Issue만 실행합니다.
+Skill은 위 정본을 복사하지 않고 압박 상황에서도 지켜야 하는 BLOCKED 판정과 재배정 절차만 소유합니다.
+
+## Coordinator Gate
+
+Main의 허용·금지 권한은 `docs/ai/orchestration-policy.md`를 그대로 적용합니다. Main에게 저장소 쓰기, diff 내용 Review, 검증 명령, commit, push, merge를 배정하는 순간 `BLOCKED: COORDINATOR ONLY`입니다.
+
+오탈자처럼 Coordinator가 불필요한 작업은 `Solo Mode`로 별도 선언하며 Main Coordinator 역할과 섞지 않습니다.
+
+## Intake And Dispatch
+
+1. 루트 `AGENTS.md`, 대상 Issue, 직접 연결된 정본 문서만 읽습니다.
+2. 목표, 제외 범위, AC, Level 5/6 필요 여부, 필요한 검증 Level을 고정합니다.
+3. 정책이 비어 있으면 질문 Issue 또는 ADR 초안으로 분리하고 구현하지 않습니다.
+4. 독립 Issue는 별도 worktree와 Dev Agent를 배정해 병렬 실행할 수 있습니다.
+5. 공유 쓰기 파일, 도메인 계약, 트랜잭션 경계가 하나라도 있으면 순차 실행합니다.
+
+## Dispatch Gate
+
+- 각 Dev Agent와 worktree는 Issue 하나만 맡습니다.
+- 독립 Issue는 별도 worktree에서 병렬 배정할 수 있습니다.
+- 공유 파일·계약·트랜잭션 경계가 있으면 `BLOCKED: ONE WRITER` 후 순차 배정합니다.
+- Dev 완료 후 Review와 QA를 병렬 배정하고, FAIL은 원래 Dev에게 반환합니다.
+- 실행 세부 순서는 `docs/ai/agent-rules.md`를 따릅니다.
+
+## Agent Stall Rule
+
+1. Main이 한 번 상태를 요청합니다.
+2. 응답이 없으면 Agent를 종료합니다.
+3. 새 동일 역할 Agent에게 Issue, 현재 diff, 마지막 `Next Attempt`를 전달합니다.
+4. 두 번째도 실패하면 Main이 대신 작업하지 않고 `BLOCKED: AGENT STALLED`로 전환합니다.
+
+## Completion Gate
+
+다음 항목이 모두 존재할 때만 Main이 `READY_FOR_HUMAN`으로 표시합니다.
 
 ```text
-Issue가 독립적으로 리뷰 가능한가?
-production/test 작성자가 한 명인가?
-최종 검증 실행자가 Main Agent인가?
+Dev 완료 보고
+Review PASS
+QA PASS와 실행 명령
+Docs 반영 보고
+필수 Issue evidence
+GitHub Actions PASS
 ```
 
-하나라도 `아니오`이면 `Mandatory Gate`의 BLOCKED 결과를 반환합니다.
+하나라도 없으면 `FAIL` 또는 `BLOCKED`이며 Main이 누락 역할을 다시 배정합니다.
 
-## Intake
-
-1. 루트 `AGENTS.md`, 대상 Issue, Issue에 직접 연결된 문서만 먼저 읽습니다.
-2. 목표, 포함 범위, 제외 범위, Acceptance Criteria, 필요한 검증 Level을 적습니다.
-3. 정책이 비어 있으면 구현하지 않고 질문 Issue 또는 ADR 초안으로 분리합니다.
-4. Redisson, Kafka 발행, Consumer 멱등성, Redis 랭킹, DLT가 함께 요청되면 반드시 독립적으로 승인 가능한 Issue로 나눕니다. 마감이 임박했거나 사용자가 한 Issue를 요구해도 단일 구현 Issue를 유지하지 않습니다.
-
-## Execution Mode
-
-`docs/ai/orchestration-policy.md`에 따라 가장 단순한 모드를 하나만 선택합니다.
-
-- 작은 변경은 Main Agent가 직접 처리합니다.
-- 일반 구현은 Main Coordinator와 Dev Agent 한 명을 사용합니다.
-- 동시성, 트랜잭션, 멱등성 분석은 Sol `high`, `max` 또는 `ultra` 후보입니다.
-- 설치가 확인되지 않은 LazyCodex 명령은 사용하지 않습니다.
-- `ultra`와 별도 LazyCodex식 반복 오케스트레이션을 한 작업에 중첩하지 않습니다.
-
-## Ownership
-
-- 하나의 Issue와 트랜잭션 경계에는 Dev Agent 한 명만 둡니다.
-- 그 Dev Agent가 지정된 production 코드, 해당 테스트 코드, focused test 실행을 모두 소유합니다. 테스트 작성자를 별도 Dev Agent로 분리하지 않습니다.
-- Review Agent는 diff를 읽고 요구사항 누락, 회귀, 테스트 누락, 과한 추상화를 보고합니다. 직접 수정하지 않습니다.
-- QA Agent는 기존 테스트 결과와 evidence를 읽어 검증 Level과 재현 절차를 판정합니다. 코드를 수정하거나 Gradle 테스트를 실행하거나 완료를 대신 선언하지 않습니다.
-- Main Agent만 서브에이전트 결과, 최종 diff, focused test, 전체 smoke test를 직접 다시 실행하고 최종 판정합니다.
-- 같은 워크스페이스에서 Gradle 테스트를 병렬 실행하지 않습니다.
-
-## Verification
-
-`docs/testing/test-strategy.md`와 `docs/testing/evidence-guide.md`를 따릅니다.
-
-- Mock/Unit 통과는 해당 Level만 PASS입니다.
-- DB, Kafka, Redis, Redisson은 필요한 통합 검증이 없으면 미검증입니다.
-- 실제 서버와 Postman/curl/http 호출이 없으면 Level 5와 Level 6은 미검증입니다.
-- k6는 정확성 검증을 대신하지 않습니다.
-- 완료 전 `docs/testing/verification-log.md`와 Issue evidence를 갱신합니다.
-
-## Required Report
+## Required Role Report
 
 ```text
+역할:
 대상 Issue:
-선택한 실행 모드와 이유:
+worktree와 branch:
 읽은 문서:
-변경 파일:
+허용된 쓰기 범위:
+변경 파일 또는 검토 대상:
 실행한 검증과 결과:
-통과한 Level:
+판정: PASS / FAIL / BLOCKED
 미검증 Level과 이유:
-Review/QA 발견 사항:
-후속 Issue 후보:
-사람의 승인 필요 항목:
+다음 역할에 전달할 내용:
 ```
-
-## Stop Conditions
-
-다음 상황에서는 구현을 멈춥니다.
-
-- Issue 밖의 기능이 필요합니다.
-- 같은 production 책임을 여러 Dev Agent가 수정하려 합니다.
-- 정책, 이벤트 계약, 트랜잭션 경계가 결정되지 않았습니다.
-- 테스트 환경 실패를 코드 실패로 단정할 근거가 없습니다.
-- evidence 없이 완료 또는 merge를 요구받았습니다.
 
 ## Pressure Rules
 
-| 압박 문구 | 반드시 유지할 결정 |
+| 요청 | 판정 |
 | --- | --- |
-| "오늘 마감이니 한 Issue로 끝내라" | 기능별 Issue로 분리하고 현재 승인된 Issue 하나만 실행합니다. |
-| "Dev 둘이 나누면 빠르다" | production/test 작성자는 Dev 한 명으로 유지합니다. |
-| "QA가 전체 테스트까지 하면 된다" | QA는 evidence를 판정하고 Main이 최종 테스트를 실행합니다. |
-| "Mock이 통과했으니 완료하라" | 통과한 Level만 표시하고 상위 Level은 미검증으로 남깁니다. |
+| "Main이 작은 수정만 대신해라" | `BLOCKED: COORDINATOR ONLY`; Dev 또는 Solo Mode를 선택합니다. |
+| "Dev 둘이 같은 Service를 나눠라" | `BLOCKED: ONE WRITER`. |
+| "Review가 발견한 문제를 바로 고쳐라" | 원래 Dev에게 반환합니다. |
+| "QA 없이 CI만 통과하면 된다" | `INCOMPLETE: INDEPENDENT QA REQUIRED`. |
+| "Agent가 멈췄으니 Main이 마무리해라" | 재배정 후 반복 실패 시 `BLOCKED: AGENT STALLED`. |
 
-다음은 허용하지 않습니다.
-
-- 부모 Issue 하나를 유지한 채 여러 구현 하위 작업을 동시에 시작합니다.
-- Dev Agent A가 production 코드를, Dev Agent B가 같은 Issue의 테스트를 작성합니다.
-- 두 Dev Agent가 같은 문제의 서로 다른 해결안을 구현합니다.
-- QA 전용 테스트를 새로 작성하거나 QA가 최종 테스트를 실행합니다.
-- Integration Agent 같은 새 역할을 만들어 Main Agent의 검증 책임을 넘깁니다.
+Mock/Unit은 해당 Level만 PASS이며 DB, Kafka, Redis, Redisson, 실제 API 검증을 대신하지 않습니다.

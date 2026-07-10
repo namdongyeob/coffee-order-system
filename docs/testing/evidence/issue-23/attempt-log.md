@@ -122,3 +122,33 @@ Branch: codex/issue-23-harness-quality-gates
 ### Next Attempt
 
 - 최종 독립 Review 결과를 반영하고 PR CI를 확인합니다.
+
+## Attempt 5
+
+### Generate
+
+- Main Coordinator가 직접 구현·코드리뷰·테스트·commit·push·merge하지 않는 역할 구조로 정책, Skill, 테스트 전략을 변경했습니다.
+- 독립 Issue는 별도 worktree에서 병렬 Dev를 허용하고, Dev 완료 후 Review와 QA를 병렬 배정하도록 했습니다.
+
+### Evaluate
+
+- 최초 Review는 `AGENTS.md`의 단일 Issue 문구와 병렬 Issue 규칙 충돌, 역할 정본 중복, 계약 테스트 범위 부족을 FAIL로 판정했습니다.
+- 수정 후 Review Agent는 역할 경계에 PASS를 반환했고 QA Agent는 하네스 테스트 17건, repository gate, diff check를 모두 PASS로 판정했습니다.
+
+### Failure Cause
+
+- 기존 설계는 Main이 최종 검증을 모두 소유해 병목이 됐고, 역할 설명이 정책·Skill·테스트 전략에 반복되어 변경 시 불일치가 생겼습니다.
+
+### Change Scope
+
+- 역할과 쓰기 권한 정본은 `orchestration-policy.md`, 테스트 실행 정본은 `test-strategy.md`, 기계적 BLOCKED 판정은 Skill로 제한했습니다.
+- Java production/test 코드는 수정하지 않았습니다.
+
+### Reverification
+
+- Review Agent: PASS. Main 제한, QA 독립 검증, 독립 Issue 병렬 worktree를 확인했습니다.
+- QA Agent: 하네스 테스트 17건 PASS, repository gate PASS, `git diff --check` PASS.
+
+### Next Attempt
+
+- 변경을 PR #24에 push하고 GitHub Actions 결과를 확인합니다.
