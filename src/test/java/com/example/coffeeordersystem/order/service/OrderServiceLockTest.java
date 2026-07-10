@@ -69,7 +69,7 @@ class OrderServiceLockTest {
 	}
 
 	@Test
-	void createOrderUsesUserLockAroundTransactionAndUnlocksAfterSuccess() throws Exception {
+	void createOrderPublishesAfterTransactionTemplateReturnsAndThenUnlocks() throws Exception {
 		OrderResponse expected = new OrderResponse(1L, 7L, 1L, "아메리카노", 4_500, OrderStatus.PAID, LocalDateTime.now());
 		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
 		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);

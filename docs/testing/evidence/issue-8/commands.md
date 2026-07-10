@@ -46,3 +46,14 @@ $order=Invoke-WebRequest -Uri 'http://localhost:8080/api/orders' -Method Post -C
 - Command: `git push -u origin codex/issue-8-kafka-order-event`.
 - Result: pre-push hook FAIL. `verification-log.md`에 Issue #8 Level 5/6 PASS가 아직 없음을 거부했습니다.
 - Handling: Dev는 Docs Agent 소유 verification-log를 수정하거나 hook을 우회하지 않습니다. 독립 QA 확정과 Docs 반영 뒤 push를 재실행해야 합니다.
+
+## Review FAIL 수정 Attempt 2
+
+- RED command: `./gradlew.bat test --tests "*OrderEventPublisherTest.logsBrokerAcknowledgementFailureWithEventContext" --no-daemon`.
+- RED result: failed future에서 기대 오류 로그가 없어 assertion 실패, `BUILD FAILED in 24s`.
+- GREEN command: 동일 focused regression command.
+- GREEN result: `BUILD SUCCESSFUL in 29s`.
+- Focused + Level 4 command: `./gradlew.bat test --tests "*OrderCompletedEventTest" --tests "*OrderEventPublisherTest" --tests "*OrderServiceLockTest" --tests "*OrderEventKafkaIntegrationTest" --no-daemon`.
+- Focused + Level 4 result: `BUILD SUCCESSFUL in 1m 18s`.
+- Full regression command: `./gradlew.bat test --no-daemon`.
+- Full regression result: `BUILD SUCCESSFUL in 1m 21s`.

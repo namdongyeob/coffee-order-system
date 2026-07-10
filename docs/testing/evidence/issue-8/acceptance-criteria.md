@@ -14,11 +14,13 @@ Level 6 reason: 실제 주문 API 요청이 DB 커밋 뒤 Kafka 이벤트 발행
 ## 완료 조건
 
 - [x] `OrderCompletedEvent`는 `eventId`, `orderId`, `userId`, `menuId`, `paidAmount`, `orderedAt`을 문서 계약의 타입과 의미로 제공합니다.
-- [x] 성공한 주문 DB 트랜잭션이 커밋된 뒤 `order.completed` topic으로 이벤트를 발행합니다.
+- [x] 주문 작업의 `TransactionTemplate.execute`가 반환된 뒤 `order.completed` topic 발행을 호출합니다.
 - [x] Kafka 메시지 key는 `userId`의 문자열 표현입니다.
 - [x] 주문 트랜잭션 실패 시 이벤트를 발행하지 않습니다.
 - [x] producer 직렬화 설정으로 이벤트 JSON payload를 전송합니다.
-- [x] focused unit test에서 payload, topic, key, producer 호출과 커밋 이후 순서를 검증합니다.
+- [x] focused unit test에서 payload, topic, key, producer 호출과 `TransactionTemplate.execute` 반환 이후 호출 순서를 검증합니다.
+- [x] broker ack 비동기 실패는 event/order/user/topic context와 함께 오류 로그로 관찰할 수 있습니다.
+- [x] broker ack 비동기 실패는 이미 성공한 API 응답이나 DB 작업을 rollback하지 않으며, Outbox 없는 현재 범위에서는 이벤트가 유실될 수 있습니다.
 - [x] Level 4 Kafka Testcontainers에서 실제 topic에 발행된 JSON 이벤트를 소비해 계약을 검증합니다.
 - [x] Level 5 애플리케이션 기동 결과를 보존합니다.
 - [ ] Level 6 실제 주문 요청, request JSON, response JSON, Kafka 이벤트 관찰 원문을 재현 가능한 evidence로 보존합니다.
