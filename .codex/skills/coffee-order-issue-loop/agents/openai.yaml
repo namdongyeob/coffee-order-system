@@ -1,0 +1,7 @@
+interface:
+  display_name: "Coffee Order Issue Loop"
+  short_description: "Issue 단위 구현과 검증 품질 루프를 적용합니다"
+  default_prompt: "Use $coffee-order-issue-loop to process one coffee-order-system Issue with scoped implementation, review, QA, and evidence."
+
+policy:
+  allow_implicit_invocation: true

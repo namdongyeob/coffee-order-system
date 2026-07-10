@@ -1,22 +1,14 @@
-# 에이전트 규칙
+# Issue 개발 흐름
 
-- 먼저 `AGENTS.md`를 읽습니다.
-- 한 번에 하나의 GitHub Issue만 작업합니다.
-- 불명확한 정책은 구현하지 않습니다.
-- 컴파일이나 테스트에 필요한 경우가 아니면 Issue 범위 밖 파일을 수정하지 않습니다.
-- 아키텍처는 단순하게 유지합니다.
-- 완료 주장 전 검증 로그를 갱신합니다.
+모든 작업은 `Specify -> Clarify -> Plan -> Implement -> Verify -> Review -> Document` 중 현재 단계를 먼저 밝힙니다.
 
-## 루프 작업 규칙
+1. Issue에서 목표, 포함 범위, 제외 범위, Acceptance Criteria를 확인합니다.
+2. Level 5와 Level 6 필요 여부와 이유를 `acceptance-criteria.md`에 기록합니다.
+3. 정책이 비어 있으면 Clarify에서 멈추고 질문 Issue 또는 ADR 초안을 만듭니다.
+4. Dev Agent가 승인된 Issue 하나를 구현하고 focused test를 실행합니다.
+5. Main Agent가 최종 focused test와 전체 smoke test를 재실행합니다.
+6. Review와 QA 결과를 Dev Agent에게 반환하고 수정 후 다시 검토합니다.
+7. evidence, 검증 로그, 관련 계약 문서를 갱신합니다.
+8. 사람이 PR merge와 Issue close를 결정합니다.
 
-- 모든 작업은 `Specify -> Clarify -> Plan -> Implement -> Verify -> Review -> Document` 흐름 중 어디에 해당하는지 명시합니다.
-- 구현 Issue가 아니면 코드를 수정하지 않습니다.
-- 리뷰 또는 QA 역할의 에이전트는 직접 고치지 말고 코멘트와 후속 Issue 후보를 남깁니다.
-- Dev Agent는 구현 결과와 함께 실행한 명령, 검증 레벨, 미검증 항목을 보고합니다.
-
-## 서브에이전트 사용 규칙
-
-- 병렬 서브에이전트는 서로 다른 파일이나 독립 산출물을 다룰 때만 사용합니다.
-- 같은 코드 영역을 여러 에이전트가 동시에 수정하지 않습니다.
-- 정책 결정이 필요한 작업은 병렬 구현하지 않습니다.
-- 사람이 승인하지 않은 merge, close, release, 자동 DLT 재처리는 수행하지 않습니다.
+역할과 쓰기 권한은 `docs/ai/orchestration-policy.md`, 검증 기준은 `docs/testing/test-strategy.md`, evidence 형식은 `docs/testing/evidence-guide.md`를 따릅니다.

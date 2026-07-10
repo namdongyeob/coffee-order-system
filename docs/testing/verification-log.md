@@ -14,3 +14,9 @@
 | 2026-07-09 | Issue #4 menu list API | Level 1 smoke | `./gradlew.bat test --no-daemon` | PASS | 전체 Gradle 테스트가 1분 13초 만에 통과했습니다. |
 | 2026-07-09 | Issue #5 point charge API | Level 2 + Level 3 focused | `./gradlew.bat clean test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon` | PASS | Controller 계약과 Testcontainers MySQL 기반 포인트 충전 DB 흐름이 1분 30초 만에 통과했습니다. |
 | 2026-07-09 | Issue #5 point charge API | Level 1 smoke | `./gradlew.bat test --no-daemon` | PASS | 전체 Gradle 테스트가 1분 20초 만에 통과했습니다. |
+| 2026-07-10 | Issue #23 harness quality gates | Level 0 tooling | `python -m unittest discover -s scripts/tests -p "test_*.py"` | PASS | branch 보호, Level 5/6 결정, Attempt 연결, evidence 내용, verification log, Markdown 링크 검사 16건이 통과했습니다. |
+| 2026-07-10 | Issue #23 harness repository gate | Level 0 tooling | `python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links` | PASS | Issue evidence와 변경 Markdown 상대 링크를 확인했습니다. |
+| 2026-07-10 | Issue #23 Git hooks | Level 0 tooling | `git hook run pre-commit`, `git hook run pre-push` | PASS | Issue branch에서 branch guard와 pre-push harness gate가 통과했습니다. `main` 입력은 의도대로 종료 코드 1을 반환했습니다. |
+| 2026-07-10 | Issue #23 Java compile | Level 1 smoke | `.\gradlew.bat compileJava --no-daemon` | PASS | Java production 코드를 변경하지 않은 상태에서 컴파일이 22초에 통과했습니다. |
+| 2026-07-10 | Issue #23 full regression | Level 1 smoke | `.\gradlew.bat test --no-daemon` | PASS | 최초 Docker daemon 미가동 실패 후 daemon을 시작하고 동일 명령을 재실행해 1분 48초에 통과했습니다. |
+| 2026-07-10 | Issue #23 final regression | Level 1 smoke | `.\gradlew.bat test --no-daemon` | PASS | 독립 Review 수정 후 전체 Gradle 테스트가 31초에 통과했습니다. |
