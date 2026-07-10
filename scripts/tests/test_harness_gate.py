@@ -598,6 +598,34 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertIn("실행 모드별 역할 구성은 `docs/ai/orchestration-policy.md`", agent_rules)
 		self.assertNotIn("Combined Verifier", agent_rules)
 
+	def test_standard_verifier_timing_and_gate_policy_is_explicit(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn("draft PR을 먼저 생성할 수 있습니다", policy)
+		self.assertIn("외부 독립 리뷰", policy)
+		self.assertIn("내부 Combined Verifier", policy)
+		self.assertIn("독립 Combined Verifier PASS와 CI PASS", policy)
+		self.assertIn("draft PR 생성은 완료가 아닙니다", policy)
+		self.assertIn("Review Gate와 QA Gate의 판정 기준 자체", policy)
+
+	def test_harness_and_script_hot_path_has_four_required_documents(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		router = (repository_root / "docs" / "ai" / "context-router.md").read_text(
+			encoding="utf-8"
+		)
+		section = router.split("### 하네스와 스크립트", 1)[1].split("\n### ", 1)[0]
+
+		required_line = next(
+			line for line in section.splitlines() if line.startswith("- 필수.")
+		)
+		self.assertEqual(4, required_line.count("]("))
+		self.assertIn("- 조건부.", section)
+		self.assertIn("- 제외.", section)
+		self.assertIn("- 추가 탐색.", section)
+
 	def test_pull_request_workflow_validates_body_from_temp_file(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		workflow = (repository_root / ".github" / "workflows" / "harness-quality.yml").read_text(

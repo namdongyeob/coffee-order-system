@@ -21,6 +21,14 @@ Execution mode reason: 비어 있지 않은 선택 근거
 
 `SOLO`와 `STANDARD` 조건을 모두 충족한다는 근거가 없으면 `STRICT`를 선택합니다. Redisson, DB 락, 트랜잭션, Kafka 멱등성은 Sol `high`, `max` 또는 `ultra` 후보로 판단하며, 프로젝트 전체 회귀·아키텍처 점검은 `ultra` 읽기 전용으로 배정할 수 있습니다. 동일 실패가 반복되는 장기 작업에는 설치와 명령이 확인된 경우에만 LazyCodex식 반복 루프를 사용합니다.
 
+Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 Issue는 애플리케이션 코드 변경 여부와 무관하게 workflow policy 변경이므로 `STRICT`를 선택합니다. 단순 링크·오탈자 수정처럼 판정 의미를 바꾸지 않는 변경만 이 규칙에서 제외합니다.
+
+## STANDARD Combined Verifier 시점
+
+`STANDARD`의 Dev는 로컬 focused verification과 PR 필수 evidence를 기록한 뒤 Combined Verifier가 pending인 상태로 draft PR을 먼저 생성할 수 있습니다. PR 생성 뒤 저장소 밖의 별도 세션이나 담당자가 수행하는 외부 독립 리뷰를 Combined Verifier로 허용합니다. 외부 독립 리뷰를 사용할 수 없거나 지연되면 현재 오케스트레이션의 Dev와 분리된 내부 Combined Verifier를 반드시 배정합니다.
+
+독립 Combined Verifier는 변경을 작성한 Dev와 같은 역할을 겸하지 않으며 읽기와 focused verification만 수행합니다. PASS 또는 FAIL, 실행 명령, 결과, 남은 위험을 PR 본문 또는 연결된 Issue evidence에 반영합니다. draft PR 생성은 완료가 아닙니다. 독립 Combined Verifier PASS와 CI PASS가 모두 확인되기 전에는 Main이 `READY_FOR_HUMAN`, ready 전환, 완료 또는 merge 권고를 할 수 없습니다.
+
 ## 한 작업의 오케스트레이션 소유자
 
 하나의 Issue에는 오케스트레이션 소유자를 하나만 둡니다.
