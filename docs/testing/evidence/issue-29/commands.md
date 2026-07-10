@@ -14,3 +14,9 @@
 | `python scripts/harness_gate.py --issue 29 --base-ref origin/main --check-links --include-worktree` | Issue #29 repository gate 재실행 | PASS. 종료 코드 0. |
 | metrics integer·Legacy canonical-link PowerShell 검사 | metrics count 정수와 Legacy/backfill 단일 정본 확인 | PASS. `STRICT | 2 | 미측정 | 1 | 0 | 3 | 0 | 0 | 5` 행과 Evidence Guide 링크를 확인했습니다. |
 | `git diff --check` | Review FAIL 수정 후 공백·패치 형식 검사 | PASS. 오류 출력이 없었습니다. |
+| Review 재검토 | Review FAIL 3건 수정과 Issue #29 범위 대조 | PASS. 재현 명령, metrics의 0 이상 정수, Legacy/backfill 단일 정본과 Test Strategy 링크, Acceptance Criteria 범위를 확인했습니다. Review는 테스트를 실행하지 않았습니다. |
+| `python -m unittest scripts.tests.test_harness_gate` | QA focused harness unit 검증 | PASS. HEAD `f3b8e03`에서 48건이 통과했습니다. |
+| `python scripts/harness_gate.py --issue 29 --base-ref origin/main --check-links --include-worktree` | QA repository gate 검증 | PASS. HEAD `f3b8e03`에서 종료 코드 0. |
+| `python scripts/harness_gate.py --branch codex/issue-29-harness-baseline --check-branch` | QA Issue branch guard 허용 검증 | PASS. 종료 코드 0. |
+| `python scripts/harness_gate.py --branch main --check-branch` | QA 보호 branch guard 거부 검증 | PASS. 의도한 종료 코드 1. |
+| `git diff --check`와 `origin/main...HEAD` 변경 범위 검사 | QA 정적 형식과 변경 범위 검증 | PASS. metrics 정수 필드 7개가 유효하고 애플리케이션, build, 인프라 경로 변경이 없음을 확인했습니다. |
