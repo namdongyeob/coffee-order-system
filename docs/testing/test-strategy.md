@@ -25,6 +25,7 @@
 - production 코드, 테스트, 의존성, build 설정을 바꾼 PR은 업데이트 전 전체 `./gradlew.bat test --no-daemon` smoke test를 실행합니다.
 - Level 1 전체 회귀 smoke는 전체 suite 상태를 기록할 뿐이며 Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다.
 - 문서·Issue 템플릿만 바꾼 PR은 로컬에서 하네스 테스트와 링크 검사를 우선하고, 전체 Gradle 테스트는 GitHub Actions 결과로 확인할 수 있습니다. workflow나 검증 스크립트를 바꾼 PR은 로컬에서도 관련 전체 검증을 한 번 실행합니다.
+- Legacy evidence 인정과 backfill은 [Evidence Guide](evidence-guide.md)의 단일 정본을 따릅니다. 이 문서는 Legacy 여부를 별도로 판정하지 않습니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 
 ## 실행 모드와 테스트 수준

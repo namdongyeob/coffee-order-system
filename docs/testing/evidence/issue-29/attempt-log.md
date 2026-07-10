@@ -1,0 +1,90 @@
+# Issue Attempt Log
+
+Issue: #29
+Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/29
+Branch: codex/issue-29-harness-baseline
+
+## Attempt 1
+
+### Generate
+
+- Legacy 경계, Issue 번호 연결, metrics template, 실제 하네스 실패 기록 조건, 동결 예외와 사람 승인 경계를 정본 네 곳에 반영했습니다.
+
+### Evaluate
+
+- PASS. #29의 문서 완료 기준을 변경 파일과 대조했고, 하네스와 정적 검증 결과는 `commands.md`에 기록합니다.
+
+### Failure Cause
+
+- 없음.
+
+### Change Scope
+
+- `docs/ai/orchestration-policy.md`, `docs/ai/agent-mistakes.md`, `docs/testing/evidence-guide.md`, `docs/testing/test-strategy.md`, metrics template, Issue #29 evidence와 verification log만 변경합니다.
+
+### Reverification
+
+- `commands.md`의 branch 성공·실패, metrics 링크, 정책 중복, harness gate, diff 검사를 실행합니다.
+
+### Next Attempt
+
+- Review FAIL의 허용된 1회 Dev 재시도에서 재현 조건, metrics 정수, Legacy 정본 중복만 수정합니다.
+
+## Attempt 2
+
+### Generate
+
+- PR #31 failure log 확인 명령을 기록하고, metrics의 count 값을 0 이상의 정수로 정규화했으며, Legacy/backfill 설명은 Evidence Guide 정본만 유지했습니다.
+
+### Evaluate
+
+- Review FAIL의 세 지적사항만 수정했습니다. Review 재검토와 QA는 다음 역할의 독립 검증 대상입니다.
+
+### Failure Cause
+
+- Attempt 1은 PR #31 실패 기록에 재현 확인 명령이 없었고 metrics count가 정수 형식을 따르지 않았으며, Legacy/backfill 규칙을 test-strategy에 복제했습니다.
+
+### Change Scope
+
+- `agent-mistakes.md`, `test-strategy.md`, metrics template, Issue #29 metrics·attempt·commands·verification log만 수정합니다.
+
+### Reverification
+
+- `gh run view 29086275802 --repo namdongyeob/coffee-order-system --log-failed`, focused harness unit, repository gate, diff 검사를 실행합니다.
+
+### Next Attempt
+
+- 없음.
+
+## Attempt 3
+
+### Generate
+
+- 외부 Review가 발견한 metrics 명령 기록 불일치, stale PR 본문 snapshot, 반복 실수 기록 조건 누락을 수정했습니다.
+
+### Evaluate
+
+- 외부 Review가 반환한 수정 필요 3건을 반영했습니다. GitHub PR 본문을 정본으로 유지하고 저장소 내부 snapshot과 직접 참조는 제거했습니다.
+
+### Failure Cause
+
+- `commands.md`의 metrics 행이 이후 확정된 Agent 수를 반영하지 못했고, 완료 주장 별도 파일 금지 원칙과 달리 PR 본문 snapshot이 남아 있었습니다. 반복 실수 기록 조건도 실제 하네스 실패만 허용해 evidence가 있는 반복 workflow·오케스트레이션 절차 실패를 포괄하지 못했습니다.
+
+### Change Scope
+
+- `agent-mistakes.md`, Issue #29 attempt·commands·metrics, verification log와 stale PR 본문 snapshot 삭제만 허용합니다.
+
+### Reverification
+
+- focused harness unit, 삭제된 snapshot 없이 Issue #29 repository gate와 링크 검사, stale snapshot 참조 검색, `git diff --check`을 실행합니다.
+
+### Next Attempt
+
+- 없음.
+
+## 최종 독립 검증
+
+- 최초 Review 재검토는 PASS했습니다. Review는 테스트를 실행하지 않았으며, 재현 명령 존재, metrics의 0 이상 정수 형식, Legacy/backfill 단일 정본과 Test Strategy 링크, Issue #29 Acceptance Criteria 범위를 확인했습니다. 이후 외부 Review가 추가 수정 필요 3건을 반환해 Attempt 3에서 반영했습니다.
+- QA는 HEAD `f3b8e03`에서 PASS했습니다. harness unit 48건, repository gate, Issue branch 허용과 main 보호 branch 거부, diff 정적 검사와 `origin/main...HEAD` 범위, metrics 정수 필드 7개를 확인했습니다.
+- QA 결함은 0건입니다. 애플리케이션, build, 인프라 경로는 변경되지 않았습니다.
+- Attempt 3 Dev 재검증은 harness unit 48건, snapshot 삭제 후 repository link gate, Issue #29 stale 직접 참조 0건, `git diff --check` 종료 코드 0을 확인했습니다. 독립 재검토와 GitHub Actions CI는 pending입니다.
