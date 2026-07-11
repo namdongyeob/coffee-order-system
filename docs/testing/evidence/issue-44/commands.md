@@ -10,5 +10,11 @@
 | GitHub Actions run `29171462263` | 기준 유효 PR 생성 run | PASS. 2m 40s입니다. |
 | GitHub Actions edited run `29171551064` | W2 무효 PR 본문에서 edited trigger와 Harness evidence gate FAIL 확인 | FAILURE. 의도는 `STRICT`→`SOLO`였으나 PowerShell 문자열 갱신이 Markdown 줄바꿈을 평탄화했습니다. CI는 clean SOLO mismatch가 아니라 execution mode 선언과 reason 누락을 보고했습니다. |
 | full multiline PR body temp-file preflight, GitHub Actions edited run `29171567906` | W3 유효 본문 복원 후 local preflight와 edited trigger PASS 확인 | PASS. 같은 code HEAD `32e9510`에서 local harness preflight PASS, CI SUCCESS 1m 30s입니다. |
+| QA: `python -m py_compile scripts/harness_gate.py` | 하네스 문법 검사 | PASS. |
+| QA: `python -m unittest scripts.tests.test_harness_gate` | 전체 하네스 단위 회귀 | PASS. 59 tests, 0.272s입니다. |
+| QA: actual Issue gate + valid PR-body fixture | current Issue evidence, diff mode, 3자 execution mode 일치 검사 | PASS. |
+| QA: `git diff --check` | 공백 오류 정적 검사 | PASS. |
+| QA: negative metrics/path/mode fixtures | 잘못된 metrics·경로·모드 입력이 거부되는지 확인 | expected failures 확인. |
+| GitHub Actions run `29171643655` | current code HEAD `ac6afbb` final quality-gates | PASS. 1m 29s입니다. |
 
-W2/W3는 `pull_request.edited` trigger와 invalid-to-valid body FAIL→PASS를 실증합니다. 다만 W2는 malformed body였으므로 clean SOLO mismatch assertion 증거가 아닙니다. Review는 앞선 FAIL P1이 W2/W3로 해결됐으나 final 재리뷰는 pending이며, 독립 QA도 pending입니다.
+W2/W3는 `pull_request.edited` trigger와 invalid-to-valid body FAIL→PASS를 실증합니다. 다만 W2는 malformed body였으므로 clean SOLO mismatch assertion 증거가 아닙니다. final Review는 caveat-aware 재리뷰에서 P0/P1/P2 없음 PASS이고, independent QA도 PASS입니다. 이번 docs evidence push가 생성하는 새 CI run은 pending입니다.

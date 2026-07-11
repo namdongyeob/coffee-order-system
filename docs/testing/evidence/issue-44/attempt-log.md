@@ -55,8 +55,9 @@ Branch: codex/issue-44-harness-self-report-gates
 ### Reverification
 
 - W2/W3는 edited `pull_request` 이벤트에서 invalid-to-valid body FAIL→PASS를 확인했습니다. W3는 same code HEAD `32e9510`의 SUCCESS입니다.
-- 이전 Review FAIL P1은 W2/W3 증빙으로 해결됐지만, final Review PASS는 재리뷰 전까지 주장하지 않습니다. QA와 CI 최종 상태도 별도 확인이 필요합니다.
+- independent QA는 `py_compile`, 59 tests, valid PR-body fixture Issue gate, diff check를 PASS했고, negative metrics/path/mode fixtures는 기대한 FAIL을 확인했습니다. Level 5/6은 NO입니다.
+- final Review는 W2 malformed-body caveat을 반영한 재리뷰에서 P0/P1/P2 없음으로 PASS했습니다. CI `29171643655`은 code HEAD `ac6afbb`에서 1m 29s PASS했습니다.
 
 ### Next Attempt
 
-- independent Review 재검토, QA, final CI 상태를 final HEAD 기준으로 확인합니다.
+- 이번 docs evidence push가 생성하는 새 CI run은 아직 관찰하지 않았으므로 pending입니다. merge 판단 전 해당 run을 확인합니다.
