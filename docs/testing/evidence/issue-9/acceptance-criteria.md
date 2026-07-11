@@ -29,8 +29,8 @@ Level 6 reason: 외부 HTTP API를 추가하거나 변경하지 않고 내부 Re
 
 - Attempt 1 start: `2026-07-11T12:13:43.222+09:00`.
 - Attempt 1 end: `2026-07-11T12:16:47.511+09:00`.
-- Attempt 1 duration: `184.290s`.
+- Attempt 1 duration: `184.289s`.
 - Attempt 2 start: `2026-07-11T12:21:30.914+09:00`.
 - Attempt 2 end: `2026-07-11T12:29:51.008+09:00`.
 - Attempt 2 duration: `500.094s`.
-- Combined active Attempt duration: `684.384s` (`184.290s + 500.094s`).
+- Combined active Attempt duration: `684.383s` (`184.289s + 500.094s`).

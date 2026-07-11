@@ -8,7 +8,7 @@ Branch: codex/issue-9-redis-ranking-write
 
 Attempt started at: 2026-07-11T12:13:43.222+09:00
 Attempt ended at: 2026-07-11T12:16:47.511+09:00
-Attempt duration: 184.290s
+Attempt duration: 184.289s
 
 ### Generate
 
@@ -72,3 +72,20 @@ Start source: Main Coordinator가 현재 Attempt 시작 시 실측해 전달한 
 ### Next Attempt
 
 - 독립 Review, QA, Docs와 CI를 실행합니다. Dev pre-push는 Docs 소유 verification-log 반영 전 우회하지 않습니다.
+
+## Final Review and QA
+
+### Review
+
+- production 코드에는 finding이 없었습니다.
+- evidence의 Attempt 1과 합산 시간이 `DateTimeOffset` 계산보다 각각 1ms 크게 기록된 P2 finding 1건으로 `REVISE` 판정을 받았습니다.
+- Docs가 `184.289s`, 합계 `684.383s`로 수정했으며, Review 재검토와 승인 여부는 아직 pending입니다.
+
+### QA
+
+- Level 4 focused actual Redis는 5 tests, failures 0, errors 0, skipped 0으로 `BUILD SUCCESSFUL in 1m 03s`였습니다.
+- Level 1 전체 회귀는 35 tests, failures 0, errors 0, skipped 0으로 `BUILD SUCCESSFUL in 1m 17s`였습니다.
+- Level 5에서 MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2와 애플리케이션을 기동했고, 앱은 42.982초에 시작했으며 health HTTP 200 `UP`, Redis `PONG`을 확인했습니다.
+- raw Redis probe는 `popular:menus:2099-12-30`에서 member `202` score `1`, member `101` score `2`, `popular:menus:2099-12-31`에서 member `101` score `1`을 확인했습니다.
+- QA 소유 probe key 2개는 `DEL` 결과 `2`, 후속 `EXISTS` 결과 `0`으로 정리했습니다. 기존 `rag-pgvector` 리소스는 건드리지 않았고 QA 종료 후 작업 리소스가 남지 않았습니다.
+- Level 6은 외부 HTTP API 변경이 없어 `NO`입니다.

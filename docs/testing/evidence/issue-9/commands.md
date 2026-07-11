@@ -13,7 +13,7 @@
 - End timestamp command: `$start=[DateTimeOffset]::Parse('2026-07-11T12:21:30.914+09:00'); $end=[DateTimeOffset]::Now; ...`.
 - End timestamp result: `2026-07-11T12:29:51.008+09:00`.
 - Attempt 2 duration: `500.094s`.
-- Combined active Attempt duration: `684.384s`.
+- Combined active Attempt duration: `684.383s`.
 
 ## TDD RED
 
@@ -54,3 +54,20 @@
 - Command: `git push -u origin codex/issue-9-redis-ranking-write`.
 - Result: pre-push gate가 `verification-log.md`의 Issue #9 Level 5 PASS 누락을 거부해 push하지 않았습니다.
 - Handling: Dev는 Docs Agent 소유 `verification-log.md`를 수정하거나 hook을 우회하지 않습니다.
+
+## Final independent Review
+
+- Result: production 코드 finding 없음. evidence의 Attempt 1과 합산 시간이 각각 1ms 큰 P2 finding 1건으로 `REVISE`.
+- Docs correction: `184.289s`, 합계 `684.383s`로 정정했습니다.
+- Status: 수정 후 Review 재검토와 승인 여부는 pending입니다.
+
+## Final independent QA
+
+- Level 4 command: `./gradlew.bat test --tests "*PopularMenuRankingEntryTest" --tests "*PopularMenuRankingRedisIntegrationTest" --no-daemon`.
+- Level 4 result: 실제 Redis에서 5 tests, 0 failures, 0 errors, 0 skipped, `BUILD SUCCESSFUL in 1m 03s`.
+- Level 1 command: `./gradlew.bat test --no-daemon`.
+- Level 1 result: 35 tests, 0 failures, 0 errors, 0 skipped, `BUILD SUCCESSFUL in 1m 17s`.
+- Level 5 result: MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2, app start 42.982s, health HTTP 200 `UP`, Redis `PONG`.
+- Raw probe: key `popular:menus:2099-12-30`의 member `202` score `1`, member `101` score `2`; key `popular:menus:2099-12-31`의 member `101` score `1`.
+- Cleanup: QA 소유 key 2개의 `DEL` 결과 `2`, 후속 `EXISTS` 결과 `0`. 기존 `rag-pgvector`는 변경하지 않았고 QA 작업 리소스는 남지 않았습니다.
+- Level 6: 외부 HTTP API 변경이 없어 `NO`.
