@@ -1,0 +1,30 @@
+Baseline: BUILD SUCCESSFUL in 1m 44s
+TDD RED: compileTestJava failed with 6 cannot find symbol errors for missing OrderCompletedEvent and OrderEventPublisher
+Focused and Level 4 final after self-review: BUILD SUCCESSFUL in 1m 23s
+Level 5: Started CoffeeOrderSystemApplication in 45.924 seconds
+Level 6 HTTP: charge 200, order 201
+Level 6 Kafka payload CLI final QA: PASS, key 808, JSON value eventId 13247f60-c5a7-4a7c-a771-39b225d191a4, orderId 2
+Full regression final after self-review: BUILD SUCCESSFUL in 1m 26s
+Pre-push hook: FAIL, Issue #8 Level 5/6 PASS rows are pending in Docs-owned verification-log.md
+Review Attempt 2 RED: failure callback log assertion failed, BUILD FAILED in 24s
+Review Attempt 2 callback GREEN: BUILD SUCCESSFUL in 29s
+Review Attempt 2 focused and Level 4: BUILD SUCCESSFUL in 1m 18s
+Review Attempt 2 full regression: BUILD SUCCESSFUL in 1m 21s
+Final Review: PASS, findings none
+QA Level 4 final: 7 tests, failures 0, BUILD SUCCESSFUL in 1m 17s
+QA Level 1 final: 29 tests, failures 0, BUILD SUCCESSFUL in 1m 23s
+QA Level 5 final: application plus MySQL/Kafka/Redis started in 43.23 seconds, health 200 UP
+QA Level 6 final: charge 200, order 201, Kafka key/value raw record observed with kcat; resources cleaned
+Claude MAJOR Attempt 3 RED: synchronous send RuntimeException propagated, BUILD FAILED in 28s
+Claude MAJOR Attempt 3 publisher GREEN: BUILD SUCCESSFUL in 25s
+Claude MAJOR Attempt 3 focused and Level 4: BUILD SUCCESSFUL in 1m 29s
+Claude MAJOR Attempt 3 fresh full regression: BUILD SUCCESSFUL in 1m 30s
+Claude MAJOR Attempt 3 end timestamp: 2026-07-11T10:35:48.7319732+09:00
+Final Review after Attempt 3: APPROVED, findings none
+Fresh QA Publisher+Service: 6 tests, failures 0, BUILD SUCCESSFUL in 23s; async marker once, sync marker once
+Fresh QA Level 4 actual Kafka: 8 tests, failures 0, BUILD SUCCESSFUL in 1m 7s
+Fresh QA Level 1 full: 30 tests, failures 0, BUILD SUCCESSFUL in 1m 13s
+CI quality-gates: PASS in 1m 29s
+Broker-down bounded QA: PARTIAL, health 200, charge 200, HTTP client timeout at 15048ms with no final status; DB order 1 user 909 PAID and balance 5500
+Broker-down residual: default max.block.ms 60000 metadata retries; sync throw/log not deterministically observed within 15s
+QA cleanup: port 8080 clean, QA containers removed, existing pgvector untouched

@@ -8,11 +8,14 @@ import com.example.coffeeordersystem.menu.repository.MenuRepository;
 import com.example.coffeeordersystem.order.domain.Order;
 import com.example.coffeeordersystem.order.domain.OrderStatus;
 import com.example.coffeeordersystem.order.dto.OrderResponse;
+import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
+import com.example.coffeeordersystem.order.event.OrderEventPublisher;
 import com.example.coffeeordersystem.order.repository.OrderRepository;
 import com.example.coffeeordersystem.point.domain.UserPoint;
 import com.example.coffeeordersystem.point.repository.UserPointRepository;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -28,6 +31,7 @@ public class OrderService {
 	private final OrderRepository orderRepository;
 	private final RedissonClient redissonClient;
 	private final TransactionTemplate transactionTemplate;
+	private final OrderEventPublisher orderEventPublisher;
 
 	public OrderResponse createOrder(Long userId, Long menuId) {
 		RLock lock = redissonClient.getLock("lock:order:user:" + userId);
@@ -37,7 +41,16 @@ public class OrderService {
 			if (!acquired) {
 				throw new ApiException(ErrorCode.ORDER_LOCK_NOT_ACQUIRED);
 			}
-			return transactionTemplate.execute(status -> payAndCreateOrder(userId, menuId));
+			OrderResponse response = transactionTemplate.execute(status -> payAndCreateOrder(userId, menuId));
+			orderEventPublisher.publish(new OrderCompletedEvent(
+					UUID.randomUUID(),
+					response.orderId(),
+					response.userId(),
+					response.menuId(),
+					response.paidAmount(),
+					response.orderedAt()
+			));
+			return response;
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 			throw new ApiException(ErrorCode.ORDER_LOCK_NOT_ACQUIRED);

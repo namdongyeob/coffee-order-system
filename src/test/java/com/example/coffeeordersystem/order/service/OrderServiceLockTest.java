@@ -3,6 +3,7 @@ package com.example.coffeeordersystem.order.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,15 +11,17 @@ import static org.mockito.Mockito.when;
 import com.example.coffeeordersystem.common.ApiException;
 import com.example.coffeeordersystem.common.ErrorCode;
 import com.example.coffeeordersystem.menu.repository.MenuRepository;
-import com.example.coffeeordersystem.order.repository.OrderRepository;
-import com.example.coffeeordersystem.order.dto.OrderResponse;
 import com.example.coffeeordersystem.order.domain.OrderStatus;
+import com.example.coffeeordersystem.order.dto.OrderResponse;
+import com.example.coffeeordersystem.order.event.OrderEventPublisher;
+import com.example.coffeeordersystem.order.repository.OrderRepository;
 import com.example.coffeeordersystem.point.repository.UserPointRepository;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.redisson.api.RLock;
@@ -46,6 +49,9 @@ class OrderServiceLockTest {
 	@Mock
 	TransactionTemplate transactionTemplate;
 
+	@Mock
+	OrderEventPublisher orderEventPublisher;
+
 	@InjectMocks
 	OrderService orderService;
 
@@ -63,7 +69,7 @@ class OrderServiceLockTest {
 	}
 
 	@Test
-	void createOrderUsesUserLockAroundTransactionAndUnlocksAfterSuccess() throws Exception {
+	void createOrderPublishesAfterTransactionTemplateReturnsAndThenUnlocks() throws Exception {
 		OrderResponse expected = new OrderResponse(1L, 7L, 1L, "아메리카노", 4_500, OrderStatus.PAID, LocalDateTime.now());
 		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
 		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
@@ -72,8 +78,10 @@ class OrderServiceLockTest {
 
 		orderService.createOrder(7L, 1L);
 
-		verify(transactionTemplate).execute(any());
-		verify(lock).unlock();
+		InOrder order = inOrder(transactionTemplate, orderEventPublisher, lock);
+		order.verify(transactionTemplate).execute(any());
+		order.verify(orderEventPublisher).publish(any());
+		order.verify(lock).unlock();
 	}
 
 	@Test
@@ -88,5 +96,6 @@ class OrderServiceLockTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INSUFFICIENT_POINT);
 		verify(lock).unlock();
+		verify(orderEventPublisher, never()).publish(any());
 	}
 }
