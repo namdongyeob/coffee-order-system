@@ -91,3 +91,39 @@ Branch: codex/issue-10-popular-menu-api
 ### Next Attempt
 
 - 이 evidence commit push가 새 `pull_request` synchronize event를 발생시킨 뒤, current PR body를 사용한 새 quality-gates CI 결과를 Main Coordinator가 확인합니다. CI PASS 전에는 완료 또는 merge를 주장하지 않습니다.
+
+## Attempt 2 - Internal Review FAIL docs correction
+
+### Generate
+
+- 내부 Review가 P1과 P2 두 건으로 FAIL을 반환했습니다.
+- P1은 Issue 전용 구현 계획서가 Context Router와 evidence 경로에서 도달할 수 없는 새 `docs/superpowers/plans/` tree에 놓인 문제입니다.
+- P2는 PR #43에서 실제 재발한 exact PR body field와 stale event payload 실패가 반복 실수 정본에 반영되지 않은 문제입니다.
+
+### Evaluate
+
+- FAIL. production/test 동작 결함은 보고되지 않았지만 문서 위치와 재발 방지 evidence가 프로젝트 문서 규칙을 충족하지 못했습니다.
+- HEAD `58bec6911fcd786967b8c54791950e23397186ef`의 quality-gates는 이 Attempt 시작 시 pending/in progress 상태입니다. PASS로 기록하지 않습니다.
+- 독립 QA의 populated Top 3 E2E는 실행 중이며 결과를 아직 받지 않았으므로 이 Attempt에서 판정하거나 기록하지 않습니다.
+
+### Failure Cause
+
+- Issue 전용 계획을 기존 evidence 경로가 아니라 새 도달 불가능 tree에 생성했습니다.
+- PR #43 재발은 CI evidence에만 기록하고 반복 실수 정본의 예방 규칙으로 연결하지 않았습니다.
+
+### Change Scope
+
+- 기존 계획서를 `docs/testing/evidence/issue-10/implementation-plan.md`로 history-preserving move합니다.
+- `docs/ai/agent-mistakes.md`에 PR #43의 관찰 사실과 현재 예방 절차만 추가합니다. wrapper 또는 workflow 자동화는 별도 Issue로 남기고 구현하지 않습니다.
+- Issue #10 attempt, commands, metrics에 Review FAIL과 Docs correction 상태만 반영합니다.
+
+### Reverification
+
+- `git diff --check` -> PASS.
+- Issue #10 repository harness -> `Harness gate PASSED`.
+- Harness unit -> 50 tests, PASS.
+- production/test/Gradle/Redis/HTTP 검증은 Docs 역할 범위 밖이라 실행하지 않습니다.
+
+### Next Attempt
+
+- correction commit을 push한 뒤 내부 Review 재검토, 새 CI 결과, 독립 QA populated Top 3 raw evidence를 확인합니다. 세 결과가 확정되기 전에는 최종 PASS를 주장하지 않습니다.

@@ -31,3 +31,13 @@
 - PR #43 initial `quality-gates` run `29168649292` -> FAILURE. initial PR body의 `STRICT mode:`가 harness required field `Execution mode: STRICT`와 불일치한 것이 유일한 원인입니다.
 - live PR body는 `Execution mode: STRICT`와 `Execution mode reason: ...`로 정정됐습니다. `gh pr view 43 --repo namdongyeob/coffee-order-system --json headRefOid,body,statusCheckRollup`에서 HEAD `c41cfee73735cb3188ff5db581a1c25d7ed0aace`가 유지됐고 정정된 live body를 확인했습니다.
 - rerun은 기존 pull_request event payload를 사용하므로 stale initial body를 재검사해 실패했습니다. 이 evidence commit push 뒤의 새 synchronize event CI는 pending이며 PASS로 기록하지 않습니다.
+
+## Internal Review FAIL Docs correction
+
+- Review result: FAIL, P1/P2 2건. P1은 Issue 전용 plan의 도달 불가능한 `docs/superpowers/plans/` 위치, P2는 PR #43 재발의 `agent-mistakes.md` 누락입니다.
+- Plan move: `git mv docs/superpowers/plans/2026-07-12-popular-menu-top3.md docs/testing/evidence/issue-10/implementation-plan.md`.
+- Current CI: HEAD `58bec6911fcd786967b8c54791950e23397186ef`의 quality-gates는 correction 시작 시 pending/in progress이며 PASS로 기록하지 않습니다.
+- Populated E2E: 독립 QA가 실행 중이며 결과가 아직 없어 기록하지 않습니다.
+- `git diff --check` -> PASS.
+- `python scripts/harness_gate.py --issue 10 --branch codex/issue-10-popular-menu-api --base-ref origin/main --check-links --check-branch --include-worktree` -> `Harness gate PASSED`.
+- `python -m unittest scripts.tests.test_harness_gate` -> 50 tests, PASS.
