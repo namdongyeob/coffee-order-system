@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.coffeeordersystem.menu.dto.MenuResponse;
+import com.example.coffeeordersystem.menu.dto.PopularMenuResponse;
 import com.example.coffeeordersystem.menu.service.MenuService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,17 @@ class MenuControllerTest {
 						"""));
 	}
 
+	@Test
+	void getPopularMenusReturnsRankedMenus() throws Exception {
+		mockMvc.perform(get("/api/menus/popular"))
+				.andExpect(status().isOk())
+				.andExpect(content().json("""
+						[
+						  {"rank": 1, "menuId": 2, "menuName": "카페라떼", "orderCount": 12}
+						]
+						"""));
+	}
+
 	@TestConfiguration
 	static class MenuControllerTestConfig {
 
@@ -47,6 +59,9 @@ class MenuControllerTest {
 					new MenuResponse(2L, "카페라떼", 5000),
 					new MenuResponse(3L, "카푸치노", 5500),
 					new MenuResponse(4L, "에스프레소", 4000)
+			));
+			when(menuService.getPopularMenus()).thenReturn(List.of(
+					new PopularMenuResponse(1, 2L, "카페라떼", 12)
 			));
 			return menuService;
 		}

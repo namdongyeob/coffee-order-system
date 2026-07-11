@@ -1,0 +1,54 @@
+# Issue #10 Level 6 실행 가능한 요청 템플릿과 별도 QA 관찰 원문입니다.
+### 포인트 충전
+POST http://localhost:8080/api/points/charge
+Content-Type: application/json
+
+{
+  "userId": 1010,
+  "amount": 15000
+}
+
+### 첫 번째 주문
+POST http://localhost:8080/api/orders
+Content-Type: application/json
+
+{
+  "userId": 1010,
+  "menuId": 1
+}
+
+### 두 번째 주문
+POST http://localhost:8080/api/orders
+Content-Type: application/json
+
+{
+  "userId": 1010,
+  "menuId": 1
+}
+
+### 인기 메뉴 Top 3
+GET http://localhost:8080/api/menus/popular
+Accept: application/json
+
+
+### 2026-07-12 독립 QA 관찰 원문. 아래는 실행 블록이 아닙니다.
+# charge request: {"userId":1010,"amount":15000}
+# charge status: 200
+# charge response: {"userId":1010,"balance":15000}
+# first order request: {"userId":1010,"menuId":1}
+# first order status: 201
+# first order observed fields: orderId=1, menuName=아메리카노, paidAmount=4500, status=PAID
+# second order request: {"userId":1010,"menuId":1}
+# second order status: 201
+# second order observed fields: orderId=2, menuName=아메리카노, paidAmount=4500, status=PAID
+# deterministic poll time: 06:48:02.356
+# MySQL processed_event count: 2
+# Redis command: ZSCORE popular:menus:2026-07-12 1
+# Redis response: 2
+# health status: 200
+# health response: {"groups":["liveness","readiness"],"status":"UP"}
+# popular status: 200
+# popular response: [{"rank":1,"menuId":1,"menuName":"아메리카노","orderCount":2}]
+# Redis prewrite: none
+# unexpected exception: none
+# cleanup: +5s and +20s only pre-existing rag-pgvector remained
