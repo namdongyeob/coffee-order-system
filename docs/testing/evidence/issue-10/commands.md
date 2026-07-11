@@ -18,6 +18,29 @@
 - `python scripts/harness_gate.py --issue 10 --branch codex/issue-10-popular-menu-api --base-ref origin/main --check-links --check-branch --include-worktree` -> `Harness gate PASSED`.
 - `python -m unittest scripts.tests.test_harness_gate` -> 50 tests, PASS.
 
+## Independent QA populated Top 3 follow-up
+
+- `./gradlew.bat test --tests '*PopularMenuRedisIntegrationTest' --no-daemon` -> `BUILD SUCCESSFUL in 1m 26s`.
+- `./gradlew.bat bootTestRun --no-daemon` -> MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2, app `Started` 56.88s, ranking Consumer partition assigned.
+- 첫 curl charge command -> PowerShell quoting 오류로 HTTP 400 `INVALID_CHARGE_AMOUNT`. corrected `Invoke-WebRequest` -> HTTP 200, `{"userId":1010,"balance":15000}`. 명령 quoting 오류이며 애플리케이션 실패가 아닙니다.
+- `POST /api/orders` request `{"userId":1010,"menuId":1}` twice -> HTTP 201 twice, orderId 1/2, menuName `아메리카노`, paidAmount 4500, status `PAID`.
+- Deterministic poll at 06:48:02.356 -> MySQL `processed_event=2`, Redis `ZSCORE popular:menus:2026-07-12 1` -> `2`.
+- `GET /actuator/health` -> HTTP 200, `{"groups":["liveness","readiness"],"status":"UP"}`.
+- `GET /api/menus/popular` -> HTTP 200, raw `[{"rank":1,"menuId":1,"menuName":"아메리카노","orderCount":2}]`.
+- Redis prewrite와 unexpected exception은 없었습니다. Cleanup +5s/+20s에는 pre-existing `rag-pgvector`만 남았습니다.
+- Runtime production/test base는 `58bec6911fcd786967b8c54791950e23397186ef`이며 이후 `a7d9477908a4ce7cb26a987224c70cf735ef7406`까지의 advance는 docs-only입니다.
+
+## Fresh GitHub status before final evidence update
+
+- `gh pr view 43 --repo namdongyeob/coffee-order-system --json headRefOid,statusCheckRollup,reviews` -> HEAD `a7d9477908a4ce7cb26a987224c70cf735ef7406`, quality-gates run `29169413405` SUCCESS, GitHub review 없음.
+- 이 evidence update 뒤 새 synchronize CI와 내부 Review 재검토는 별도 확인이 필요합니다.
+
+## Final evidence Docs checks
+
+- `git diff --check` -> PASS.
+- `python scripts/harness_gate.py --issue 10 --branch codex/issue-10-popular-menu-api --base-ref origin/main --check-links --check-branch --include-worktree` -> `Harness gate PASSED`.
+- `python -m unittest scripts.tests.test_harness_gate` -> 50 tests, PASS.
+
 ## 독립 QA Level 5 and Level 6
 
 - Level 5: `./gradlew.bat bootTestRun --no-daemon` -> MySQL `8.4.5`, Kafka `3.9.1`, Redis `7.4.2` 기동, Redis `PING` `PONG`, `DBSIZE` `0`, application `Started` `43.966s`, Kafka partition assigned, PASS.

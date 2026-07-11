@@ -127,3 +127,37 @@ Branch: codex/issue-10-popular-menu-api
 ### Next Attempt
 
 - correction commit을 push한 뒤 내부 Review 재검토, 새 CI 결과, 독립 QA populated Top 3 raw evidence를 확인합니다. 세 결과가 확정되기 전에는 최종 PASS를 주장하지 않습니다.
+
+## Independent QA populated Top 3 and final evidence update
+
+### Generate
+
+- production/test가 동일한 HEAD `58bec6911fcd786967b8c54791950e23397186ef`에서 실제 충전과 주문 두 건으로 Kafka Consumer와 Redis ranking을 채운 뒤 인기 메뉴 API를 호출했습니다.
+- runtime 중 branch는 docs-only commit `a7d9477908a4ce7cb26a987224c70cf735ef7406`까지 전진했지만 production/test 변경은 없었습니다.
+
+### Evaluate
+
+- PASS. Redis prewrite 없이 주문 두 건이 MySQL `processed_event=2`와 Redis score `2`로 반영됐고 인기 메뉴 API가 rank 1 아메리카노, orderCount 2를 반환했습니다.
+- 첫 charge curl의 HTTP 400 `INVALID_CHARGE_AMOUNT`는 PowerShell quoting 명령 오류입니다. corrected `Invoke-WebRequest`는 HTTP 200이므로 애플리케이션 결함으로 판정하지 않습니다.
+- Docs correction HEAD `a7d9477908a4ce7cb26a987224c70cf735ef7406`의 quality-gates run `29169413405`는 SUCCESS로 새로 관찰했습니다.
+- 내부 Review 재검토는 아직 없으므로 P1/P2가 해결됐다는 최종 Review PASS는 주장하지 않습니다.
+
+### Failure Cause
+
+- 애플리케이션 실패는 없습니다. 최초 charge command만 PowerShell JSON quoting이 잘못됐습니다.
+
+### Change Scope
+
+- Issue #10의 manual QA, HTTP raw evidence, commands, attempt, metrics, verification log만 갱신합니다.
+
+### Reverification
+
+- Focused Level 4: `BUILD SUCCESSFUL in 1m 26s`.
+- Level 5: MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2, app 56.88초 start, Consumer partition assigned.
+- Level 6: charge 200, orders 201/201, deterministic poll at 06:48:02.356에서 processed_event 2와 ZSCORE 2, health 200, popular 200과 raw `[{"rank":1,"menuId":1,"menuName":"아메리카노","orderCount":2}]`.
+- Cleanup +5초와 +20초 확인에서 pre-existing `rag-pgvector`만 남았습니다.
+- Final evidence docs: `git diff --check` PASS, Issue #10 harness PASS, harness unit 50 tests PASS.
+
+### Next Attempt
+
+- 이 evidence update를 push한 뒤 내부 Review 재검토와 새 synchronize quality-gates CI를 확인합니다. 둘 다 PASS하기 전에는 merge 준비 완료를 주장하지 않습니다.
