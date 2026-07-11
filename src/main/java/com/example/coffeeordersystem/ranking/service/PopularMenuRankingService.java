@@ -1,6 +1,7 @@
 // 주문 완료 시 일별 Redis 인기 메뉴 score를 증가시킵니다.
 package com.example.coffeeordersystem.ranking.service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -31,7 +32,7 @@ public class PopularMenuRankingService {
 		byte[][] keys = java.util.stream.IntStream.range(0, 7)
 				.mapToObj(today::minusDays)
 				.map(date -> KEY_PREFIX + date.format(DATE_FORMATTER))
-				.map(String::getBytes)
+				.map(key -> key.getBytes(StandardCharsets.UTF_8))
 				.toArray(byte[][]::new);
 		Set<Tuple> tuples = redisTemplate.execute(
 				(RedisCallback<Set<Tuple>>) connection -> connection.zUnionWithScores(keys));
@@ -39,7 +40,8 @@ public class PopularMenuRankingService {
 			return List.of();
 		}
 		return tuples.stream()
-				.map(tuple -> new PopularMenuRanking(Long.parseLong(new String(tuple.getValue())), tuple.getScore().longValue()))
+				.map(tuple -> new PopularMenuRanking(
+						Long.parseLong(new String(tuple.getValue(), StandardCharsets.UTF_8)), tuple.getScore().longValue()))
 				.sorted(Comparator.comparingLong(PopularMenuRanking::orderCount).reversed()
 						.thenComparingLong(PopularMenuRanking::menuId))
 				.toList();
