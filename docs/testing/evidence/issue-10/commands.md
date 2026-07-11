@@ -14,9 +14,9 @@
 
 ## Docs Agent 검증
 
-- 예정: `git diff --check`.
-- 예정: `python scripts/harness_gate.py --issue 10 --branch codex/issue-10-popular-menu-api --base-ref origin/main --check-links --check-branch --include-worktree`.
-- 예정: `python -m unittest scripts.tests.test_harness_gate`.
+- `git diff --check` -> PASS.
+- `python scripts/harness_gate.py --issue 10 --branch codex/issue-10-popular-menu-api --base-ref origin/main --check-links --check-branch --include-worktree` -> `Harness gate PASSED`.
+- `python -m unittest scripts.tests.test_harness_gate` -> 50 tests, PASS.
 
 ## 독립 QA Level 5 and Level 6
 

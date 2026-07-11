@@ -22,4 +22,4 @@ Measured at: 2026-07-12
 
 - Commands: `commands.md`.
 - Attempts: `attempt-log.md`.
-- Review/QA: pending.
+- QA: `manual-qa.md`. Review: pending.
