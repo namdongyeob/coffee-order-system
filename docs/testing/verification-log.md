@@ -4,6 +4,7 @@
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-07-12 | Issue #44 harness 자기 신고 게이트 | Level 0 | PASS | 하네스 정적 계약·문서 evidence | `python -m py_compile scripts/harness_gate.py; python -m unittest scripts.tests.test_harness_gate`; `docs/testing/evidence/issue-44/commands.md` | Dev GREEN에서 59 tests PASS, links-only gate와 diff check PASS입니다. Level 5/6은 runtime·HTTP 변경이 없어 NO이며 CI, 독립 Review, 독립 QA는 pending입니다. |
 | 2026-07-12 | Issue #10 인기 메뉴 Top 3 API | Level 2 | PASS | Controller/API 계약 | `MenuControllerTest`; `docs/testing/evidence/issue-10/commands.md` | Dev가 `GET /api/menus/popular` Controller 계약을 24초에 PASS했습니다. Level 5/6은 required이며 독립 QA가 pending입니다. |
 | 2026-07-12 | Issue #10 인기 메뉴 Top 3 API | Level 4 | PASS | Redis ZSET 조회 인프라 통합 | `PopularMenuRedisIntegrationTest`; `docs/testing/evidence/issue-10/commands.md` | Dev가 2 tests, failures 0, errors 0을 55.439초에 PASS했고 독립 QA 재검증도 `BUILD SUCCESSFUL in 1m 26s`였습니다. 최근 7일 ZUNION, `2`/`10` 숫자 동점 정렬, 범위 밖 날짜 제외, 삭제 메뉴 skip, 임시 key 미생성을 확인했습니다. |
 | 2026-07-12 | Issue #10 인기 메뉴 Top 3 API | Level 1 | PASS | 빌드·Unit·전체 회귀 smoke | `./gradlew.bat test --no-daemon`; `docs/testing/evidence/issue-10/commands.md` | Dev가 fresh 전체 회귀를 2분 02초에 PASS했습니다. baseline은 ResourceReaper/Docker cleanup 대기와 최종 XML 부재로 PARTIAL/미확인이며 이 PASS 근거와 구분합니다. |
