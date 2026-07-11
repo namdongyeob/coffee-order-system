@@ -7,5 +7,8 @@
 | `python scripts/harness_gate.py --links-only --base-ref origin/main` | 변경 Markdown 링크 검사 | PASS. `Harness gate PASSED`입니다. |
 | `git diff --check` | 공백 오류 정적 검사 | PASS. 오류가 없습니다. |
 | `python scripts/harness_gate.py --issue 44 --branch codex/issue-44-harness-self-report-gates --base-ref origin/main --check-links --check-branch --include-worktree --pr-body-file docs/testing/evidence/issue-44/acceptance-criteria.md` | literal `Execution mode: STRICT`와 reason을 가진 임시 PR-body fixture로 3자 모드·branch·evidence·link 검사 | PASS. `Harness gate PASSED`입니다. Fixture는 실제 PR 본문이 아니라 PR-body 형식 필드만 가진 임시 입력으로 사용했습니다. |
+| GitHub Actions run `29171462263` | 기준 유효 PR 생성 run | PASS. 2m 40s입니다. |
+| GitHub Actions edited run `29171551064` | W2 무효 PR 본문에서 edited trigger와 Harness evidence gate FAIL 확인 | FAILURE. 의도는 `STRICT`→`SOLO`였으나 PowerShell 문자열 갱신이 Markdown 줄바꿈을 평탄화했습니다. CI는 clean SOLO mismatch가 아니라 execution mode 선언과 reason 누락을 보고했습니다. |
+| full multiline PR body temp-file preflight, GitHub Actions edited run `29171567906` | W3 유효 본문 복원 후 local preflight와 edited trigger PASS 확인 | PASS. 같은 code HEAD `32e9510`에서 local harness preflight PASS, CI SUCCESS 1m 30s입니다. |
 
-CI, 독립 Review, 독립 QA 결과는 이 문서 작성 시점에 pending이며, Dev 결과와 혼동하지 않습니다.
+W2/W3는 `pull_request.edited` trigger와 invalid-to-valid body FAIL→PASS를 실증합니다. 다만 W2는 malformed body였으므로 clean SOLO mismatch assertion 증거가 아닙니다. Review는 앞선 FAIL P1이 W2/W3로 해결됐으나 final 재리뷰는 pending이며, 독립 QA도 pending입니다.

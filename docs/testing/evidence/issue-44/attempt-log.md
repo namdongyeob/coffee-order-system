@@ -30,4 +30,33 @@ Branch: codex/issue-44-harness-self-report-gates
 
 ### Next Attempt
 
-- Docs evidence commit과 push 뒤 independent Review와 QA, GitHub Actions CI가 final HEAD에서 검증합니다.
+- W2/W3 edited-trigger 증빙을 반영한 뒤 independent Review 재검토와 QA가 final HEAD에서 검증합니다.
+
+## Attempt 2
+
+### Generate
+
+- Review FAIL P1에 따라 GitHub Actions의 실제 `pull_request.edited` 이벤트로 무효 PR 본문 FAIL과 유효 PR 본문 PASS를 관찰했습니다.
+
+### Evaluate
+
+- 기준 유효 PR 생성 run `29171462263`은 2m 40s PASS였습니다.
+- W2 edited PR-body run `29171551064`은 Harness evidence gate에서 FAILURE였습니다. 의도한 변경은 `STRICT`에서 `SOLO`였지만, PowerShell 본문 문자열 갱신이 Markdown 줄바꿈도 평탄화했습니다. 따라서 CI 로그는 clean SOLO mismatch가 아니라 `Execution mode: SOLO|STANDARD|STRICT` 선언과 reason 누락을 보고했습니다.
+- W3는 full multiline 유효 본문을 복원했고, 동일 HEAD `32e9510`에서 edited run `29171567906`이 1m 30s SUCCESS였습니다. 로컬 temp-file harness preflight도 PASS였습니다.
+
+### Failure Cause
+
+- W2의 실패 원인은 intended SOLO mismatch만이 아니라 PowerShell 문자열 갱신으로 인한 multiline Markdown 손상입니다. 이 run은 edited trigger와 invalid body FAIL은 증명하지만, clean SOLO mismatch assertion을 증명하지 않습니다.
+
+### Change Scope
+
+- 코드와 workflow는 변경하지 않았습니다. PR 본문은 W2에서 무효화했다가 W3에서 full multiline 유효 본문으로 복원했고, 이 evidence에는 관찰 결과와 한계만 추가합니다.
+
+### Reverification
+
+- W2/W3는 edited `pull_request` 이벤트에서 invalid-to-valid body FAIL→PASS를 확인했습니다. W3는 same code HEAD `32e9510`의 SUCCESS입니다.
+- 이전 Review FAIL P1은 W2/W3 증빙으로 해결됐지만, final Review PASS는 재리뷰 전까지 주장하지 않습니다. QA와 CI 최종 상태도 별도 확인이 필요합니다.
+
+### Next Attempt
+
+- independent Review 재검토, QA, final CI 상태를 final HEAD 기준으로 확인합니다.
