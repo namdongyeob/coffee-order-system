@@ -89,3 +89,38 @@ Start source: Main Coordinator가 현재 Attempt 시작 시 실측해 전달한 
 - raw Redis probe는 `popular:menus:2099-12-30`에서 member `202` score `1`, member `101` score `2`, `popular:menus:2099-12-31`에서 member `101` score `1`을 확인했습니다.
 - QA 소유 probe key 2개는 `DEL` 결과 `2`, 후속 `EXISTS` 결과 `0`으로 정리했습니다. 기존 `rag-pgvector` 리소스는 건드리지 않았고 QA 종료 후 작업 리소스가 남지 않았습니다.
 - Level 6은 외부 HTTP API 변경이 없어 `NO`입니다.
+
+## Attempt 3 - Claude review docs correction
+
+Attempt started at: 2026-07-11T13:32:27.387+09:00
+Start source: Main Coordinator가 현재 Attempt 시작 시 실측해 전달한 시각.
+
+### Generate
+
+- production, test, build는 변경하지 않고 evidence, metrics, 반복 실수 기록과 실제 GitHub PR body만 정정합니다.
+
+### Evaluate
+
+- PASS. 요청된 docs와 actual PR body를 정정했고 docs 검증과 actual-body preflight를 통과했습니다. Current Claude 재검토는 pending입니다.
+
+### Failure Cause
+
+- PR 생성 전 actual body preflight를 생략해 mode 필드가 bullet로 작성됐고, 최초 run의 stale payload를 한 번 rerun했습니다.
+- metrics separator cell 수와 QA raw probe의 검증 경계·정확한 명령이 문서에 충분히 구분되지 않았습니다.
+
+### Change Scope
+
+- `docs/ai/agent-mistakes.md`, Issue #9 evidence와 metrics, 실제 PR #41 body만 수정합니다.
+
+### Reverification
+
+- `git diff --check`: PASS.
+- Issue harness와 changed Markdown links: `Harness gate PASSED`.
+- Harness unit: 50 tests, `OK`.
+- 수정 후 actual GitHub PR body preflight: `Harness gate PASSED`.
+- Reverification ended at: `2026-07-11T13:34:52.119+09:00`.
+- Attempt 3 duration: `144.732s`.
+
+### Next Attempt
+
+- semantic docs commit, pre-push와 push 후 새 synchronize CI를 확인하고 Current Claude 재검토를 요청합니다.

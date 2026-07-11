@@ -71,4 +71,41 @@ LEVEL6=NO
 [Final independent Review]
 Production code findings=0
 P2 evidence timing findings=1
-Status=REVISE; docs corrected; recheck pending
+Prior internal status=REVISE; docs corrected; APPROVED
+Current Claude conditional review=MAJOR 1, MINOR 2; re-review pending
+
+[QA direct redis-cli raw probe]
+Command 1: docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-30 1 101
+Result 1: 1
+Command 2: docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-30 1 101
+Result 2: 2
+Command 3: docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-30 1 202
+Result 3: 1
+Command 4: docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-31 1 101
+Result 4: 1
+ZRANGE popular:menus:2099-12-30 WITHSCORES: 202 1, 101 2
+ZRANGE popular:menus:2099-12-31 WITHSCORES: 101 1
+KEYS popular:menus:2099-12-*: popular:menus:2099-12-30, popular:menus:2099-12-31
+DEL popular:menus:2099-12-30 popular:menus:2099-12-31: 2
+EXISTS popular:menus:2099-12-30: 0
+EXISTS popular:menus:2099-12-31: 0
+Boundary: direct redis-cli proves Level 5 Redis runtime ZSET/key isolation only; Level 4 integration proves Service path
+
+[PR #41 event history]
+Run 29138454684 attempt 1=FAIL initial PR payload
+Run 29138454684 attempt 2=FAIL one stale-event rerun
+Run 29138510977=PASS synchronize event
+Run 29138595343=PASS final current-body synchronize event
+Rerun count=1
+Empty commits 7bd8aba and 2f4486f=recovery cost, not preferred workflow
+
+[Attempt 3 Claude review docs correction]
+START=2026-07-11T13:32:27.387+09:00
+git diff --check=PASS
+Issue harness and links=PASS
+Harness unit=50 tests OK
+Actual GitHub PR body preflight before edit=PASS
+Actual GitHub PR body preflight after edit=PASS
+END=2026-07-11T13:34:52.119+09:00
+DURATION_SECONDS=144.732
+ACTIVE_TOTAL_SECONDS=829.115
