@@ -20,3 +20,11 @@ Claude MAJOR Attempt 3 publisher GREEN: BUILD SUCCESSFUL in 25s
 Claude MAJOR Attempt 3 focused and Level 4: BUILD SUCCESSFUL in 1m 29s
 Claude MAJOR Attempt 3 fresh full regression: BUILD SUCCESSFUL in 1m 30s
 Claude MAJOR Attempt 3 end timestamp: 2026-07-11T10:35:48.7319732+09:00
+Final Review after Attempt 3: APPROVED, findings none
+Fresh QA Publisher+Service: 6 tests, failures 0, BUILD SUCCESSFUL in 23s; async marker once, sync marker once
+Fresh QA Level 4 actual Kafka: 8 tests, failures 0, BUILD SUCCESSFUL in 1m 7s
+Fresh QA Level 1 full: 30 tests, failures 0, BUILD SUCCESSFUL in 1m 13s
+CI quality-gates: PASS in 1m 29s
+Broker-down bounded QA: PARTIAL, health 200, charge 200, HTTP client timeout at 15048ms with no final status; DB order 1 user 909 PAID and balance 5500
+Broker-down residual: default max.block.ms 60000 metadata retries; sync throw/log not deterministically observed within 15s
+QA cleanup: port 8080 clean, QA containers removed, existing pgvector untouched

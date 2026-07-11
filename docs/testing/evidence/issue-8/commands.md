@@ -92,3 +92,15 @@ $order=Invoke-WebRequest -Uri 'http://localhost:8080/api/orders' -Method Post -C
 - End timestamp command immediately after full result: `Get-Date -Format o`.
 - End timestamp result: `2026-07-11T10:35:48.7319732+09:00`.
 - Attempt 3 measured duration: `00:05:41.5419732`.
+
+## Attempt 3 독립 Review와 fresh QA
+
+- Final Review: APPROVED, findings 없음. Review는 테스트를 실행하지 않았습니다.
+- QA focused Publisher+Service result: 6 tests, failures 0, `BUILD SUCCESSFUL in 23s`. XML logs에서 async marker 1회와 sync marker 1회를 확인했습니다.
+- QA Level 4 actual Kafka result: 8 tests, failures 0, `BUILD SUCCESSFUL in 1m 7s`.
+- QA Level 1 full result: 30 tests, failures 0, `BUILD SUCCESSFUL in 1m 13s`.
+- CI quality-gates result: PASS in 1m 29s.
+- Broker-down bounded procedure: 앱 health 200과 userId 909 충전 200을 확인하고 첫 주문 send 전에 Kafka를 중지한 뒤 주문 HTTP 요청을 최대 15초 관찰했습니다.
+- Broker-down bounded result: HTTP client timeout at 15,048ms, 최종 HTTP status 미관찰. DB에는 order id 1, userId 909, status `PAID`, balance 5500이 보존됐습니다.
+- Broker-down interpretation: producer 기본 `max.block.ms=60000` 때문에 metadata retry가 계속되어 15초 안에 sync throw/log를 결정적으로 관찰하지 못했습니다. 실제 outage 검증은 PARTIAL이며 unit regression의 caught sync RuntimeException/no propagation PASS를 대체하지 않습니다.
+- Cleanup: QA가 8080과 자신이 만든 container를 정리했고 기존 pgvector는 건드리지 않았습니다.
