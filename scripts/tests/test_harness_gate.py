@@ -638,10 +638,11 @@ class OrchestrationContractTest(unittest.TestCase):
 
 		policy_requirements = (
 			"`namdongyeob/coffee-order-system`만 적용합니다.",
-			"#45 -> #55 -> #11 -> #21 -> #12 -> #13 -> #14 -> #15 -> #16 -> #51 -> #52 -> #53 -> #54 -> #56 -> #57 -> #58 -> #36",
+			"#61 -> #45 -> #55 -> #11 -> #21 -> #12 -> #13 -> #14 -> #15 -> #16 -> #51 -> #52 -> #53 -> #54 -> #56 -> #57 -> #58 -> #36",
 			"한 번에 Issue 하나와 production/test 작성자 한 명만 허용합니다.",
 			"Issue #60 PR은 자동 merge 또는 close하지 않으며 사람이 직접 merge합니다.",
-			"#45는 Issue #60 PR이 사람에 의해 merge된 뒤에만 시작합니다.",
+			"#61은 Issue #60 PR이 사람에 의해 merge된 뒤에만 시작합니다.",
+			"#45는 #61이 완료된 뒤에만 시작합니다.",
 			"Issue #36이 merge·close되거나 사용자가 중단을 선언하면 즉시 만료됩니다.",
 			"최종 팀 프로젝트에는 자동 이전하지 않습니다.",
 			"전체 대화를 상속하지 않은 fresh context",
