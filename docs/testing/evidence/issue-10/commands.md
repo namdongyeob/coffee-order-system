@@ -18,7 +18,10 @@
 - 예정: `python scripts/harness_gate.py --issue 10 --branch codex/issue-10-popular-menu-api --base-ref origin/main --check-links --check-branch --include-worktree`.
 - 예정: `python -m unittest scripts.tests.test_harness_gate`.
 
-## Pending QA
+## 독립 QA Level 5 and Level 6
 
-- Level 5: 로컬 애플리케이션과 Redis runtime 기동을 독립 QA가 확인해야 합니다.
-- Level 6: 실제 HTTP 요청과 응답 JSON 원문을 독립 QA가 수집해야 합니다.
+- Level 5: `./gradlew.bat bootTestRun --no-daemon` -> MySQL `8.4.5`, Kafka `3.9.1`, Redis `7.4.2` 기동, Redis `PING` `PONG`, `DBSIZE` `0`, application `Started` `43.966s`, Kafka partition assigned, PASS.
+- Level 6: `curl.exe -sS -i http://localhost:8080/actuator/health` -> HTTP 200, body `{"groups":["liveness","readiness"],"status":"UP"}`.
+- Level 6: `curl.exe -sS -i http://localhost:8080/api/menus/popular` -> HTTP 200, `Content-Type: application/json`, body `[]`.
+- Cleanup: Ctrl+C 뒤 Testcontainers ResourceReaper 지연은 20초 안에 정리됐고 기존 `rag-pgvector`만 남았습니다.
+- Level 6 제한: runtime Redis `DBSIZE`가 0이어서 populated Top 3 JSON 원문은 관찰하지 못했습니다. populated 순위, 동점, 삭제 메뉴 및 임시 key 미생성은 Level 4 integration test 근거로 분리합니다.

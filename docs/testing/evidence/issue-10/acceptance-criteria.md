@@ -7,7 +7,7 @@
 - [x] DB에 없는 삭제 메뉴 member를 건너뛰고 남은 순위로 최대 Top 3를 채웁니다.
 - [x] `docs/domain/popular-menu-policy.md`에 동점 정렬과 삭제 메뉴 skip 규칙을 정본으로 기록합니다.
 - [ ] 독립 Review, QA, GitHub Actions CI 결과를 반영합니다.
-- [ ] Level 5 runtime과 Level 6 실제 HTTP 원문을 독립 QA가 확인합니다.
+- [x] 독립 QA가 Level 5 runtime과 Level 6 실제 HTTP 원문을 확인했습니다.
 
 Execution mode: STRICT
 Execution mode reason: Redis 인프라 조회와 HTTP API, 도메인 정책 정본 및 실제 런타임 검증을 함께 변경하므로 Dev, 별도 Review, QA, Docs, CI가 필요합니다.
@@ -19,5 +19,5 @@ Level 6 reason: 새 공개 HTTP API의 실제 요청과 응답 JSON 원문을 ev
 ## 완료 경계
 
 - Dev 보고 기준으로 Level 2, Level 4, Level 1은 PASS입니다.
-- Level 5와 Level 6은 required이며, 이 문서 작성 시점에는 QA 관찰 결과가 아직 없습니다.
+- Level 5와 Level 6은 required이며 독립 QA가 PASS했습니다. Level 6 runtime Redis는 비어 있어 `[]` 응답만 관찰했고, populated Top 3 HTTP 원문은 관찰하지 않았습니다. populated 순위·동점·삭제 메뉴 동작은 Level 4 Redis Testcontainers integration으로 검증한 별도 evidence입니다.
 - `ZUNION`은 `LIMIT`을 제공하지 않으므로 결과 전체를 받은 뒤 숫자 정렬, 삭제 메뉴 제외, Top 3 절단을 적용합니다. 대규모 cardinality 최적화는 Issue #10 범위 밖입니다.

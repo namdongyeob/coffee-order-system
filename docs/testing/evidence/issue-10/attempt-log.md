@@ -35,4 +35,30 @@ Branch: codex/issue-10-popular-menu-api
 
 ### Next Attempt
 
-- 독립 Review와 QA가 diff 및 Level 5·6을 검증합니다. QA는 실제 HTTP 요청·응답 JSON 원문을 `http/issue-10-popular-menu.http`와 manual QA evidence에 채웁니다.
+- 독립 Review가 diff를 검토합니다. QA의 Level 5·6 결과와 HTTP 원문은 evidence에 반영했습니다.
+
+## Independent QA - Level 5 and Level 6
+
+### Evaluate
+
+- PASS. `./gradlew.bat bootTestRun --no-daemon`으로 MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2와 애플리케이션을 기동했습니다.
+- 애플리케이션은 43.966초에 시작했고 Kafka partition assigned, Redis `PING`의 `PONG`, Redis `DBSIZE`의 `0`을 확인했습니다.
+- health와 `GET /api/menus/popular`은 모두 HTTP 200이었고 인기 메뉴 응답 JSON은 `[]`였습니다.
+
+### Failure Cause
+
+- 없음.
+
+### Change Scope
+
+- 코드 변경 없이 독립 runtime·HTTP 검증 결과만 evidence에 기록합니다.
+
+### Reverification
+
+- `curl.exe -sS -i http://localhost:8080/actuator/health` -> HTTP 200, `{"groups":["liveness","readiness"],"status":"UP"}`.
+- `curl.exe -sS -i http://localhost:8080/api/menus/popular` -> HTTP 200, `Content-Type: application/json`, `[]`.
+- Ctrl+C 뒤 Testcontainers ResourceReaper 지연은 20초 안에 정리됐고 기존 `rag-pgvector`만 남았습니다.
+
+### Next Attempt
+
+- 독립 Review와 GitHub Actions CI를 확인합니다. Level 6에서 populated Top 3 runtime 원문은 수집하지 않았으므로 API의 비어 있지 않은 순위 규칙은 Level 4 integration evidence 범위로만 주장합니다.
