@@ -8,6 +8,15 @@
 | GREEN | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest.test_fixed_autonomous_queue_experiment_contract_is_pinned` | PASS. 고정 큐, bootstrap 경계, 역할 격리, 1회 수정·재리뷰, merge 조건과 안전 정지를 문자열 계약으로 고정했습니다. |
 | Final suite | `python -m unittest discover -s scripts/tests -p "test_*.py"` | PASS. 60 tests, failures 0, errors 0. |
 
+## Reviewer P1 remediation
+
+| 단계 | 명령 또는 확인 | 결과 |
+| --- | --- | --- |
+| Review | 독립 fresh read-only Review | `REVISE` P1. 정책 line 73/77 부근의 전역 무조건 merge·close 금지가 조건부 자율 큐 예외와 충돌했습니다. |
+| RED | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest.test_global_merge_prohibitions_scope_the_fixed_experiment_exception` | FAIL. 무조건 금지 문구는 고정 자율 Issue 큐의 조건부 Main Coordinator 예외를 구분하지 못했습니다. |
+| GREEN | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest.test_global_merge_prohibitions_scope_the_fixed_experiment_exception` | PASS. 실험 밖의 무조건 금지와 모든 열거 조건을 충족한 Main Coordinator만의 예외를 고정했습니다. |
+| Final suite | `python -m unittest discover -s scripts/tests -p "test_*.py"` | PASS. 61 tests, failures 0, errors 0. |
+
 ## Same-Issue scope correction
 
 | 단계 | 명령 또는 확인 | 결과 |
@@ -27,4 +36,4 @@
 ## 미실행 항목
 
 - Level 5와 Level 6은 Issue 본문과 `acceptance-criteria.md`의 NO 결정에 따라 실행하지 않았습니다. 앱 런타임·HTTP 계약 변경이 없습니다.
-- 독립 Review, QA, CI는 Docs 역할의 실행 범위가 아니며 #61-first scope correction과 Docs evidence commit을 포함한 최신 HEAD 기준으로 pending입니다.
+- P1을 반환한 Review는 이전 HEAD의 `REVISE` 결과입니다. final fresh Review, QA, CI는 P1 remediation과 Docs evidence commit을 포함한 최신 HEAD에서 pending입니다. 이전 QA 결과는 이전 HEAD에만 적용되므로 stale이며 재실행이 필요합니다.
