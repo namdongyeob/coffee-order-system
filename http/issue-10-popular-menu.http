@@ -1,0 +1,5 @@
+### Issue #10 인기 메뉴 Top 3 실제 HTTP 검증 템플릿
+### QA는 아래 요청 실행 뒤 실제 응답 status와 JSON 원문을 이 파일 및 evidence/manual-qa.md에 추가합니다.
+GET {{baseUrl}}/api/menus/popular
+Accept: application/json
+

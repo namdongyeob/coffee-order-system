@@ -4,6 +4,9 @@
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-07-12 | Issue #10 인기 메뉴 Top 3 API | Level 2 | PASS | Controller/API 계약 | `MenuControllerTest`; `docs/testing/evidence/issue-10/commands.md` | Dev가 `GET /api/menus/popular` Controller 계약을 24초에 PASS했습니다. Level 5/6은 required이며 독립 QA가 pending입니다. |
+| 2026-07-12 | Issue #10 인기 메뉴 Top 3 API | Level 4 | PASS | Redis ZSET 조회 인프라 통합 | `PopularMenuRedisIntegrationTest`; `docs/testing/evidence/issue-10/commands.md` | Dev가 Redis Testcontainers 2 tests, failures 0, errors 0을 55.439초에 PASS했습니다. 최근 7일 ZUNION, `2`/`10` 숫자 동점 정렬, 범위 밖 날짜 제외, 삭제 메뉴 skip, 임시 key 미생성을 확인했습니다. |
+| 2026-07-12 | Issue #10 인기 메뉴 Top 3 API | Level 1 | PASS | 빌드·Unit·전체 회귀 smoke | `./gradlew.bat test --no-daemon`; `docs/testing/evidence/issue-10/commands.md` | Dev가 fresh 전체 회귀를 2분 02초에 PASS했습니다. baseline은 ResourceReaper/Docker cleanup 대기와 최종 XML 부재로 PARTIAL/미확인이며 이 PASS 근거와 구분합니다. |
 | 2026-07-09 | project bootstrap inspection | Level 1 | PASS | 전체 회귀 smoke | `./gradlew.bat test` | 문서 구조 생성 전 초기 Spring context test가 Testcontainers 기반으로 4분 13초 만에 통과했습니다. |
 | 2026-07-09 | dependency and docs audit | Level 1 | PASS | 전체 회귀 smoke | `./gradlew.bat test` | Redisson starter 추가와 Testcontainers 이미지 tag 고정 후 2분 38초 만에 통과했습니다. |
 | 2026-07-09 | Issue #2 project standards | Level 0 | PASS | 문서·정적 검사 | `rg -n "issue-completion-checklist|agent-mistakes|verification-log|layered-design-policy" AGENTS.md .github docs` | 공통 완료 전 체크리스트와 3계층 설계 정책 연결 지점을 확인했습니다. |
