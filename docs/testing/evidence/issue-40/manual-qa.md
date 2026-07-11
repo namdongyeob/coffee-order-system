@@ -18,6 +18,8 @@
 - 현재 구현의 `existsByEventId`와 `saveAndFlush` 사이에 direct concurrent same-event 호출이 경쟁하면 DB unique 제약이 중복 Redis 반영은 막지만 race loser는 unique 위반으로 실패할 수 있습니다. 동시 호출의 정상 반환은 보장하지 않습니다.
 - 현재 evidence는 같은 Kafka key/partition에서 정상 완료 뒤 순차 재전달되는 duplicate만 보장합니다.
 - Redis는 DB transaction에 참여하지 않습니다. Redis 성공 후 DB commit 전 process crash가 발생하면 DB 이력이 남지 않아 재전달 시 score가 다시 증가할 수 있습니다.
+- 현재 기본 Kafka error handler는 처리 예외의 재시도가 소진되면 실패 record를 skip하고 offset을 commit할 수 있습니다. Redis 장기 장애가 계속되면 `processed_event`는 rollback되더라도 해당 이벤트의 랭킹 반영 기회가 유실될 수 있습니다.
+- 이 장기 장애 복구는 Issue [#11](https://github.com/namdongyeob/coffee-order-system/issues/11)의 retry/DLT와 Issue [#14](https://github.com/namdongyeob/coffee-order-system/issues/14)의 replay/rebuild 경계이며 Issue #40은 구현하지 않습니다.
 - 따라서 exactly-once, crash consistency, 모든 concurrent direct call의 성공을 주장하지 않습니다.
 
 ## 미검증과 외부 게이트

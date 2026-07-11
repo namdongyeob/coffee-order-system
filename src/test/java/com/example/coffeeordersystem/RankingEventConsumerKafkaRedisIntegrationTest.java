@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
+import org.springframework.kafka.test.utils.ContainerTestUtils;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -30,8 +32,13 @@ class RankingEventConsumerKafkaRedisIntegrationTest {
 	@Autowired
 	StringRedisTemplate redisTemplate;
 
+	@Autowired
+	KafkaListenerEndpointRegistry listenerEndpointRegistry;
+
 	@BeforeEach
 	void setUp() {
+		listenerEndpointRegistry.getListenerContainers().forEach(
+				container -> ContainerTestUtils.waitForAssignment(container, 1));
 		processedEventRepository.deleteAll();
 		redisTemplate.delete(redisTemplate.keys("popular:menus:*"));
 	}

@@ -35,3 +35,17 @@
 - Attempt 1: `882.357s`.
 - Attempt 2: `377.941s`.
 - Active total: `1260.298s`, 즉 `21.0049667분`, metrics 정수 값은 `21`입니다.
+
+## Attempt 3 Claude approval minor follow-up
+
+- Focused command: `./gradlew.bat test --tests '*RankingEventProcessorTest' --tests '*RankingEventProcessorDatabaseIntegrationTest' --tests '*RankingEventConsumerKafkaRedisIntegrationTest' --no-daemon`.
+- Focused result: listener assignment 대기, topic 상수 참조, unit·실제 MySQL·Kafka·Redis 회귀가 `BUILD SUCCESSFUL in 2m 01s`.
+- Fresh Level 1 command: `./gradlew.bat test --no-daemon`.
+- Fresh Level 1 result: `BUILD SUCCESSFUL in 1m 51s`.
+- Fresh Level 1 XML: 43 tests, 0 failures, 0 errors, 0 skipped.
+- Harness command: `python scripts/harness_gate.py --issue 40 --branch codex/issue-40-kafka-consumer-idempotency --base-ref origin/main --check-links --check-branch --include-worktree`.
+- Harness result: `Harness gate PASSED`.
+- Attempt 3 start: `2026-07-11T15:50:41.290+09:00`.
+- Attempt 3 end: `2026-07-11T15:56:31.725+09:00`.
+- Attempt 3 exact duration: `350.435s`.
+- Three-Attempt active total: `1610.733s`.

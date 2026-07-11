@@ -99,3 +99,41 @@ Attempt duration: 377.941s
 ### Next Attempt
 
 - 없음. 내부 Review/QA와 Docs evidence는 완료했습니다. GitHub Actions CI와 사람의 최종 승인은 Main Coordinator가 별도로 확인합니다.
+
+## Attempt 3 - Claude approval minor follow-up
+
+Attempt started at: 2026-07-11T15:50:41.290+09:00
+Start source: 현재 Dev가 최신 원격 HEAD를 확인하기 직전에 실측한 시각.
+Attempt ended at: 2026-07-11T15:56:31.725+09:00
+Attempt duration: 350.435s
+
+### Generate
+
+- Kafka 통합 테스트가 첫 발행 전에 실제 listener container의 1개 partition assignment를 기다리도록 보강했습니다.
+- Consumer topic 리터럴을 `OrderEventPublisher.ORDER_COMPLETED_TOPIC` 상수 참조로 교체했습니다.
+- 기본 error handler 소진 뒤 skip/offset commit에 따른 장기 장애 이벤트 유실 위험과 Issue #11 retry/DLT, Issue #14 replay/rebuild 복구 경계를 evidence에 추가했습니다.
+
+### Evaluate
+
+- Claude 승인 리뷰의 비차단 MINOR 3건을 Issue #40 범위에서 최소 반영했습니다.
+
+### Failure Cause
+
+- 기존 Level 4 테스트는 listener의 cold rebalance가 끝났다는 명시적 전제 없이 첫 record를 발행했습니다.
+- producer와 consumer가 같은 topic 문자열을 각각 소유했고, 현재 error handler의 장기 장애 유실 경계가 remaining risk에 빠져 있었습니다.
+
+### Change Scope
+
+- `RankingEventConsumer`, 해당 Kafka 통합 테스트, Issue #40 evidence/metrics만 변경합니다.
+- retry/DLT/replay/rebuild production 구현은 Issue #11/#14 범위이므로 추가하지 않습니다.
+
+### Reverification
+
+- Focused unit + Level 3 + Level 4: `BUILD SUCCESSFUL in 2m 01s`.
+- Fresh Level 1: `BUILD SUCCESSFUL in 1m 51s`.
+- Fresh Level 1 XML: 43 tests, 0 failures, 0 errors, 0 skipped.
+- Harness: `Harness gate PASSED`.
+
+### Next Attempt
+
+- semantic commit/push 후 새 live CI를 Main Coordinator가 확인합니다.

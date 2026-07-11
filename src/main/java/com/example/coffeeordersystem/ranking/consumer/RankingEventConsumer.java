@@ -2,6 +2,7 @@
 package com.example.coffeeordersystem.ranking.consumer;
 
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
+import com.example.coffeeordersystem.order.event.OrderEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,7 @@ public class RankingEventConsumer {
 
 	private final RankingEventProcessor processor;
 
-	@KafkaListener(topics = "order.completed", groupId = "ranking-consumer-group")
+	@KafkaListener(topics = OrderEventPublisher.ORDER_COMPLETED_TOPIC, groupId = "ranking-consumer-group")
 	public void consume(OrderCompletedEvent event) {
 		processor.process(event);
 	}
