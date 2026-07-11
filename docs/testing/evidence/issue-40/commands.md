@@ -1,67 +1,37 @@
 # Issue #40 Commands
 
-## Baseline Level 1
+## Dev Attempt 1과 Attempt 2
 
-- Command: `./gradlew.bat test --no-daemon`
-- Result: `BUILD SUCCESSFUL in 1m 50s`.
+- Baseline Level 1: `./gradlew.bat test --no-daemon` -> `BUILD SUCCESSFUL in 1m 50s`.
+- TDD RED/GREEN: `./gradlew.bat test --tests '*RankingEventProcessorTest' --no-daemon` -> RED는 `RankingEventProcessor` compile failure, GREEN은 4 tests와 `BUILD SUCCESSFUL in 26s`.
+- 최초 Level 3: `./gradlew.bat test --tests '*RankingEventProcessorDatabaseIntegrationTest' --no-daemon` -> 3 tests, `BUILD SUCCESSFUL in 1m 19s`.
+- 최초 Level 4 RED/GREEN: `./gradlew.bat test --tests '*RankingEventConsumerKafkaRedisIntegrationTest' --no-daemon` -> RED는 `MessageConversionException`, GREEN은 1 test와 `BUILD SUCCESSFUL in 1m 05s`.
+- Attempt 2 Level 4: 같은 명령 -> 원본, duplicate, sentinel을 같은 key/partition에 순서대로 발행하고 assertion에서 DB eventId가 원본과 sentinel 2개이며 Redis score가 `2.0`임을 확인, `BUILD SUCCESSFUL in 1m 08s`.
+- Attempt 2 Level 3: 같은 focused MySQL 명령 -> 3 tests, `BUILD SUCCESSFUL in 1m 05s`.
+- Attempt 2 Level 1: `./gradlew.bat test --no-daemon` -> 43 tests, 0 failures, 0 errors, 0 skipped, `BUILD SUCCESSFUL in 2m 02s`.
 
-## TDD RED and unit GREEN
+## 독립 QA 최종 검증
 
-- Command: `./gradlew.bat test --tests '*RankingEventProcessorTest' --no-daemon`
-- RED result: `RankingEventProcessor`의 `cannot find symbol`, `BUILD FAILED in 18s`.
-- GREEN result: 4 tests, `BUILD SUCCESSFUL in 26s`.
+- Focused unit: `./gradlew.bat test --tests '*RankingEventProcessorTest' --no-daemon` -> 4 tests, `BUILD SUCCESSFUL in 19s`.
+- Level 3 actual MySQL: `./gradlew.bat test --tests '*RankingEventProcessorDatabaseIntegrationTest' --no-daemon` -> 순차 duplicate, 다른 eventId, Redis 실패 rollback의 3 tests, `BUILD SUCCESSFUL in 1m 08s`.
+- Level 4 actual Kafka/MySQL/Redis: `./gradlew.bat test --tests '*RankingEventConsumerKafkaRedisIntegrationTest' --no-daemon` -> 원본, duplicate, same-key sentinel 순서 검증 1 test, `BUILD SUCCESSFUL in 1m 02s`.
+- Level 4 assertion 경계: DB에는 원본과 sentinel eventId만 있어 row count가 2이고 Redis score는 `2.0`입니다. 별도 raw CLI eventId 조회는 수행하지 않았습니다.
+- Fresh Level 1: `./gradlew.bat test --no-daemon` -> 43 tests, 0 failures, 0 errors, 0 skipped, `BUILD SUCCESSFUL in 1m 46s`.
+- Level 5: `./gradlew.bat bootTestRun --no-daemon` -> `Started CoffeeOrderSystemApplication in 40.173 seconds`, `ranking-consumer-group` partition assigned, health HTTP 200/`UP`.
+- Level 5 infra: MySQL `8.4.5`, Kafka `3.9.1`, Redis `7.4.2`가 실행 중임을 확인했습니다.
+- Runtime state: Level 6 traffic을 보내지 않았으므로 runtime DB와 Redis ZSET은 비어 있었습니다.
+- Level 6: 실행하지 않았습니다. 공개 HTTP API 변경이 없어 요구하지 않습니다.
+- Config inspection: retry/error handler/DLT 설정이 없음을 확인했습니다.
+- Cleanup: Issue 검증용 애플리케이션과 MySQL/Kafka/Redis를 종료했고 기존 `pgvector`만 남겼습니다.
 
-## Level 3 actual MySQL
+## Docs Agent 검증
 
-- Command: `./gradlew.bat test --tests '*RankingEventProcessorDatabaseIntegrationTest' --no-daemon`
-- Result: 신규/duplicate/다른 eventId/Redis 실패 rollback 검증, 3 tests, `BUILD SUCCESSFUL in 1m 19s`.
+- `git diff --check`.
+- `python scripts/harness_gate.py --issue 40 --branch codex/issue-40-kafka-consumer-idempotency --base-ref origin/main --check-links --check-branch --include-worktree`.
+- `python -m unittest scripts.tests.test_harness_gate`.
 
-## Level 4 actual Kafka and Redis
+## Timing
 
-- Command: `./gradlew.bat test --tests '*RankingEventConsumerKafkaRedisIntegrationTest' --no-daemon`
-- RED result: 기본 String payload를 `OrderCompletedEvent`로 변환하지 못한 `MessageConversionException`, 1 failed, `BUILD FAILED in 1m 16s`.
-- GREEN result: 실제 Kafka 발행, listener 소비, MySQL 처리 이력, Redis score, 같은 eventId duplicate 단일 반영, 1 test, `BUILD SUCCESSFUL in 1m 05s`.
-
-## Level 5 application runtime
-
-- Start command: `./gradlew.bat bootTestRun --no-daemon`.
-- Application result: `Started CoffeeOrderSystemApplication in 44.082 seconds`.
-- Listener result: `ranking-consumer-group: partitions assigned: [order.completed-0]`.
-- Health command: `Invoke-WebRequest -Uri 'http://localhost:8080/actuator/health' -UseBasicParsing`.
-- Health result: HTTP 200, status `UP`.
-- Infra command: `docker ps --filter 'id=f413079f0099' --filter 'id=6470f83a40f4' --filter 'id=ac6cabf5efc5' --format '{{.ID}} {{.Image}} {{.Status}}'`.
-- Infra result: `mysql:8.4.5`, `redis:7.4.2`, `apache/kafka-native:3.9.1` 모두 `Up`.
-- Cleanup: `bootTestRun`에 Ctrl+C를 전달해 앱과 Testcontainers를 종료했습니다.
-
-## Fresh Level 1 and harness
-
-- Command: `./gradlew.bat test --no-daemon`.
-- Result: `BUILD SUCCESSFUL in 1m 49s`.
-- XML result: 43 tests, 0 failures, 0 errors, 0 skipped.
-- Command: `python scripts/harness_gate.py --issue 40 --branch codex/issue-40-kafka-consumer-idempotency --base-ref origin/main --check-links --check-branch --include-worktree`.
-- Result: `Harness gate PASSED`.
-- Command: `git diff --check`.
-- Result: whitespace error 없음. `application.properties`의 향후 LF→CRLF 변환 warning만 출력됐습니다.
-
-## Prospective timing
-
-- Start: `2026-07-11T13:54:26.475+09:00`.
-- End: `2026-07-11T14:09:08.832+09:00`.
-- Exact duration: `882.357s`.
-
-## Attempt 2 Review P1 deterministic duplicate verification
-
-- Command: `./gradlew.bat test --tests '*RankingEventConsumerKafkaRedisIntegrationTest' --no-daemon`.
-- Result: 원본, duplicate, sentinel을 동일 Kafka key/partition으로 발행하고 sentinel commit 뒤 DB eventId 2개와 Redis score `2.0` 확인, `BUILD SUCCESSFUL in 1m 08s`.
-- Timing policy: `Thread.sleep`이나 duplicate 소비 전 이미 참인 score await를 사용하지 않습니다.
-- Level 3 command: `./gradlew.bat test --tests '*RankingEventProcessorDatabaseIntegrationTest' --no-daemon`.
-- Level 3 result: 3 tests, `BUILD SUCCESSFUL in 1m 05s`.
-- Fresh Level 1 command: `./gradlew.bat test --no-daemon`.
-- Fresh Level 1 result: 43 tests, 0 failures, 0 errors, 0 skipped, `BUILD SUCCESSFUL in 2m 02s`.
-- Harness command: `python scripts/harness_gate.py --issue 40 --branch codex/issue-40-kafka-consumer-idempotency --base-ref origin/main --check-links --check-branch --include-worktree`.
-- Harness result: `Harness gate PASSED`.
-- Level 5: production/config 변경이 없으므로 Attempt 1 결과를 재사용하며 Dev가 재실행하지 않습니다. 독립 QA가 fresh Level 5를 수행합니다.
-- Attempt 2 start: `2026-07-11T14:15:12.165+09:00`.
-- Attempt 2 end: `2026-07-11T14:21:30.106+09:00`.
-- Attempt 2 exact duration: `377.941s`.
-- Two-Attempt active total: `1260.298s`.
+- Attempt 1: `882.357s`.
+- Attempt 2: `377.941s`.
+- Active total: `1260.298s`, 즉 `21.0049667분`, metrics 정수 값은 `21`입니다.

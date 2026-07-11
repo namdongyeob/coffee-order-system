@@ -85,3 +85,17 @@ Attempt duration: 377.941s
 ### Next Attempt
 
 - 독립 QA에 same-partition sentinel 증거와 direct concurrent 호출 비보장 범위를 전달합니다.
+
+## Attempt 2 Final Role Results
+
+- Internal Review: 결정적 sentinel evidence 보강 뒤 PASS했고 남은 finding은 없습니다.
+- Independent QA: focused unit 4 tests PASS in 19s; Level 3 actual MySQL 3 tests PASS in 1m 08s; Level 4 actual Kafka/MySQL/Redis 1 test PASS in 1m 02s; fresh Level 1 43/0/0/0 PASS in 1m 46s; Level 5 PASS입니다.
+- Level 4 assertion: 원본, duplicate, same-key sentinel 순서에서 DB는 원본과 sentinel eventId 2건이고 Redis score는 `2.0`입니다. raw CLI eventId 값은 수집하지 않았습니다.
+- Level 5 observation: MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2, application start 40.173s, partition assigned, health HTTP 200/`UP`입니다. Level 6 traffic이 없어 runtime DB/ZSET은 비어 있었습니다.
+- Level 6: 요구하지 않았고 실행하지 않았습니다.
+- Config/Cleanup: retry/error handler/DLT 설정은 없고, 검증 리소스 정리 뒤 기존 `pgvector`만 남았습니다.
+- Residual risk: 보장 범위는 정상 완료 뒤 같은 key/partition의 순차 Kafka 재전달입니다. direct concurrent same-event 호출의 race loser는 DB unique 위반으로 실패할 수 있으며 exactly-once와 crash consistency는 보장하지 않습니다.
+
+### Next Attempt
+
+- 없음. 내부 Review/QA와 Docs evidence는 완료했습니다. GitHub Actions CI와 사람의 최종 승인은 Main Coordinator가 별도로 확인합니다.
