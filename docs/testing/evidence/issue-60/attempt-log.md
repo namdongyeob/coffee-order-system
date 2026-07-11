@@ -90,3 +90,37 @@ Branch: codex/issue-60-autonomous-queue-bootstrap
 ### Next Attempt
 
 - P1 수정 후의 최신 HEAD에서 fresh read-only Review, 독립 QA, 최신 CI를 다시 실행합니다. 이전 QA 결과는 이전 HEAD에만 적용되므로 stale이며 재실행이 필요합니다. 모두 PASS여도 #60 PR은 사람이 merge할 때까지 자동 merge·close하지 않으며 #61·#45를 시작하지 않습니다.
+
+## Final user-approved remediation attempt
+
+### Generate
+
+- fresh Reviewer의 두 번째 `REVISE`는 Main Coordinator의 조건부 merge·close 권한이 정책에는 있으나 `coffee-order-issue-loop` Skill에는 전파되지 않아 기본 `BLOCKED: COORDINATOR ONLY`와 충돌하는 P1을 확인했습니다.
+- 두 번째 `REVISE`로 자동 Review 수정 루프는 안전 정지했습니다.
+- 사용자가 안전 정지 뒤 propagation/metadata correction 범위의 추가 Attempt를 명시적으로 승인했습니다. 이는 자동 재시도가 아니며 #61·#45 구현, 새 구현자·새 PR, merge·close·ready·auto-merge는 승인 범위에 포함하지 않았습니다.
+
+### Evaluate
+
+- RED: 신규 Skill 정책 예외 계약 테스트는 현재 Skill에 예외 문구가 없어 FAIL했습니다.
+- GREEN: 활성화된 정책 실험과 모든 정책 merge gate 입력을 참조하는 Main Coordinator 예외, bootstrap·비활성 정책·승인 큐 밖·#36 만료·누락 입력의 기본 BLOCKED를 추가한 뒤 focused 계약 테스트가 PASS했습니다.
+- 최종: focused 계약 테스트, 전체 Python harness 62건, 실제 PR #62 본문과 일치하는 literal fixture를 포함한 Issue #60 gate, `git diff --check`, pre-push gate가 PASS했습니다.
+- 시작: `2026-07-12T08:52:56.7213632+09:00`.
+- 종료: `2026-07-12T08:55:52.1026562+09:00`.
+- 소요: 2분 55초.
+
+### Failure Cause
+
+- 정책의 조건부 Main Coordinator 예외가 실행 Skill에 전파되지 않아, 정책이 허용한 활성 실험의 merge·close gate도 무조건 차단될 수 있었습니다.
+
+### Change Scope
+
+- `coffee-order-issue-loop` Skill의 정책 참조형 예외와 정적 계약 테스트만 수정했습니다. queue 번호나 세부 merge checklist를 Skill에 중복하지 않았고, 이 evidence 정정 외의 문서·PR 본문은 수정하지 않았습니다.
+
+### Reverification
+
+- 실제 PR #62 본문은 변경 전후 동일하며, literal fixture와 비교한 뒤 `--pr-body-file`을 포함한 Issue gate가 PASS했습니다.
+- 현재 Attempt의 commit, 테스트 수, 현재 HEAD는 PR 본문 갱신 시 Main Coordinator가 반영할 후보입니다. 이 Attempt에서 GitHub PR 본문은 직접 수정하지 않았습니다.
+
+### Next Attempt
+
+- 최종 remediation 뒤 최신 HEAD에서 fresh read-only Review, 독립 QA, 최신 CI를 다시 확인합니다. P0/P1, QA 실패, metadata mismatch 또는 CI 실패가 발생하면 추가 수정 없이 사용자에게 보고합니다. 모두 PASS여도 #60 PR은 사람이 merge할 때까지 draft 상태를 유지하며 #61·#45를 시작하지 않습니다.
