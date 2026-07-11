@@ -28,5 +28,6 @@ order response: {"orderId":2,"userId":808,"menuId":1,"menuName":"아메리카노
 ## 발행 실패 의미
 
 - `TransactionTemplate.execute` 반환 뒤 Kafka 발행을 요청하며, unit test는 이 호출 순서만 검증합니다. 실제 DB commit 순간 자체를 Mock 테스트가 증명한다고 주장하지 않습니다.
-- broker ack 비동기 실패는 `order_completed_event_publish_failed` 오류 로그와 eventId, orderId, userId, topic으로 관찰합니다.
+- Kafka `send()` 동기 실패와 broker ack 비동기 실패는 각각 `order_completed_event_publish_failed` 오류 로그 한 건과 eventId, orderId, userId, topic으로 관찰합니다.
+- 동기 `send()` 실패도 호출자에게 전파하지 않으므로 이미 완료된 DB 작업 뒤 주문 API가 Kafka 동기 예외 때문에 500으로 바뀌지 않습니다.
 - DB commit 후 Kafka publish를 비동기로 요청합니다. 발행 실패는 로그로 관찰하지만 API 응답과 DB 작업을 rollback하지 않습니다. DB-Kafka 원자성 및 Outbox가 없으므로 이벤트 유실 가능성이 남습니다.

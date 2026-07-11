@@ -77,3 +77,18 @@ $order=Invoke-WebRequest -Uri 'http://localhost:8080/api/orders' -Method Post -C
 - Commit timestamp command: `git show -s --format=%cI 8576010`.
 - Commit timestamp result: `2026-07-11T08:33:24+09:00`. 이 값은 독립 재현 가능한 commit 시각이지만 마지막 Reverification 종료 시각으로 사용하지 않습니다.
 - Exact duration decision: 마지막 Reverification 종료 시각을 독립적으로 재구성할 수 없어 최초 Generate부터 마지막 Reverification까지의 작업 시간은 추정하지 않고 `미측정`으로 기록합니다.
+
+## Claude MAJOR 수정 Attempt 3
+
+- Attempt start: `2026-07-11T10:30:07.190+09:00`, Main Coordinator가 현재 턴 시작에 실측해 전달했습니다.
+- RED command: `./gradlew.bat test --tests "*OrderEventPublisherTest.logsSynchronousSendFailureOnceWithoutPropagatingToCaller" --no-daemon`.
+- RED result: 동기 RuntimeException이 호출자에게 전파되어 `doesNotThrowAnyException` assertion 실패, `BUILD FAILED in 28s`.
+- Publisher GREEN command: `./gradlew.bat test --tests "*OrderEventPublisherTest" --no-daemon`.
+- Publisher GREEN result: 동기·비동기 실패 각각 1회 로그 검증, `BUILD SUCCESSFUL in 25s`.
+- Focused + Level 4 command: `./gradlew.bat test --tests "*OrderCompletedEventTest" --tests "*OrderEventPublisherTest" --tests "*OrderServiceLockTest" --tests "*OrderEventKafkaIntegrationTest" --no-daemon`.
+- Focused + Level 4 result: `BUILD SUCCESSFUL in 1m 29s`.
+- Fresh full command: `./gradlew.bat test --no-daemon`.
+- Fresh full result: `BUILD SUCCESSFUL in 1m 30s`.
+- End timestamp command immediately after full result: `Get-Date -Format o`.
+- End timestamp result: `2026-07-11T10:35:48.7319732+09:00`.
+- Attempt 3 measured duration: `00:05:41.5419732`.

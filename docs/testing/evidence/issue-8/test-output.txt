@@ -15,3 +15,8 @@ QA Level 4 final: 7 tests, failures 0, BUILD SUCCESSFUL in 1m 17s
 QA Level 1 final: 29 tests, failures 0, BUILD SUCCESSFUL in 1m 23s
 QA Level 5 final: application plus MySQL/Kafka/Redis started in 43.23 seconds, health 200 UP
 QA Level 6 final: charge 200, order 201, Kafka key/value raw record observed with kcat; resources cleaned
+Claude MAJOR Attempt 3 RED: synchronous send RuntimeException propagated, BUILD FAILED in 28s
+Claude MAJOR Attempt 3 publisher GREEN: BUILD SUCCESSFUL in 25s
+Claude MAJOR Attempt 3 focused and Level 4: BUILD SUCCESSFUL in 1m 29s
+Claude MAJOR Attempt 3 fresh full regression: BUILD SUCCESSFUL in 1m 30s
+Claude MAJOR Attempt 3 end timestamp: 2026-07-11T10:35:48.7319732+09:00

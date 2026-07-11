@@ -84,3 +84,40 @@ Branch: codex/issue-8-kafka-order-event
 ### Next Attempt
 
 - CI 확인, push와 draft PR 생성은 Main Coordinator가 다음 역할에 전달합니다. Docs Agent는 production/test/build 수정, Gradle·인프라 재실행, push를 수행하지 않습니다.
+
+## Attempt 3 - Claude MAJOR 동기 send 실패 수정
+
+Attempt started at: 2026-07-11T10:30:07.190+09:00
+Start source: Main Coordinator가 현재 턴 시작 시 실측해 전달한 시각.
+
+### Generate
+
+- KafkaTemplate.send 자체의 동기 RuntimeException이 주문 API로 전파되지 않도록 회귀 테스트부터 작성했습니다.
+- 동기 send 실패와 비동기 ack 실패가 각각 정확히 한 번 기록되도록 검증했습니다.
+
+### Evaluate
+
+- RED에서 동기 예외가 호출자에게 전파되어 `doesNotThrowAnyException` assertion이 실패했습니다.
+- 최소 try-catch 구현 뒤 publisher focused test가 PASS했습니다.
+
+### Failure Cause
+
+- `send()`가 future를 반환하기 전에 던지는 동기 예외는 기존 `whenComplete` callback에 도달하지 않아 OrderService로 전파됩니다.
+
+### Change Scope
+
+- OrderEventPublisher의 동기 예외 경계, 관련 publisher/service 테스트와 Issue #8 evidence만 수정합니다.
+
+### Reverification
+
+- RED: `BUILD FAILED in 28s`.
+- Publisher GREEN: `BUILD SUCCESSFUL in 25s`.
+- Focused + Level 4: `BUILD SUCCESSFUL in 1m 29s`.
+- Fresh 전체 회귀: `BUILD SUCCESSFUL in 1m 30s`.
+- Reverification ended at: `2026-07-11T10:35:48.7319732+09:00`.
+- End source: fresh 전체 회귀 종료 직후 같은 worktree에서 실행한 `Get-Date -Format o` 원문.
+- Attempt 3 duration: `00:05:41.5419732` (`2026-07-11T10:30:07.190+09:00`부터 위 종료 시각까지).
+
+### Next Attempt
+
+- Issue harness, semantic commit, push와 PR actual body 갱신 뒤 CI를 확인합니다. Level 6 실제 API 응답 계약 보존은 후속 QA가 확인합니다.

@@ -18,16 +18,25 @@ public class OrderEventPublisher {
 	private final KafkaTemplate<String, OrderCompletedEvent> kafkaTemplate;
 
 	public CompletableFuture<SendResult<String, OrderCompletedEvent>> publish(OrderCompletedEvent event) {
-		CompletableFuture<SendResult<String, OrderCompletedEvent>> result =
-				kafkaTemplate.send(ORDER_COMPLETED_TOPIC, event.userId().toString(), event);
+		CompletableFuture<SendResult<String, OrderCompletedEvent>> result;
+		try {
+			result = kafkaTemplate.send(ORDER_COMPLETED_TOPIC, event.userId().toString(), event);
+		} catch (RuntimeException failure) {
+			logFailure(event, failure);
+			return CompletableFuture.failedFuture(failure);
+		}
 		result.whenComplete((sendResult, failure) -> {
 			if (failure != null) {
-				log.error(
-						"order_completed_event_publish_failed eventId={} orderId={} userId={} topic={}",
-						event.eventId(), event.orderId(), event.userId(), ORDER_COMPLETED_TOPIC, failure
-				);
+				logFailure(event, failure);
 			}
 		});
 		return result;
+	}
+
+	private void logFailure(OrderCompletedEvent event, Throwable failure) {
+		log.error(
+				"order_completed_event_publish_failed eventId={} orderId={} userId={} topic={}",
+				event.eventId(), event.orderId(), event.userId(), ORDER_COMPLETED_TOPIC, failure
+		);
 	}
 }

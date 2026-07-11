@@ -2,6 +2,7 @@
 package com.example.coffeeordersystem.order.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,11 +47,30 @@ class OrderEventPublisherTest {
 		publisher.publish(event);
 
 		assertThat(output.getOut())
-				.contains("order_completed_event_publish_failed")
+				.containsOnlyOnce("order_completed_event_publish_failed")
 				.contains("eventId=" + event.eventId())
 				.contains("orderId=1")
 				.contains("userId=7")
 				.contains("topic=order.completed")
 				.contains("broker unavailable");
+	}
+
+	@Test
+	void logsSynchronousSendFailureOnceWithoutPropagatingToCaller(CapturedOutput output) {
+		OrderEventPublisher publisher = new OrderEventPublisher(kafkaTemplate);
+		OrderCompletedEvent event = new OrderCompletedEvent(
+				UUID.randomUUID(), 1L, 7L, 2L, 4_500, LocalDateTime.of(2026, 7, 9, 12, 0));
+		when(kafkaTemplate.send("order.completed", "7", event))
+				.thenThrow(new RuntimeException("producer closed"));
+
+		assertThatCode(() -> publisher.publish(event)).doesNotThrowAnyException();
+
+		assertThat(output.getOut())
+				.containsOnlyOnce("order_completed_event_publish_failed")
+				.contains("eventId=" + event.eventId())
+				.contains("orderId=1")
+				.contains("userId=7")
+				.contains("topic=order.completed")
+				.contains("producer closed");
 	}
 }
