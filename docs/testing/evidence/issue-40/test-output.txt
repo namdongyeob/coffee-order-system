@@ -1,0 +1,46 @@
+Issue #40 final independent QA summary
+Measured at: 2026-07-11
+
+[Focused unit]
+RankingEventProcessorTest
+Tests: 4
+Result: BUILD SUCCESSFUL in 19s
+
+[Level 3 - actual MySQL]
+RankingEventProcessorDatabaseIntegrationTest
+Tests: 3
+Coverage: sequential duplicate, different eventId, Redis failure rollback
+Result: BUILD SUCCESSFUL in 1m 08s
+
+[Level 4 - actual Kafka/MySQL/Redis]
+RankingEventConsumerKafkaRedisIntegrationTest
+Tests: 1
+Sequence: original -> duplicate -> same-key sentinel
+Assertion result: processed_event contains exactly original and sentinel eventIds, count 2
+Assertion result: Redis score 2.0
+Boundary: no raw CLI eventId capture was performed
+Result: BUILD SUCCESSFUL in 1m 02s
+
+[Level 1 - fresh full suite]
+Tests: 43
+Failures: 0
+Errors: 0
+Skipped: 0
+Result: BUILD SUCCESSFUL in 1m 46s
+
+[Level 5 - runtime]
+Application: Started CoffeeOrderSystemApplication in 40.173 seconds
+Kafka consumer: ranking-consumer-group partition assigned
+Health: HTTP 200, UP
+Infrastructure: MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2
+Runtime data: DB and Redis ZSET empty because no Level 6 traffic was sent
+Cleanup: issue runtime resources stopped; pre-existing pgvector remained
+
+[Not run]
+Level 6: NO, public HTTP API unchanged
+GitHub Actions CI: not verified by this local Docs Agent
+
+[Residual risk]
+Sequential same-key Kafka redelivery after successful completion is covered.
+Concurrent direct same-event calls can race between existsByEventId and saveAndFlush; the loser can fail on the DB unique constraint.
+Exactly-once and Redis-success/DB-commit crash consistency are not guaranteed.
