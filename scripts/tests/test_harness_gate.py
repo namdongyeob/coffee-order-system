@@ -24,6 +24,13 @@ Execution mode: STRICT
 Execution mode reason: 하네스와 워크플로 정책을 변경하므로 STRICT 검증이 필요합니다.
 """
 
+VALID_METRICS = """# Issue Metrics
+
+| 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| STRICT | 4 | 12 | 0 | 0 | 0 | 0 | 0 | 4 |
+"""
+
 VALID_ATTEMPT = """# Attempt Log
 
 Issue: #23
@@ -156,6 +163,7 @@ def write_issue_evidence(
 	(evidence / "attempt-log.md").write_text(VALID_ATTEMPT, encoding="utf-8")
 	(evidence / "commands.md").write_text("# Commands\n- unittest: PASS\n", encoding="utf-8")
 	(evidence / "manual-qa.md").write_text("# Manual QA\n- harness: PASS\n", encoding="utf-8")
+	(evidence / "metrics.md").write_text(VALID_METRICS, encoding="utf-8")
 	verification_path = root / "docs" / "testing" / "verification-log.md"
 	verification_path.write_text(verification, encoding="utf-8")
 
@@ -280,6 +288,7 @@ class EvidenceValidationTest(unittest.TestCase):
 			(evidence / "manual-qa.md").write_text(
 				"# Manual QA\n- main branch guard: PASS\n", encoding="utf-8"
 			)
+			(evidence / "metrics.md").write_text(VALID_METRICS, encoding="utf-8")
 			verification = root / "docs" / "testing" / "verification-log.md"
 			verification.write_text(
 				verification_log(
@@ -289,6 +298,39 @@ class EvidenceValidationTest(unittest.TestCase):
 			)
 
 			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_metrics_is_required_and_isolated_to_the_current_issue(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
+				),
+			)
+			(root / "docs" / "testing" / "evidence" / "issue-23" / "metrics.md").unlink()
+			(root / "docs" / "testing" / "evidence" / "issue-22").mkdir(parents=True)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("metrics.md" in error for error in errors))
+
+	def test_metrics_requires_the_exact_template_table_and_numeric_cells(self):
+		invalid_metrics = VALID_METRICS.replace("| STRICT | 4 | 12 | 0 | 0 | 0 | 0 | 0 | 4 |", "| STRICT | four | unknown | 0 | 0 | 0 | 0 | 0 | 4 |\n| STRICT | 4 | 1 | 0 | 0 | 0 | 0 | 0 | 4 |")
+
+		errors = harness_gate.validate_metrics(invalid_metrics)
+
+		self.assertTrue(any("exactly one" in error for error in errors))
+		self.assertTrue(any("Agent 수" in error for error in errors))
+		self.assertTrue(any("작업 시간(분)" in error for error in errors))
+
+	def test_acceptance_and_metrics_execution_modes_must_match(self):
+		metrics = VALID_METRICS.replace("| STRICT |", "| SOLO |")
+
+		errors = harness_gate.validate_execution_mode_consistency(VALID_ACCEPTANCE, metrics)
+
+		self.assertTrue(any("acceptance-criteria.md and metrics.md" in error for error in errors))
 
 
 class VerificationLogValidationTest(unittest.TestCase):
@@ -506,6 +548,38 @@ class PullRequestBodyValidationTest(unittest.TestCase):
 			self.assertEqual(1, result)
 			self.assertIn("Execution mode", output.getvalue())
 
+	def test_extract_execution_mode_returns_only_one_valid_declaration(self):
+		self.assertEqual("STRICT", harness_gate.extract_execution_mode(VALID_PR_BODY))
+		self.assertIsNone(harness_gate.extract_execution_mode("Execution mode: FAST\n"))
+		self.assertIsNone(harness_gate.extract_execution_mode(VALID_PR_BODY + "Execution mode: SOLO\n"))
+
+	def test_pr_body_execution_mode_must_match_issue_evidence(self):
+		errors = harness_gate.validate_execution_mode_consistency(
+			VALID_ACCEPTANCE,
+			VALID_METRICS,
+			VALID_PR_BODY.replace("Execution mode: STRICT", "Execution mode: STANDARD"),
+		)
+
+		self.assertTrue(any("pull request body" in error for error in errors))
+
+
+class ChangedPathModeValidationTest(unittest.TestCase):
+	def test_solo_rejects_production_and_build_paths(self):
+		for path in ("src/main/App.java", "gradle/wrapper/gradle-wrapper.properties", "docker/app.Dockerfile", "build.gradle", "settings.gradle", "gradlew", "gradlew.bat"):
+			with self.subTest(path=path):
+				errors = harness_gate.validate_changed_path_mode([path], "SOLO")
+				self.assertTrue(any("SOLO" in error for error in errors))
+
+	def test_strict_only_paths_reject_non_strict_modes(self):
+		for mode in ("SOLO", "STANDARD"):
+			with self.subTest(mode=mode):
+				errors = harness_gate.validate_changed_path_mode(["scripts/harness_gate.py"], mode)
+				self.assertTrue(any("STRICT" in error for error in errors))
+
+	def test_docs_and_gradlew_notes_do_not_trigger_path_mode_rules(self):
+		self.assertEqual([], harness_gate.validate_changed_path_mode(["docs/guide.md"], "SOLO"))
+		self.assertEqual([], harness_gate.validate_changed_path_mode(["docs/gradlew-notes.md"], "SOLO"))
+
 
 class MarkdownLinkTest(unittest.TestCase):
 	def test_repository_context_router_declared_paths_pass(self):
@@ -635,6 +709,16 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertIn("PR_BODY: ${{ github.event.pull_request.body }}", workflow)
 		self.assertIn("printf '%s' \"$PR_BODY\" > \"$RUNNER_TEMP/pr-body.md\"", workflow)
 		self.assertIn('--pr-body-file "$RUNNER_TEMP/pr-body.md"', workflow)
+
+	def test_pull_request_workflow_has_exact_required_event_types(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		workflow = (repository_root / ".github" / "workflows" / "harness-quality.yml").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn(
+			"types: [opened, synchronize, reopened, edited, ready_for_review]", workflow
+		)
 
 	def test_issue_and_pr_templates_include_execution_mode_fields(self):
 		repository_root = Path(__file__).resolve().parents[2]
