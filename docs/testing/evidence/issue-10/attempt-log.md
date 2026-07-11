@@ -62,3 +62,32 @@ Branch: codex/issue-10-popular-menu-api
 ### Next Attempt
 
 - 독립 Review와 GitHub Actions CI를 확인합니다. Level 6에서 populated Top 3 runtime 원문은 수집하지 않았으므로 API의 비어 있지 않은 순위 규칙은 Level 4 integration evidence 범위로만 주장합니다.
+
+## CI evidence follow-up - PR #43 body field correction
+
+### Generate
+
+- PR #43의 initial quality-gates run `29168649292` 실패 원인을 확인했습니다. initial PR 본문은 harness가 요구하는 literal `Execution mode: STRICT`가 아니라 `STRICT mode:`를 사용했습니다.
+- Dev가 live PR 본문을 `Execution mode: STRICT`와 비어 있지 않은 `Execution mode reason: ...`로 수정했습니다. 이 수정은 PR body에만 적용됐고 branch HEAD는 `c41cfee73735cb3188ff5db581a1c25d7ed0aace`로 변하지 않았습니다.
+
+### Evaluate
+
+- CI는 아직 PASS가 아닙니다. rerun은 기존 `pull_request` event payload를 유지해 수정 전 PR body를 검사했고 같은 형식 오류로 실패했습니다.
+
+### Failure Cause
+
+- initial CI event가 수집한 PR body는 `STRICT mode:` 형식이어서 harness의 exact field 검사와 불일치했습니다.
+- live PR body 정정 뒤 동일 run을 rerun해도 stale event payload가 갱신되지 않습니다.
+
+### Change Scope
+
+- production/test/PR body를 수정하지 않고, 관찰된 CI 원인과 현재 PR body 상태를 Issue evidence에만 기록합니다.
+
+### Reverification
+
+- `gh pr view 43 --repo namdongyeob/coffee-order-system --json headRefOid,body,statusCheckRollup`에서 HEAD가 `c41cfee73735cb3188ff5db581a1c25d7ed0aace`이고 live PR body에 `Execution mode: STRICT`, `Execution mode reason:`이 있는 것을 확인했습니다.
+- initial `quality-gates` run `29168649292`는 FAILURE이며 새 synchronize event의 CI 결과는 아직 없습니다.
+
+### Next Attempt
+
+- 이 evidence commit push가 새 `pull_request` synchronize event를 발생시킨 뒤, current PR body를 사용한 새 quality-gates CI 결과를 Main Coordinator가 확인합니다. CI PASS 전에는 완료 또는 merge를 주장하지 않습니다.

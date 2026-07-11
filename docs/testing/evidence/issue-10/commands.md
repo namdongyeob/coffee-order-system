@@ -25,3 +25,9 @@
 - Level 6: `curl.exe -sS -i http://localhost:8080/api/menus/popular` -> HTTP 200, `Content-Type: application/json`, body `[]`.
 - Cleanup: Ctrl+C 뒤 Testcontainers ResourceReaper 지연은 20초 안에 정리됐고 기존 `rag-pgvector`만 남았습니다.
 - Level 6 제한: runtime Redis `DBSIZE`가 0이어서 populated Top 3 JSON 원문은 관찰하지 못했습니다. populated 순위, 동점, 삭제 메뉴 및 임시 key 미생성은 Level 4 integration test 근거로 분리합니다.
+
+## CI evidence follow-up
+
+- PR #43 initial `quality-gates` run `29168649292` -> FAILURE. initial PR body의 `STRICT mode:`가 harness required field `Execution mode: STRICT`와 불일치한 것이 유일한 원인입니다.
+- live PR body는 `Execution mode: STRICT`와 `Execution mode reason: ...`로 정정됐습니다. `gh pr view 43 --repo namdongyeob/coffee-order-system --json headRefOid,body,statusCheckRollup`에서 HEAD `c41cfee73735cb3188ff5db581a1c25d7ed0aace`가 유지됐고 정정된 live body를 확인했습니다.
+- rerun은 기존 pull_request event payload를 사용하므로 stale initial body를 재검사해 실패했습니다. 이 evidence commit push 뒤의 새 synchronize event CI는 pending이며 PASS로 기록하지 않습니다.

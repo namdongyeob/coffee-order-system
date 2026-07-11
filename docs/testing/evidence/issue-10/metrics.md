@@ -17,6 +17,7 @@ Measured at: 2026-07-12
 - 범위 밖 변경 파일은 Dev 보고 기준 0건입니다.
 - 읽은 핵심 문서 9개는 AGENTS, Issue loop, Context Router, evidence guide, rule source map, completion checklist, orchestration policy, test strategy, 인기 메뉴 정책입니다.
 - baseline은 Testcontainers ResourceReaper/Docker cleanup 대기와 최종 XML 부재로 PARTIAL/미확인입니다. Level 2, 4, 1 Dev 재검증 결과와 혼동하지 않습니다.
+- PR #43 initial CI run `29168649292`는 initial PR body field `STRICT mode:` 형식 때문에 실패했습니다. live PR body는 exact `Execution mode: STRICT`와 `Execution mode reason:`으로 정정됐지만, rerun은 stale pull_request event payload를 유지했습니다. 이 CI evidence follow-up은 시각이 완비되지 않아 작업 시간 계산에 포함하지 않으며 새 synchronize event CI는 pending입니다.
 
 ## Evidence links
 
