@@ -13,8 +13,8 @@ Measured at: 2026-07-12
 
 - 작업 시간은 최초 Generate부터 마지막 Reverification까지의 분 단위 경과 시간입니다. 정확한 시작·종료 시각이 제공되지 않아 추정하지 않고 `미측정`으로 기록했습니다.
 - Agent 수 2는 Dev와 Docs입니다. 독립 Review·QA는 아직 실행 전이므로 포함하지 않았고, Main Coordinator는 작업 Agent 수에 포함하지 않습니다.
-- 재시도 0은 구현 전 TDD RED가 정책 계약 부재를 확인한 단계이고 Dev 반환 후 수정 Attempt가 아니기 때문입니다.
-- Review·QA 결함 수 0은 각 역할이 아직 실행 전임을 뜻하며 PASS 판정이 아닙니다.
+- 재시도 0은 최초 TDD RED와 #61-first scope correction RED가 모두 Dev 반환이나 Review 결함이 아닌, 구현 전 계약 부재·같은 Issue의 합의된 요구사항 보정이기 때문입니다.
+- Review·QA 결함 수 0은 각 역할이 #61-first 최신 HEAD에서 아직 실행 전임을 뜻하며 PASS 판정이 아닙니다.
 - 범위 밖 변경 파일 0은 Dev diff와 Docs 허용 범위에서 확인된 이탈 파일이 없다는 뜻입니다.
 - 직접 핵심 문서 4개는 `docs/ai/context-router.md`, `docs/testing/evidence-guide.md`, `docs/ai/rule-source-map.md`, `docs/ai/orchestration-policy.md`입니다.
 
