@@ -16,6 +16,7 @@ REQUIRED_EVIDENCE_FILES = (
     "attempt-log.md",
     "commands.md",
     "manual-qa.md",
+    "metrics.md",
 )
 ATTEMPT_LOG_SECTIONS = (
     "## Attempt",
@@ -41,6 +42,20 @@ VALID_EXECUTION_MODE_PATTERN = re.compile(
 VALID_EXECUTION_MODE_REASON_PATTERN = re.compile(
     r"^Execution mode reason:[ \t]*\S[^\r\n]*$"
 )
+METRICS_COLUMNS = (
+    "실행 모드",
+    "Agent 수",
+    "작업 시간(분)",
+    "재시도 수",
+    "정체 수",
+    "Review 결함 수",
+    "QA 결함 수",
+    "범위 밖 변경 파일 수",
+    "읽은 핵심 문서 수",
+)
+SOLO_FORBIDDEN_PREFIXES = ("src/", "gradle/", "docker/")
+SOLO_FORBIDDEN_FILES = {"build.gradle", "settings.gradle", "gradlew", "gradlew.bat"}
+STRICT_ONLY_PREFIXES = ("scripts/", ".github/workflows/")
 VERIFICATION_LOG_COLUMNS = (
     "날짜",
     "Issue",
@@ -96,6 +111,45 @@ def validate_execution_mode_fields(markdown: str, path: Path | None = None) -> l
     ) is None:
         errors.append(f"{location}Execution mode reason이 비어 있습니다.")
 
+    return errors
+
+
+def extract_execution_mode(markdown: str) -> str | None:
+    """Return the sole valid execution mode, or None when it is absent or invalid."""
+    declarations = EXECUTION_MODE_DECLARATION_PATTERN.findall(markdown)
+    if len(declarations) == 1:
+        match = VALID_EXECUTION_MODE_PATTERN.fullmatch(declarations[0])
+        return match.group(1) if match else None
+    if declarations:
+        return None
+
+    metrics_header = "| " + " | ".join(METRICS_COLUMNS) + " |"
+    lines = markdown.splitlines()
+    try:
+        header_index = next(index for index, line in enumerate(lines) if line.strip() == metrics_header)
+    except StopIteration:
+        return None
+    if header_index + 2 >= len(lines):
+        return None
+    cells = _split_markdown_table_row(lines[header_index + 2])
+    return cells[0] if len(cells) == len(METRICS_COLUMNS) and cells[0] in {"SOLO", "STANDARD", "STRICT"} else None
+
+
+def validate_execution_mode_consistency(
+    acceptance_markdown: str,
+    metrics_markdown: str,
+    pr_body_markdown: str | None = None,
+) -> list[str]:
+    """Require acceptance, metrics, and optional PR body to declare one mode."""
+    acceptance_mode = extract_execution_mode(acceptance_markdown)
+    metrics_mode = extract_execution_mode(metrics_markdown)
+    errors: list[str] = []
+    if acceptance_mode is not None and metrics_mode is not None and acceptance_mode != metrics_mode:
+        errors.append("Execution mode mismatch: acceptance-criteria.md and metrics.md must match.")
+    if pr_body_markdown is not None:
+        pr_mode = extract_execution_mode(pr_body_markdown)
+        if acceptance_mode is not None and pr_mode is not None and acceptance_mode != pr_mode:
+            errors.append("Execution mode mismatch: acceptance-criteria.md and pull request body must match.")
     return errors
 
 
@@ -169,6 +223,47 @@ def _split_markdown_table_row(line: str) -> list[str]:
         index += 1
     cells.append("".join(cell).strip())
     return cells
+
+
+def validate_metrics(markdown: str, path: Path | None = None) -> list[str]:
+    """Validate the fixed Issue metrics table with exactly one data row."""
+    location = f"{path}: " if path else ""
+    header = "| " + " | ".join(METRICS_COLUMNS) + " |"
+    separator = "| " + " | ".join("---" for _ in METRICS_COLUMNS) + " |"
+    lines = markdown.splitlines()
+    errors: list[str] = []
+    try:
+        header_index = next(index for index, line in enumerate(lines) if line.strip() == header)
+    except StopIteration:
+        return [f"{location}metrics.md requires the exact nine-column template header."]
+
+    if header_index + 1 >= len(lines) or lines[header_index + 1].strip() != separator:
+        errors.append(f"{location}metrics.md requires the exact nine-column table separator.")
+        return errors
+
+    data_rows = [
+        _split_markdown_table_row(line)
+        for line in lines[header_index + 2 :]
+        if line.lstrip().startswith("|")
+    ]
+    if len(data_rows) != 1:
+        errors.append(f"{location}metrics.md requires exactly one data row.")
+    if not data_rows:
+        return errors
+
+    row = data_rows[0]
+    if len(row) != len(METRICS_COLUMNS):
+        return [f"{location}metrics.md data row requires exactly nine columns."]
+    if row[0] not in {"SOLO", "STANDARD", "STRICT"}:
+        errors.append(f"{location}metrics.md 실행 모드는 SOLO, STANDARD, STRICT 중 하나여야 합니다.")
+    for index, column in enumerate(METRICS_COLUMNS[1:], start=1):
+        value = row[index]
+        if column == "작업 시간(분)":
+            if value != "미측정" and re.fullmatch(r"0|[1-9]\d*", value) is None:
+                errors.append(f"{location}metrics.md {column}은 0 이상의 정수 또는 미측정이어야 합니다.")
+        elif re.fullmatch(r"0|[1-9]\d*", value) is None:
+            errors.append(f"{location}metrics.md {column}은 0 이상의 정수여야 합니다.")
+    return errors
 
 
 def _verification_rows(markdown: str) -> tuple[list[dict[str, str]], list[str]]:
@@ -304,6 +399,14 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
         acceptance = acceptance_path.read_text(encoding="utf-8")
         errors.extend(validate_acceptance_criteria(acceptance, acceptance_path))
 
+    metrics = ""
+    metrics_path = evidence_dir / "metrics.md"
+    if metrics_path.is_file():
+        metrics = metrics_path.read_text(encoding="utf-8")
+        errors.extend(validate_metrics(metrics, metrics_path))
+    if acceptance and metrics:
+        errors.extend(validate_execution_mode_consistency(acceptance, metrics))
+
     attempt_log_path = evidence_dir / "attempt-log.md"
     if attempt_log_path.is_file():
         attempt_log = attempt_log_path.read_text(encoding="utf-8")
@@ -427,6 +530,33 @@ def changed_markdown_files(
     return sorted((repository_root / relative_path for relative_path in relative_paths if (repository_root / relative_path).is_file()), key=str)
 
 
+def changed_paths(repository_root: Path, base_ref: str) -> list[str]:
+    """Return changed repository-relative paths between the base ref and HEAD."""
+    return [
+        path
+        for path in _git_output(repository_root, "diff", "--name-only", f"{base_ref}...HEAD").splitlines()
+        if path
+    ]
+
+
+def validate_changed_path_mode(paths: list[str], mode: str | None) -> list[str]:
+    """Reject execution modes that do not cover changed production or gate paths."""
+    if mode is None:
+        return []
+    normalized_paths = [path.replace("\\", "/") for path in paths]
+    errors: list[str] = []
+    if mode == "SOLO" and any(
+        path.startswith(SOLO_FORBIDDEN_PREFIXES) or path in SOLO_FORBIDDEN_FILES
+        for path in normalized_paths
+    ):
+        errors.append("Execution mode SOLO is not allowed when production, build, or Docker paths change.")
+    if mode != "STRICT" and any(
+        path.startswith(STRICT_ONLY_PREFIXES) for path in normalized_paths
+    ):
+        errors.append("Execution mode STRICT is required when scripts/ or .github/workflows/ paths change.")
+    return errors
+
+
 def current_branch(repository_root: Path) -> str:
     return _git_output(repository_root, "branch", "--show-current").strip()
 
@@ -459,6 +589,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check_branch:
         errors.extend(validate_branch(branch))
+    issue = args.issue if args.issue is not None else infer_issue_number(branch)
+    pr_body = None
 
     if args.pr_body_file is not None:
         try:
@@ -468,13 +600,34 @@ def main(argv: list[str] | None = None) -> int:
             errors.append(f"ERROR: cannot read pull request body file {args.pr_body_file}: {error}")
 
     if not args.links_only and not args.check_branch:
-        issue = args.issue if args.issue is not None else infer_issue_number(branch)
         if issue is None:
             errors.append(
                 "ERROR: issue number is required. Use --issue N or a branch name containing issue-N."
             )
         else:
             errors.extend(validate_issue_evidence(repository_root, issue))
+            evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
+            acceptance_path = evidence_dir / "acceptance-criteria.md"
+            metrics_path = evidence_dir / "metrics.md"
+            if pr_body is not None:
+                if acceptance_path.is_file() and metrics_path.is_file():
+                    errors.extend(
+                        validate_execution_mode_consistency(
+                            acceptance_path.read_text(encoding="utf-8"),
+                            metrics_path.read_text(encoding="utf-8"),
+                            pr_body,
+                        )
+                    )
+            if acceptance_path.is_file():
+                try:
+                    errors.extend(
+                        validate_changed_path_mode(
+                            changed_paths(repository_root, args.base_ref),
+                            extract_execution_mode(acceptance_path.read_text(encoding="utf-8")),
+                        )
+                    )
+                except RuntimeError as error:
+                    errors.append(f"ERROR: cannot determine changed paths from {args.base_ref}: {error}")
 
     if args.check_links or args.links_only:
         try:
