@@ -1,0 +1,53 @@
+Issue #9 Dev raw output excerpts
+
+[Attempt 1 baseline]
+Command: .\gradlew.bat test --no-daemon
+30 tests completed, 13 failed
+BUILD FAILED in 1m 50s
+
+[Baseline QA independent retry]
+Focused: BUILD SUCCESSFUL in 1m 09s
+Full: BUILD SUCCESSFUL in 1m 16s
+XML: 30/0/0/0
+
+[TDD RED]
+Command: .\gradlew.bat test --tests "*PopularMenuRankingEntryTest" --tests "*PopularMenuRankingRedisIntegrationTest" --no-daemon
+error: cannot find symbol
+  symbol:   class PopularMenuRankingService
+BUILD FAILED in 18s
+
+[GREEN and Level 4 actual Redis]
+Command: .\gradlew.bat test --tests "*PopularMenuRankingEntryTest" --tests "*PopularMenuRankingRedisIntegrationTest" --no-daemon
+BUILD SUCCESSFUL in 1m 10s
+
+[Level 5]
+Command: .\gradlew.bat bootTestRun --no-daemon
+Container redis:7.4.2 started in PT0.9269823S
+Started CoffeeOrderSystemApplication in 41.772 seconds (process running for 42.341)
+HEALTH_STATUS=200
+REDIS_CONTAINER=d0d37842e623
+PONG
+
+[Repository harness]
+Command: python scripts/harness_gate.py --issue 9 --branch codex/issue-9-redis-ranking-write --base-ref origin/main --check-links --check-branch --include-worktree
+Harness gate PASSED.
+
+[Level 1 fresh full]
+Command: .\gradlew.bat test --no-daemon
+BUILD SUCCESSFUL in 1m 19s
+XML=35/0/0/0
+
+[Prospective timing]
+Attempt 1 start=2026-07-11T12:13:43.222+09:00
+Attempt 1 end=2026-07-11T12:16:47.511+09:00
+Attempt 1 duration=184.290s
+Attempt 2 start=2026-07-11T12:21:30.914+09:00
+END=2026-07-11T12:29:51.008+09:00
+DURATION_SECONDS=500.094
+TOTAL_SECONDS=684.384
+
+[Pre-push gate]
+Command: git push -u origin codex/issue-9-redis-ranking-write
+Harness gate FAILED:
+verification-log.md: Issue #9 required Level 5 PASS is missing; add a row with the same Issue, Level 'Level 5', and result 'PASS'.
+error: failed to push some refs to 'https://github.com/namdongyeob/coffee-order-system.git'
