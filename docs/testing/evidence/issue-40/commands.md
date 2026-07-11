@@ -48,3 +48,20 @@
 - Start: `2026-07-11T13:54:26.475+09:00`.
 - End: `2026-07-11T14:09:08.832+09:00`.
 - Exact duration: `882.357s`.
+
+## Attempt 2 Review P1 deterministic duplicate verification
+
+- Command: `./gradlew.bat test --tests '*RankingEventConsumerKafkaRedisIntegrationTest' --no-daemon`.
+- Result: 원본, duplicate, sentinel을 동일 Kafka key/partition으로 발행하고 sentinel commit 뒤 DB eventId 2개와 Redis score `2.0` 확인, `BUILD SUCCESSFUL in 1m 08s`.
+- Timing policy: `Thread.sleep`이나 duplicate 소비 전 이미 참인 score await를 사용하지 않습니다.
+- Level 3 command: `./gradlew.bat test --tests '*RankingEventProcessorDatabaseIntegrationTest' --no-daemon`.
+- Level 3 result: 3 tests, `BUILD SUCCESSFUL in 1m 05s`.
+- Fresh Level 1 command: `./gradlew.bat test --no-daemon`.
+- Fresh Level 1 result: 43 tests, 0 failures, 0 errors, 0 skipped, `BUILD SUCCESSFUL in 2m 02s`.
+- Harness command: `python scripts/harness_gate.py --issue 40 --branch codex/issue-40-kafka-consumer-idempotency --base-ref origin/main --check-links --check-branch --include-worktree`.
+- Harness result: `Harness gate PASSED`.
+- Level 5: production/config 변경이 없으므로 Attempt 1 결과를 재사용하며 Dev가 재실행하지 않습니다. 독립 QA가 fresh Level 5를 수행합니다.
+- Attempt 2 start: `2026-07-11T14:15:12.165+09:00`.
+- Attempt 2 end: `2026-07-11T14:21:30.106+09:00`.
+- Attempt 2 exact duration: `377.941s`.
+- Two-Attempt active total: `1260.298s`.

@@ -37,18 +37,23 @@ class RankingEventConsumerKafkaRedisIntegrationTest {
 	}
 
 	@Test
-	void consumesNewEventAndSkipsCompletedDuplicate() throws Exception {
+	void consumesDuplicateBeforeLaterSamePartitionEventWithoutIncrementingTwice() throws Exception {
 		OrderCompletedEvent event = new OrderCompletedEvent(
 				UUID.randomUUID(), 1L, 2L, 11L, 4_500, LocalDateTime.of(2026, 7, 11, 13, 0));
+		OrderCompletedEvent sentinel = new OrderCompletedEvent(
+				UUID.randomUUID(), 2L, event.userId(), event.menuId(), 4_500, event.orderedAt());
 
 		publisher.publish(event).get();
 		await(Duration.ofSeconds(10), () -> processedEventRepository.existsByEventId(event.eventId().toString()));
 		publisher.publish(event).get();
-		await(Duration.ofSeconds(10), () -> Double.valueOf(1.0).equals(score(event)));
-		Thread.sleep(1_000);
+		publisher.publish(sentinel).get();
+		await(Duration.ofSeconds(10),
+				() -> processedEventRepository.existsByEventId(sentinel.eventId().toString()));
 
-		assertThat(processedEventRepository.count()).isEqualTo(1);
-		assertThat(score(event)).isEqualTo(1.0);
+		assertThat(processedEventRepository.findAll())
+				.extracting(processed -> processed.getEventId())
+				.containsExactlyInAnyOrder(event.eventId().toString(), sentinel.eventId().toString());
+		assertThat(score(event)).isEqualTo(2.0);
 	}
 
 	private Double score(OrderCompletedEvent event) {

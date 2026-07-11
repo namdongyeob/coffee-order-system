@@ -13,8 +13,11 @@
 - DB transaction은 `processed_event` insert/flush와 Redis 호출 뒤 commit되므로 Redis 실패 시 DB 이력은 rollback됩니다.
 - Redis는 DB transaction에 참여하지 않습니다. Redis 성공 후 DB commit 전 process crash가 발생하면 DB 이력이 남지 않아 재전달이 Redis score를 다시 증가시킬 수 있습니다.
 - 따라서 이 구현은 정상 완료 후 재전달 멱등성만 제공하며 crash consistency, distributed transaction 또는 exactly-once를 주장하지 않습니다.
+- 현재 duplicate 보장은 같은 key/partition에서 정상 완료 뒤 순차 재전달되는 Kafka 처리 경계입니다.
+- `existsByEventId`와 `saveAndFlush` 사이에 direct concurrent same-event 호출이 경합하면 DB unique 제약이 중복 Redis 반영은 막지만 race loser 호출은 unique 위반으로 실패할 수 있습니다. 동시 호출의 정상 반환은 보장하지 않습니다.
 
 ## 미검증
 
 - Level 6은 공개 HTTP API 변경이 없어 요구되지 않았습니다.
 - retry, error handler, DLT, replay, rebuild는 Issue #40 제외 범위이므로 검증하지 않았습니다.
+- direct concurrent same-event 호출의 성공 멱등성은 Issue #40 AC가 아니며 검증하지 않았습니다.
