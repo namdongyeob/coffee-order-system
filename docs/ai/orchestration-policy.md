@@ -70,11 +70,11 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 - diff 내용에 대한 코드 품질 판정과 Review Agent 역할 대행.
 - Gradle, Postman, k6, DB, Kafka, Redis 검증 명령 실행.
 - Review/QA 실패를 직접 수정하거나 다른 범위로 확대.
-- commit, push, merge, Issue close.
+- commit, push, 그리고 고정 자율 Issue 큐 실험 밖에서의 merge, Issue close.
 
 Main은 변경 파일 목록, 역할별 완료 보고, 필수 evidence 존재, GitHub Actions 상태만 확인합니다. Agent가 멈추면 한 번 상태를 요청하고 종료·재배정하며, 두 번째 시도도 실패하면 직접 작업하지 않고 `BLOCKED`로 전환합니다.
 
-어떤 Agent도 merge 또는 Issue close를 실행하지 않습니다. Review, QA, CI와 evidence가 있어도 사람의 명시적 승인 뒤에만 사람이 merge 또는 close를 실행합니다.
+고정 자율 Issue 큐 실험 밖에서는 어떤 Agent도 merge 또는 Issue close를 실행하지 않습니다. Review, QA, CI와 evidence가 있어도 사람의 명시적 승인 뒤에만 사람이 merge 또는 close를 실행합니다. 고정 자율 Issue 큐 실험에서는 아래 열거된 모든 조건을 충족한 Main Coordinator만 merge 또는 Issue close를 실행할 수 있습니다.
 
 ## Issue 번호와 브랜치 연결
 

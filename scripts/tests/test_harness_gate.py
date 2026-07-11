@@ -627,6 +627,25 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_global_merge_prohibitions_scope_the_fixed_experiment_exception(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn(
+			"commit, push, 그리고 고정 자율 Issue 큐 실험 밖에서의 merge, Issue close.",
+			policy,
+		)
+		self.assertIn(
+			"고정 자율 Issue 큐 실험 밖에서는 어떤 Agent도 merge 또는 Issue close를 실행하지 않습니다.",
+			policy,
+		)
+		self.assertIn(
+			"고정 자율 Issue 큐 실험에서는 아래 열거된 모든 조건을 충족한 Main Coordinator만 merge 또는 Issue close를 실행할 수 있습니다.",
+			policy,
+		)
+
 	def test_fixed_autonomous_queue_experiment_contract_is_pinned(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
