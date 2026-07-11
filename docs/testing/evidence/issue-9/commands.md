@@ -82,15 +82,14 @@ docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-30 1 202
 docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-31 1 101
 docker exec $redisId redis-cli ZRANGE popular:menus:2099-12-30 0 -1 WITHSCORES
 docker exec $redisId redis-cli ZRANGE popular:menus:2099-12-31 0 -1 WITHSCORES
-docker exec $redisId redis-cli KEYS 'popular:menus:2099-12-*'
+docker exec $redisId redis-cli KEYS 'popular:menus:2099-*'
 docker exec $redisId redis-cli DEL popular:menus:2099-12-30 popular:menus:2099-12-31
-docker exec $redisId redis-cli EXISTS popular:menus:2099-12-30
-docker exec $redisId redis-cli EXISTS popular:menus:2099-12-31
+docker exec $redisId redis-cli EXISTS popular:menus:2099-12-30 popular:menus:2099-12-31
 ```
 
 - `ZINCRBY` 반환은 순서대로 `1`, `2`, `1`, `1`이었습니다.
 - date 30은 member `202=1`, `101=2`; date 31은 member `101=1`이었습니다.
-- `DEL=2`, 두 `EXISTS=0`으로 정리했습니다.
+- `DEL=2`, multi-key `EXISTS` 단일 반환 `0`으로 정리했습니다.
 - 이 direct `redis-cli` probe는 Level 5 Redis runtime의 ZSET 동작과 key/member 격리만 증명합니다. 애플리케이션 Service 경로는 Level 4 `PopularMenuRankingRedisIntegrationTest`가 증명합니다.
 
 ## PR #41 CI event history
@@ -113,3 +112,16 @@ docker exec $redisId redis-cli EXISTS popular:menus:2099-12-31
 - Actual GitHub body preflight after edit: `Harness gate PASSED`.
 - End: `2026-07-11T13:34:52.119+09:00`.
 - Attempt 3 duration: `144.732s`.
+
+## Attempt 4 QA raw command factual correction
+
+- Start: `2026-07-11T13:39:09.024+09:00`.
+- Command: `git diff --check`.
+- Result: PASS.
+- Command: `python -m unittest discover -s scripts/tests -p "test_*.py"`.
+- Result: 50 tests, `OK`.
+- Issue harness and changed Markdown links: `Harness gate PASSED`.
+- Actual GitHub PR body preflight before edit: `Harness gate PASSED`.
+- End: `2026-07-11T13:40:11.041+09:00`.
+- Attempt 4 duration: `62.017s`.
+- Four-Attempt active total: `891.132s`.

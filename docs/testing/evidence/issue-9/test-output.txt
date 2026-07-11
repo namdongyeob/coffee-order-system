@@ -85,10 +85,9 @@ Command 4: docker exec $redisId redis-cli ZINCRBY popular:menus:2099-12-31 1 101
 Result 4: 1
 ZRANGE popular:menus:2099-12-30 WITHSCORES: 202 1, 101 2
 ZRANGE popular:menus:2099-12-31 WITHSCORES: 101 1
-KEYS popular:menus:2099-12-*: popular:menus:2099-12-30, popular:menus:2099-12-31
+KEYS popular:menus:2099-*: popular:menus:2099-12-30, popular:menus:2099-12-31
 DEL popular:menus:2099-12-30 popular:menus:2099-12-31: 2
-EXISTS popular:menus:2099-12-30: 0
-EXISTS popular:menus:2099-12-31: 0
+EXISTS popular:menus:2099-12-30 popular:menus:2099-12-31: 0
 Boundary: direct redis-cli proves Level 5 Redis runtime ZSET/key isolation only; Level 4 integration proves Service path
 
 [PR #41 event history]
@@ -109,3 +108,13 @@ Actual GitHub PR body preflight after edit=PASS
 END=2026-07-11T13:34:52.119+09:00
 DURATION_SECONDS=144.732
 ACTIVE_TOTAL_SECONDS=829.115
+
+[Attempt 4 QA raw command factual correction]
+START=2026-07-11T13:39:09.024+09:00
+git diff --check=PASS
+Harness unit=50 tests OK
+Issue harness and links=PASS
+Actual GitHub PR body preflight before edit=PASS
+END=2026-07-11T13:40:11.041+09:00
+DURATION_SECONDS=62.017
+ACTIVE_TOTAL_SECONDS=891.132

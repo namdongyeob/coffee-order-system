@@ -124,3 +124,37 @@ Start source: Main Coordinator가 현재 Attempt 시작 시 실측해 전달한 
 ### Next Attempt
 
 - semantic docs commit, pre-push와 push 후 새 synchronize CI를 확인하고 Current Claude 재검토를 요청합니다.
+
+## Attempt 4 - QA raw command factual correction
+
+Attempt started at: 2026-07-11T13:39:09.024+09:00
+Start source: Main Coordinator가 현재 continuation 시작 시 실측해 전달한 시각.
+
+### Generate
+
+- QA raw probe의 실제 `KEYS` pattern과 multi-key `EXISTS` 단일 명령·단일 결과를 evidence와 actual PR body에 정정합니다.
+
+### Evaluate
+
+- PASS. QA raw command facts를 evidence와 actual PR body에 정정했습니다. Current Claude 재검토는 pending입니다.
+
+### Failure Cause
+
+- Attempt 3에서 QA의 실제 `KEYS 'popular:menus:2099-*'`를 더 좁은 pattern으로 기록했고, multi-key `EXISTS` 한 번의 단일 결과 `0`을 두 명령과 `0`, `0`으로 잘못 분리했습니다.
+
+### Change Scope
+
+- Issue #9 docs evidence, metrics와 actual PR #41 body만 수정합니다.
+
+### Reverification
+
+- `git diff --check`: PASS.
+- Harness unit: 50 tests, `OK`.
+- Issue harness와 changed Markdown links: `Harness gate PASSED`.
+- actual GitHub PR body preflight before edit: `Harness gate PASSED`.
+- Reverification ended at: `2026-07-11T13:40:11.041+09:00`.
+- Attempt 4 duration: `62.017s`.
+
+### Next Attempt
+
+- actual body에 정확한 Attempt timing을 반영하고 semantic docs commit, push와 새 synchronize CI를 검증합니다.

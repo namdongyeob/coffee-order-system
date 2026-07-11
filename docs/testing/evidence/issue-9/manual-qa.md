@@ -20,8 +20,8 @@
 
 ## Cleanup receipt
 
-- `KEYS 'popular:menus:2099-12-*'`로 QA key 두 개를 확인한 뒤 삭제했고 `DEL` 결과는 `2`였습니다.
-- 두 key 각각의 후속 `EXISTS` 결과는 `0`, `0`이었습니다.
+- `KEYS 'popular:menus:2099-*'`로 QA key 두 개를 확인한 뒤 삭제했고 `DEL` 결과는 `2`였습니다.
+- `EXISTS popular:menus:2099-12-30 popular:menus:2099-12-31` 단일 명령의 반환은 `0`이었습니다.
 - 기존 `rag-pgvector` 리소스는 건드리지 않았습니다.
 - QA 종료 후 QA 소유 애플리케이션과 인프라 리소스가 남지 않았습니다.
 - Level 6은 외부 HTTP API 변경이 없어 `NO`입니다.
