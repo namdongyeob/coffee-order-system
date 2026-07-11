@@ -627,6 +627,28 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_skill_keeps_default_coordinator_block_and_policy_merge_exception(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		skill = (
+			repository_root / ".codex" / "skills" / "coffee-order-issue-loop" / "SKILL.md"
+		).read_text(encoding="utf-8")
+
+		self.assertIn("BLOCKED: COORDINATOR ONLY", skill)
+		self.assertIn(
+			"고정 자율 Issue 큐 실험이 활성화되어 있고 모든 정책 merge gate 입력이 확인된 경우에만 Main Coordinator의 merge 또는 Issue close를 예외로 허용합니다.",
+			skill,
+		)
+		self.assertIn(
+			"bootstrap Issue #60, 비활성 정책, 승인 큐 밖 Issue, Issue #36 종료 또는 만료, merge gate 입력 하나라도 누락이면 `BLOCKED: COORDINATOR ONLY`를 유지합니다.",
+			skill,
+		)
+		self.assertIn(
+			"이 Skill은 GitHub branch protection, ruleset, 기타 설정을 변경하지 않습니다.",
+			skill,
+		)
+		self.assertNotIn("#61 ->", skill)
+		self.assertNotIn("required CI checks", skill)
+
 	def test_global_merge_prohibitions_scope_the_fixed_experiment_exception(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
