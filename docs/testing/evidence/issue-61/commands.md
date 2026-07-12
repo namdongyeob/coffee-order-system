@@ -15,3 +15,8 @@
 - RedisInsight `POST /api/databases` created `coffee-order-local` for Compose-network host `redis:6379` and returned Redis version `7.4.2` with a connection timestamp; raw Redis independently confirmed that service held `popular:menus:2026-07-12` member `1` score `1`.
 
 The Dev focused test and runtime commands are not independent QA results.
+
+## Runbook/manual-QA artifact recovery
+
+- No Compose, application, IntelliJ, browser, or HTTP command was run in this recovery.
+- Static checks are limited to the Issue #61 repository gate, `git diff --name-only`, `git diff --check`, and textual validation that the HTTP template contains the documented user `6101` charge and order requests.

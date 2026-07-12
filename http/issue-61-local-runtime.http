@@ -3,3 +3,21 @@ GET http://localhost:8080/actuator/health
 
 ### Level 6 representative API
 GET http://localhost:8080/api/menus
+
+### Charge points for local observation
+POST http://localhost:8080/api/points/charge
+Content-Type: application/json
+
+{
+  "userId": 6101,
+  "amount": 10000
+}
+
+### Create order for Kafka and Redis observation
+POST http://localhost:8080/api/orders
+Content-Type: application/json
+
+{
+  "userId": 6101,
+  "menuId": 1
+}

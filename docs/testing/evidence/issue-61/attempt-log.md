@@ -55,3 +55,25 @@ Branch: codex/issue-61-local-runtime
 ### Next Attempt
 
 - Fresh Review and QA must assess the remediation head. This is the original Dev's single permitted Review return.
+
+## Runbook/manual-QA artifact recovery
+
+### Generate
+
+- After the automatic retry limit safely stopped the PR for missing visual evidence, a person classified the remaining work as a separate Runbook/manual-QA artifact recovery and approved it without returning work to the original Dev.
+
+### Evaluate
+
+- Read-only comparison found two reproducibility defects. RedisInsight runs inside Compose, so `127.0.0.1:16379` can resolve to the RedisInsight container rather than the project Redis service. The HTTP template also lacked the point-charge and order requests needed to generate the Kafka event and Redis ranking key.
+
+### Change Scope
+
+- Updated only the local Runbook, the Issue #61 HTTP request template, and Issue #61 evidence. Production, tests, Compose, profiles, and the queue were not changed.
+
+### Reverification
+
+- Repository static checks only. No Compose, application, browser, IntelliJ, or visual QA run was performed during this recovery.
+
+### Next Attempt
+
+- User manual visual QA must run the corrected Runbook and provide the three required screenshots before evidence integration, fresh Review, QA, and CI may resume.
