@@ -69,6 +69,15 @@ VALID_VERIFICATION_LEVELS = tuple(f"Level {level}" for level in range(8))
 VALID_VERIFICATION_RESULTS = ("PASS", "FAIL", "PARTIAL")
 STRICT_AGENT_ROLES = frozenset({"Dev", "Review", "QA", "Docs"})
 QA_PRESERVING_DOCS = frozenset({"docs/testing/verification-log.md"})
+QA_PRESERVING_EVIDENCE_FILES = frozenset(
+    {
+        "acceptance-criteria.md",
+        "attempt-log.md",
+        "commands.md",
+        "manual-qa.md",
+        "metrics.md",
+    }
+)
 
 
 def pre_review_ready(*, dev_verified: bool, evidence_ready: bool, pr_body_preflight_passed: bool) -> bool:
@@ -97,9 +106,13 @@ def qa_remains_valid(
         return True
     if not changed_paths:
         return False
-    evidence_prefix = f"docs/testing/evidence/issue-{issue_number}/"
+    evidence_directory = f"docs/testing/evidence/issue-{issue_number}"
+    allowed_paths = QA_PRESERVING_DOCS.union(
+        f"{evidence_directory}/{file_name}"
+        for file_name in QA_PRESERVING_EVIDENCE_FILES
+    )
     return all(
-        path.startswith(evidence_prefix) or path in QA_PRESERVING_DOCS
+        path in allowed_paths
         for path in changed_paths
     )
 

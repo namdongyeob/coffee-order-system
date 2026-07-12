@@ -78,7 +78,7 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 PR 생성 전 경량 preflight는 기본 evidence, Execution mode와 reason, Level 5/6 결정과 reason, 실제 command 결과, metrics 9열, 존재하지 않는 파일·실행하지 않은 명령 주장, 한국어 UTF-8 no-BOM body, 범위 밖 변경과 비밀값을 검사합니다. PR 본문에는 현재 head, CI·Review·QA·Gate 상태, Agent·retry 수, diff 통계, 파일 목록 또는 테스트 수를 복제하지 않습니다.
 
-Review APPROVED 뒤 independent QA를 실행하고, QA PASS 뒤 Docs Agent가 evidence를 한 번만 동기화합니다. QA head부터 현재 head까지의 변경이 해당 Issue의 `docs/testing/evidence/issue-*/`와 `docs/testing/verification-log.md`뿐이면 QA 판정은 유지하고 final Reviewer가 delta를 확인합니다. 그 밖의 production, test, build, workflow, runtime 또는 policy 변경이 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
+Review APPROVED 뒤 independent QA를 실행하고, QA PASS 뒤 Docs Agent가 evidence를 한 번만 동기화합니다. QA head부터 현재 head까지의 변경이 해당 Issue evidence의 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`와 `docs/testing/verification-log.md`뿐이면 QA 판정은 유지하고 final Reviewer가 delta를 확인합니다. screenshot, binary, raw output, 임의 파일과 다른 Issue evidence를 포함해 이 고정 Markdown allowlist 밖 변경이 하나라도 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
 
 metadata 오탈자는 final Review 전에 Docs Agent가 테스트 수, Agent 수, evidence 링크, verification-log 행, 존재하지 않는 PR 파일 참조와 metrics 계산만 정본에 따라 한 번 정리합니다. 별도 budget이나 상태 머신은 없으며, 정본이 충돌하거나 계산할 수 없을 때만 안전 정지합니다. 코드·정책·보안·데이터 P0/P1은 원래 Dev에게 한 번 반환하고 두 번째 P0/P1은 안전 정지합니다. 완료 기준을 위반하지 않는 P2는 비차단 권고 또는 후속 Issue로 남깁니다.
 

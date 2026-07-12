@@ -36,3 +36,34 @@ Branch: codex/issue-71-workflow-rollback
 ### Next Attempt
 
 - fresh Review와 independent QA를 위한 draft PR 생성.
+
+## Attempt 2
+
+### Generate
+
+- 역할: 원래 Dev의 허용된 유일 code remediation
+- 시작 시각: 2026-07-12T17:06:29.8802961+09:00
+- 기준 head: `0bad6bc20bf0e1a1bf97977ecef46cebb81454e4`
+- Review P1에 따라 QA 보존 경로를 고정 Markdown evidence 파일과 verification-log로 제한했습니다.
+
+### Evaluate
+
+- TDD RED: screenshot, png, raw output와 임의 Markdown 4개 경로가 기존 prefix 판정에서 잘못 `True`가 되어 4 failures를 확인했습니다.
+- GREEN: 고정 파일 allowlist 판정과 명시 우회 행위 테스트가 focused suite에서 PASS했습니다.
+
+### Failure Cause
+
+- `qa_remains_valid()`가 Issue evidence 디렉터리 prefix 전체를 허용해 비문서 artifact도 QA 보존 delta로 오인했습니다.
+
+### Change Scope
+
+- `scripts/harness_gate.py`의 QA 보존 predicate, 직접 계약 테스트, 같은 정책 문장과 Issue #71 evidence만 수정합니다. P2 CLI 연결은 제외합니다.
+
+### Reverification
+
+- 종료 시각: 2026-07-12T17:08:17.9396837+09:00
+- focused 28 tests, full harness 76 tests, repository gate, diff check와 저장소 밖 UTF-8 no-BOM PR body preflight가 모두 PASS했습니다.
+
+### Next Attempt
+
+- 같은 PR에 push한 뒤 fresh Review와 independent QA를 요청합니다. 추가 code remediation은 없습니다.

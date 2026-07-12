@@ -683,6 +683,26 @@ class OrchestrationContractTest(unittest.TestCase):
 			)
 		)
 
+	def test_qa_preservation_rejects_every_path_outside_fixed_markdown_allowlist(self):
+		for path in (
+			"docs/testing/evidence/issue-71/screenshots/ui.png",
+			"docs/testing/evidence/issue-71/capture.png",
+			"docs/testing/evidence/issue-71/test-output.txt",
+			"docs/testing/evidence/issue-71/arbitrary.md",
+			"docs/testing/evidence/issue-72/commands.md",
+			"docs/ai/orchestration-policy.md",
+			"scripts/harness_gate.py",
+			"src/main/java/App.java",
+			"src/test/java/AppTest.java",
+			"build.gradle",
+			".github/workflows/quality-gates.yml",
+			"docker/compose.yaml",
+		):
+			with self.subTest(path=path):
+				self.assertFalse(
+					harness_gate.qa_remains_valid("qa", "current", [path], 71)
+				)
+
 	def test_autonomous_merge_requires_all_existing_gates(self):
 		inputs = {
 			"review_approved": True,
