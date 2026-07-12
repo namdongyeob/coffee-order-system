@@ -77,3 +77,27 @@ Branch: codex/issue-61-local-runtime
 ### Next Attempt
 
 - User manual visual QA must run the corrected Runbook and provide the three required screenshots before evidence integration, fresh Review, QA, and CI may resume.
+
+## User visual evidence integration
+
+### Generate
+
+- The user supplied the three required screenshots after following the corrected Runbook. This unblocks evidence recovery without returning the PR to the original Dev.
+
+### Evaluate
+
+- IntelliJ shows `Started CoffeeOrderSystemApplication in 13.909 seconds`.
+- Kafka UI shows the `coffee-order-local` context, `order.completed`, and two consumed messages keyed `6101`.
+- RedisInsight shows `redis:6379`, `popular:menus:2026-07-12`, member `1`, and score `2`.
+
+### Change Scope
+
+- Added the supplied screenshots and synchronized Issue #61 evidence only. No production, test, Compose, profile, Runbook, HTTP template, or queue file changed.
+
+### Reverification
+
+- Repository static checks only. The Docs Agent did not run Compose, the application, IntelliJ, browser, HTTP, Gradle, fresh Review, QA, or CI.
+
+### Next Attempt
+
+- A fresh read-only Reviewer and independent QA must assess this evidence head. Latest CI must also pass before the Coordinator can evaluate the autonomous merge gate.

@@ -24,12 +24,12 @@ Actual order observation used user `6101`: point charge returned HTTP 200 with b
 
 The executable request template is `http/issue-61-local-runtime.http`.
 
-## Pending user visual QA
+## User manual visual QA
 
-The prior runtime observations and raw API results above do not prove the IntelliJ, Kafka UI, or RedisInsight screens. This recovery did not run Compose, the application, IntelliJ, a browser, or HTTP requests.
+The earlier Dev runtime observations and raw API results above do not themselves prove the IntelliJ, Kafka UI, or RedisInsight screens. The following are user-provided visual observations from the corrected Runbook. They are evidence integration only, not fresh independent QA.
 
-The user must execute the corrected Runbook from a clean project Compose volume and save these screenshots before visual evidence is claimed.
+- `screenshots/intellij-local-startup.png` captured at 2026-07-12 12:10:18 KST shows the IntelliJ Run console with `Started CoffeeOrderSystemApplication in 13.909 seconds` and the running Kafka consumer.
+- `screenshots/kafka-ui-order-completed-topic.png` captured at 2026-07-12 12:07:04 KST shows the Kafka UI `coffee-order-local` context and `order.completed` messages. Two consumed messages have key `6101`.
+- `screenshots/redisinsight-popular-menu-key.png` captured at 2026-07-12 12:09:16 KST shows RedisInsight connection `redis:6379` and the `popular:menus:2026-07-12` sorted set with member `1`, score `2`.
 
-- `screenshots/intellij-local-startup.png` showing the IntelliJ Run console with the local profile, Flyway, Redis, Kafka, and application startup.
-- `screenshots/kafka-ui-order-completed-topic.png` showing the Kafka UI `coffee-order-local` cluster and `order.completed` topic after the HTTP template creates an order.
-- `screenshots/redisinsight-popular-menu-key.png` showing the RedisInsight `redis:6379` connection and `popular:menus:<date>` ZSET member and score after the HTTP template creates an order.
+The screenshot score `2` is a later user observation after two messages and does not replace the earlier Dev raw observation of score `1`.

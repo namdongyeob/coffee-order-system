@@ -20,3 +20,10 @@ The Dev focused test and runtime commands are not independent QA results.
 
 - No Compose, application, IntelliJ, browser, or HTTP command was run in this recovery.
 - Static checks are limited to the Issue #61 repository gate, `git diff --name-only`, `git diff --check`, and textual validation that the HTTP template contains the documented user `6101` charge and order requests.
+
+## User visual evidence integration
+
+- The Docs Agent did not execute a runtime command. The user supplied three visual artifacts from the corrected Runbook.
+- IntelliJ artifact records application startup in `13.909` seconds.
+- Kafka UI artifact records two consumed `order.completed` messages with key `6101`.
+- RedisInsight artifact records `redis:6379` and `popular:menus:2026-07-12` member `1`, score `2`.
