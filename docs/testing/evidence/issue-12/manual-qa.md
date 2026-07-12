@@ -66,6 +66,15 @@ response={"code":"MENU_NOT_FOUND","message":"메뉴를 찾을 수 없습니다."
 - 존재하지 않는 menuId는 포인트가 충분해도 주문을 만들지 않고 404 공통 에러를 반환했습니다.
 - malformed body가 된 최초 shell 실행은 400 validation 응답이었으며 canonical API 결과로 사용하지 않았습니다.
 
+## Independent QA 재현
+
+- 동일한 clean Compose와 local profile에서 canonical 요청 순서를 재실행했습니다.
+- health 원문 상태는 HTTP 200/`UP`, 메뉴 200, 충전 200, 주문 201이었습니다.
+- 인기 메뉴는 첫 poll에서 빈 목록이었고 500ms 뒤 두 번째 poll에서 menu 1과 orderCount 1을 확인했습니다.
+- 잔액 부족은 409 `INSUFFICIENT_POINT`, 없는 메뉴는 404 `MENU_NOT_FOUND`였고 위 canonical 요청·응답 기록과 일치했습니다.
+- 첫 QA 실행은 assertions가 통과했지만 캡처 스크립트가 원문을 출력하지 않아 evidence로 채택하지 않았습니다. clean 재실행 1회에서 원문을 확보했으며 제품 결함은 0건입니다.
+- 재실행 뒤 앱, 프로젝트 Compose·volume, 임시 파일과 port 8080을 정리했고 기존 `rag-pgvector`는 유지했습니다.
+
 ## Cleanup receipt
 
 - 완료 시각: 2026-07-12T20:16:51.0115553+09:00.

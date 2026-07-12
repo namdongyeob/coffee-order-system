@@ -38,3 +38,10 @@
 - `git diff --check`: PASS.
 - 저장소 밖 UTF-8 no-BOM 한국어 PR body를 `--pr-body-file`로 preflight한 뒤 동일 파일로 draft PR #74를 생성했습니다.
 - `gh pr view 74`의 live body를 저장소 밖 파일로 다시 읽어 `--pr-body-file` preflight: PASS.
+
+## 독립 Review와 QA
+
+- fresh Review가 전체 PR diff를 대조해 P0/P1/P2 각 0건, `APPROVED`로 판정했습니다.
+- independent QA 첫 clean 실행은 요청 assertions가 통과했지만 캡처 스크립트가 응답 원문을 출력하지 않아 evidence 캡처 실패로 분류했습니다. 제품 결함이나 기능 재시도는 아닙니다.
+- independent QA가 허용된 clean 재실행 1회로 health 200/UP, 메뉴 200, 충전 200, 주문 201, 인기 메뉴 첫 poll `[]`와 500ms 뒤 두 번째 poll menu 1/orderCount 1, 잔액 부족 409, 없는 메뉴 404를 확인했습니다.
+- QA cleanup에서 앱, 프로젝트 Compose·volume, 임시 파일, port 8080을 정리했고 기존 `rag-pgvector`를 유지했습니다.
