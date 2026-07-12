@@ -7,12 +7,13 @@ Measured at: 2026-07-12
 
 | 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| STRICT | 1 | 14 | 1 | 0 | 2 | 1 | 0 | 4 |
+| STRICT | 4 | 14 | 1 | 0 | 2 | 1 | 0 | 4 |
 
 ## 측정 근거
 
 - Generate 시작 시각은 2026-07-12T13:01:16+09:00으로 이 Attempt에서 기록했습니다.
 - 마지막 Reverification 종료 시각은 2026-07-12T13:14:23+09:00입니다. 최초 Generate부터 마지막 Reverification까지 13분 07초였고, 분 단위 표에는 올림해 14분으로 기록했습니다.
+- Agent 수는 STRICT 산정 기준에 따라 Dev, Review, QA, Docs 4명으로 기록했습니다. Main Coordinator와 CI는 Agent 수에서 제외했습니다.
 - 원래 Dev는 Review와 QA의 반환을 한 번 처리했습니다. Review 결함 수는 P1과 P2 두 건, QA 결함 수는 한 건입니다. PowerShell `utf8NoBOM` parameter 관찰은 command compatibility 문제이며 product 또는 harness defect로 세지 않습니다.
 - 읽은 정본 문서는 `AGENTS.md`, `coffee-order-issue-loop` Skill, Context Router, Evidence Guide입니다.
 
@@ -21,3 +22,5 @@ Measured at: 2026-07-12
 - Commands: `commands.md`
 - Attempts: `attempt-log.md`
 - Manual QA: `manual-qa.md`
+- Review role report: https://github.com/namdongyeob/coffee-order-system/pull/65#issuecomment-4949915266
+- QA role report: https://github.com/namdongyeob/coffee-order-system/pull/65#issuecomment-4949915304
