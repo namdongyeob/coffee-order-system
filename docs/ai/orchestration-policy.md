@@ -107,6 +107,10 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 PR 본문은 가변 Gate 상태의 정본이 아닙니다. 미래 단계의 `pending` 또는 `PASS` snapshot을 PR 본문에 복제하지 않고, 아직 없는 역할 링크를 placeholder나 추정값으로 만들지 않습니다. Review·QA 댓글과 CI는 GitHub가 정본이며, 동일 사실을 여러 문서에 수동 복제하지 않습니다.
 
+Main Coordinator는 GitHub를 읽기 전용으로 조회한 PR의 `headRefOid`, 상태, mergeable, current-head checks, Issue 상태와 실제 역할 댓글의 URL·판정·검증 SHA를 machine-readable snapshot으로 정규화합니다. `python scripts/harness_gate.py --issue <number> --queue-state-file <snapshot.json>`이 이 입력을 읽어 현재 Gate, 다음 허용 작업, stale 역할을 출력합니다. snapshot의 Dev·Docs 결과에는 그 결과가 검증한 head SHA를 함께 넣으며, CLI 출력 없이 대화상 추측으로 상태를 전이하지 않습니다.
+
+현재 head가 바뀌면 이전 head의 initial Review와 QA를 모두 stale로 판정합니다. 새 head의 Dev verification과 preflight를 다시 확인하고, initial Review와 QA가 둘 다 새 head에서 완료되기 전에는 Docs final sync, final Review, CI 또는 `MERGE_READY`로 전이할 수 없습니다. final Review와 CI도 현재 head에 대한 결과만 사용합니다.
+
 Main Coordinator는 다음을 사람 결정 없이 자동 처리합니다.
 
 - 아직 실행되지 않은 역할의 링크 부재와 아직 생성되지 않은 pending 상태.

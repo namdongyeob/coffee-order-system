@@ -18,6 +18,8 @@ Level 6 reason: 실제 HTTP 또는 브라우저 관찰이 아니라 기계적 li
 - [x] GitHub 역할 댓글과 현재 head checks를 가변 상태의 정본으로 사용합니다.
 - [x] clean PR이 0개 역할 댓글에서 `MERGE_READY`, merge·close와 다음 Issue 진행까지 순환 없이 전이하는 실행 가능한 계약 테스트를 추가합니다.
 - [x] 미래 입력, 순환 의존, 역할 링크 누락, final Review SHA 불일치, PR snapshot 오판정 실패 테스트를 추가합니다.
+- [x] 실제 GitHub-shaped snapshot을 읽는 harness CLI가 현재 Gate와 다음 허용 전이를 출력합니다.
+- [x] head 변경 시 이전 initial Review·QA를 모두 stale로 판정하고 새 head의 fresh 결과 전에는 final Gate를 금지합니다.
 - [ ] fresh read-only Review, independent QA, Docs final sync와 최신 CI를 완료합니다.
 
 ## 제외 범위 확인

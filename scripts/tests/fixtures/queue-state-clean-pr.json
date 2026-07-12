@@ -1,0 +1,24 @@
+{
+  "pullRequest": {
+    "headRefOid": "abc",
+    "state": "OPEN",
+    "mergeable": "MERGEABLE",
+    "statusCheckRollup": []
+  },
+  "issue": {
+    "state": "OPEN"
+  },
+  "dev": {
+    "started": true,
+    "verificationPassed": true,
+    "evidenceSkeleton": true,
+    "prBodyPreflightPassed": true,
+    "executionMode": "STRICT",
+    "levelDecisions": true,
+    "headSha": "abc"
+  },
+  "roleReports": [],
+  "docs": {
+    "finalized": false
+  }
+}

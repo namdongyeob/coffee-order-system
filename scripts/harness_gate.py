@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -144,8 +145,10 @@ class AutonomousQueueState:
     head_sha: str | None = None
     review_url: str | None = None
     review_verdict: str | None = None
+    review_head_sha: str | None = None
     qa_url: str | None = None
     qa_verdict: str | None = None
+    qa_validation_sha: str | None = None
     docs_evidence_complete: bool = False
     final_review_sha: str | None = None
     ci_check_sha: str | None = None
@@ -190,6 +193,7 @@ class AutonomousQueueState:
             head_sha=head_sha,
             review_url=comment_url,
             review_verdict=verdict,
+            review_head_sha=head_sha,
         )
 
     def record_qa(
@@ -203,6 +207,7 @@ class AutonomousQueueState:
             stage=QueueStage.QA_COMPLETED,
             qa_url=comment_url,
             qa_verdict=verdict,
+            qa_validation_sha=validation_sha,
         )
 
     def finalize_docs(self, evidence_complete: bool) -> "AutonomousQueueState":
@@ -221,6 +226,8 @@ class AutonomousQueueState:
         self._require_stage(QueueStage.DOCS_FINALIZED)
         if not self.review_url or not self.qa_url:
             raise ValueError("Review와 QA comment URL이 final gate에 필요합니다")
+        if self.review_head_sha != head_sha or self.qa_validation_sha != head_sha:
+            raise ValueError("fresh initial Review와 QA가 현재 head SHA에서 모두 필요합니다")
         if verdict != "APPROVED" or review_sha != head_sha:
             raise ValueError("final Review SHA는 현재 head SHA와 일치해야 합니다")
         return replace(
@@ -268,6 +275,118 @@ class AutonomousQueueState:
 
     def can_start_next_issue(self) -> bool:
         return self.stage == QueueStage.MERGED_AND_CLOSED
+
+
+@dataclass(frozen=True)
+class QueueDecision:
+    """Machine-readable result produced from coordinator/GitHub snapshot input."""
+
+    stage: QueueStage
+    next_actions: tuple[str, ...]
+    stale_roles: tuple[str, ...] = ()
+
+
+def _matching_role_report(
+    reports: list[dict[str, object]],
+    role: str,
+    head_sha: str,
+    phase: str | None = None,
+) -> dict[str, object] | None:
+    for report in reports:
+        if report.get("role") != role or report.get("headSha") != head_sha:
+            continue
+        if phase is not None and report.get("phase") != phase:
+            continue
+        if not report.get("url"):
+            continue
+        return report
+    return None
+
+
+def evaluate_queue_snapshot(snapshot: dict[str, object]) -> QueueDecision:
+    """Evaluate a normalized read-only GitHub/coordinator lifecycle snapshot."""
+    pull_request = snapshot.get("pullRequest")
+    issue = snapshot.get("issue")
+    dev = snapshot.get("dev")
+    reports = snapshot.get("roleReports", [])
+    docs = snapshot.get("docs", {})
+    if not isinstance(pull_request, dict) or not isinstance(issue, dict):
+        raise ValueError("pullRequest and issue GitHub snapshots are required")
+    if not isinstance(dev, dict) or not isinstance(reports, list) or not isinstance(docs, dict):
+        raise ValueError("dev, roleReports, and docs coordinator inputs are required")
+
+    head_sha = pull_request.get("headRefOid")
+    if not isinstance(head_sha, str) or not head_sha:
+        raise ValueError("pullRequest.headRefOid is required")
+
+    if pull_request.get("state") == "MERGED" and issue.get("state") == "CLOSED":
+        if not pull_request.get("mergeCommit"):
+            raise ValueError("merged PR requires mergeCommit")
+        return QueueDecision(QueueStage.MERGED_AND_CLOSED, ("START_NEXT_ISSUE",))
+
+    if not dev.get("started"):
+        return QueueDecision(QueueStage.INTAKE, ("START_DEV",))
+    pre_review_inputs = (
+        dev.get("verificationPassed") is True,
+        dev.get("evidenceSkeleton") is True,
+        dev.get("prBodyPreflightPassed") is True,
+        dev.get("executionMode") in {"SOLO", "STANDARD", "STRICT"},
+        dev.get("levelDecisions") is True,
+        dev.get("headSha") == head_sha,
+    )
+    if not dev.get("verificationPassed"):
+        return QueueDecision(QueueStage.DEV_IN_PROGRESS, ("COMPLETE_DEV_VERIFICATION",))
+    if not all(pre_review_inputs):
+        return QueueDecision(QueueStage.DEV_VERIFIED, ("COMPLETE_PRE_REVIEW_INPUTS",))
+
+    typed_reports = [report for report in reports if isinstance(report, dict)]
+    review = _matching_role_report(typed_reports, "REVIEW", head_sha, "INITIAL")
+    qa = _matching_role_report(typed_reports, "QA", head_sha)
+    stale_roles = tuple(
+        role
+        for role, current in (("REVIEW", review), ("QA", qa))
+        if current is None and any(report.get("role") == role for report in typed_reports)
+    )
+    if review is None:
+        actions = ("DISPATCH_REVIEW_AND_QA",) if qa is None else ("RUN_REVIEW",)
+        return QueueDecision(QueueStage.PRE_REVIEW_READY, actions, stale_roles)
+    if review.get("verdict") != "APPROVED":
+        raise ValueError("initial Review verdict is not APPROVED")
+    if qa is None:
+        return QueueDecision(QueueStage.REVIEW_COMPLETED, ("RUN_QA",), stale_roles)
+    if qa.get("verdict") != "PASS":
+        raise ValueError("QA verdict is not PASS")
+
+    if not (
+        docs.get("finalized") is True
+        and docs.get("evidenceComplete") is True
+        and docs.get("headSha") == head_sha
+    ):
+        return QueueDecision(QueueStage.QA_COMPLETED, ("FINALIZE_DOCS",), stale_roles)
+
+    final_review = _matching_role_report(typed_reports, "REVIEW", head_sha, "FINAL")
+    if final_review is None:
+        return QueueDecision(QueueStage.DOCS_FINALIZED, ("RUN_FINAL_REVIEW",), stale_roles)
+    if final_review.get("verdict") != "APPROVED":
+        raise ValueError("final Review verdict is not APPROVED")
+
+    checks = pull_request.get("statusCheckRollup", [])
+    if not isinstance(checks, list):
+        raise ValueError("pullRequest.statusCheckRollup must be a list")
+    current_checks = [
+        check for check in checks
+        if isinstance(check, dict) and check.get("headSha", head_sha) == head_sha
+    ]
+    checks_green = bool(current_checks) and all(
+        check.get("status") == "COMPLETED" and check.get("conclusion") == "SUCCESS"
+        for check in current_checks
+    )
+    if not checks_green:
+        return QueueDecision(QueueStage.FINAL_REVIEW_COMPLETED, ("WAIT_FOR_CURRENT_HEAD_CI",), stale_roles)
+
+    if pull_request.get("mergeable") not in {"CLEAN", "MERGEABLE"}:
+        return QueueDecision(QueueStage.CI_GREEN, ("WAIT_FOR_MERGEABLE_CLEAN",), stale_roles)
+    return QueueDecision(QueueStage.MERGE_READY, ("MERGE_AND_CLOSE",), stale_roles)
 
 
 def validate_branch(branch: str) -> list[str]:
@@ -776,6 +895,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Read and validate Execution mode fields from a pull request body file.",
     )
+    parser.add_argument(
+        "--queue-state-file",
+        type=Path,
+        help="Read a normalized live GitHub/coordinator snapshot and print the current queue Gate.",
+    )
     args = parser.parse_args(argv)
 
     repository_root = Path(__file__).resolve().parents[1]
@@ -792,6 +916,16 @@ def main(argv: list[str] | None = None) -> int:
         errors.extend(validate_branch(branch))
     issue = args.issue if args.issue is not None else infer_issue_number(branch)
     pr_body = None
+    queue_decision = None
+
+    if args.queue_state_file is not None:
+        try:
+            snapshot = json.loads(args.queue_state_file.read_text(encoding="utf-8"))
+            if not isinstance(snapshot, dict):
+                raise ValueError("queue state root must be a JSON object")
+            queue_decision = evaluate_queue_snapshot(snapshot)
+        except (OSError, json.JSONDecodeError, ValueError) as error:
+            errors.append(f"ERROR: cannot evaluate queue state file {args.queue_state_file}: {error}")
 
     if args.pr_body_file is not None:
         try:
@@ -843,6 +977,12 @@ def main(argv: list[str] | None = None) -> int:
         print("\n".join(errors))
         return 1
 
+    if queue_decision is not None:
+        print(json.dumps({
+            "stage": queue_decision.stage.name,
+            "nextActions": queue_decision.next_actions,
+            "staleRoles": queue_decision.stale_roles,
+        }, ensure_ascii=False))
     print("Harness gate PASSED.")
     return 0
 

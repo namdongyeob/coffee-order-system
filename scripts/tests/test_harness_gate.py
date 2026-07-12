@@ -710,6 +710,97 @@ class OrchestrationContractTest(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, "현재 head SHA"):
 			state.record_final_review("APPROVED", "old", "new")
 
+	def test_docs_head_change_stales_both_initial_review_and_qa(self):
+		state = (
+			harness_gate.AutonomousQueueState()
+			.start_dev()
+			.complete_dev(True, True, True, "STRICT", True)
+			.record_review("APPROVED", "https://github.test/pr/1#review", "old")
+			.record_qa("PASS", "https://github.test/pr/1#qa", "old")
+			.finalize_docs(True)
+		)
+
+		with self.assertRaisesRegex(ValueError, "fresh initial Review와 QA"):
+			state.record_final_review("APPROVED", "new", "new")
+
+	def _github_shaped_snapshot(self, head: str = "abc") -> dict:
+		return {
+			"pullRequest": {
+				"headRefOid": head,
+				"state": "OPEN",
+				"mergeable": "MERGEABLE",
+				"statusCheckRollup": [],
+			},
+			"issue": {"state": "OPEN"},
+			"dev": {
+				"started": True,
+				"verificationPassed": True,
+				"evidenceSkeleton": True,
+				"prBodyPreflightPassed": True,
+				"executionMode": "STRICT",
+				"levelDecisions": True,
+				"headSha": head,
+			},
+			"roleReports": [],
+			"docs": {"finalized": False},
+		}
+
+	def test_machine_snapshot_cli_allows_clean_pr_dispatch_without_role_comments(self):
+		path = Path(__file__).resolve().parent / "fixtures" / "queue-state-clean-pr.json"
+		output = io.StringIO()
+
+		with redirect_stdout(output):
+			result = harness_gate.main([
+				"--issue", "69", "--queue-state-file", str(path), "--branch", "codex/issue-69-test"
+			])
+
+		self.assertEqual(0, result)
+		self.assertIn('"stage": "PRE_REVIEW_READY"', output.getvalue())
+		self.assertIn('"DISPATCH_REVIEW_AND_QA"', output.getvalue())
+
+	def test_machine_snapshot_reaches_merge_ready_from_github_shaped_inputs(self):
+		snapshot = self._github_shaped_snapshot()
+		snapshot["roleReports"] = [
+			{"role": "REVIEW", "phase": "INITIAL", "verdict": "APPROVED", "headSha": "abc", "url": "https://github.test/review"},
+			{"role": "QA", "verdict": "PASS", "headSha": "abc", "url": "https://github.test/qa"},
+			{"role": "REVIEW", "phase": "FINAL", "verdict": "APPROVED", "headSha": "abc", "url": "https://github.test/final"},
+		]
+		snapshot["docs"] = {"finalized": True, "headSha": "abc", "evidenceComplete": True}
+		snapshot["pullRequest"]["statusCheckRollup"] = [
+			{"name": "quality-gates", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": "abc"}
+		]
+
+		decision = harness_gate.evaluate_queue_snapshot(snapshot)
+
+		self.assertEqual(harness_gate.QueueStage.MERGE_READY, decision.stage)
+
+	def test_machine_snapshot_requires_fresh_review_and_qa_after_head_change(self):
+		snapshot = self._github_shaped_snapshot(head="new")
+		snapshot["roleReports"] = [
+			{"role": "REVIEW", "phase": "INITIAL", "verdict": "APPROVED", "headSha": "old", "url": "https://github.test/review"},
+			{"role": "QA", "verdict": "PASS", "headSha": "old", "url": "https://github.test/qa"},
+		]
+		snapshot["docs"] = {"finalized": True, "headSha": "new", "evidenceComplete": True}
+
+		decision = harness_gate.evaluate_queue_snapshot(snapshot)
+
+		self.assertEqual(harness_gate.QueueStage.PRE_REVIEW_READY, decision.stage)
+		self.assertEqual(("REVIEW", "QA"), decision.stale_roles)
+		self.assertNotIn("FINAL_REVIEW", decision.next_actions)
+
+	def test_one_fresh_role_does_not_unlock_docs_or_final_gate(self):
+		snapshot = self._github_shaped_snapshot(head="new")
+		snapshot["roleReports"] = [
+			{"role": "REVIEW", "phase": "INITIAL", "verdict": "APPROVED", "headSha": "new", "url": "https://github.test/review-new"},
+			{"role": "QA", "verdict": "PASS", "headSha": "old", "url": "https://github.test/qa-old"},
+		]
+
+		decision = harness_gate.evaluate_queue_snapshot(snapshot)
+
+		self.assertEqual(harness_gate.QueueStage.REVIEW_COMPLETED, decision.stage)
+		self.assertEqual(("QA",), decision.stale_roles)
+		self.assertEqual(("RUN_QA",), decision.next_actions)
+
 	def test_pr_body_snapshot_is_not_used_as_gate_source(self):
 		state = harness_gate.AutonomousQueueState(pr_body_gate_snapshot="PASS").start_dev()
 
