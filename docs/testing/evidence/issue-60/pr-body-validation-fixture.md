@@ -1,4 +1,6 @@
-# Issue #60 PR body validation fixture
+# Issue #60 known-valid PR body validation fixture
+
+이 파일은 저장소 하네스의 고정 유효 입력이며 live PR 본문의 snapshot이 아닙니다.
 
 Related: #60
 
@@ -14,7 +16,7 @@ Related: #60
 - RED: `test_skill_keeps_default_coordinator_block_and_policy_merge_exception`은 기존 Skill에 정책 참조형 예외가 없어 FAIL했습니다.
 - GREEN: 활성 정책 실험과 모든 정책 merge gate 입력을 참조하는 Main Coordinator 예외를 추가한 뒤 focused 계약 테스트가 PASS했습니다.
 - `python -m unittest scripts.tests.test_harness_gate` 결과 62 tests OK.
-- 실제 PR #62 본문과 일치하는 literal fixture를 포함한 Issue #60 gate, `git diff --check`, pre-push gate가 PASS했습니다.
+- 저장소의 known-valid fixture와 실제 PR #62 live body를 각각 입력한 Issue #60 gate, `git diff --check`, pre-push gate가 PASS했습니다.
 - Level 5와 Level 6은 정책·하니스 작업이므로 실행하지 않았습니다.
 
 ## Evidence

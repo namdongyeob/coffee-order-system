@@ -29,7 +29,7 @@
 
 | 단계 | 명령 | 결과 |
 | --- | --- | --- |
-| Issue gate | `python scripts/harness_gate.py --issue 60 --base-ref origin/main --check-links --include-worktree --pr-body-file docs/testing/evidence/issue-60/pr-body-validation-fixture.md` | PASS. Issue #60 evidence, mode 3자 일치와 유효한 literal PR-body fixture를 확인했습니다. |
+| Issue gate | `python scripts/harness_gate.py --issue 60 --base-ref origin/main --check-links --include-worktree --pr-body-file docs/testing/evidence/issue-60/pr-body-validation-fixture.md` | PASS. Issue #60 evidence와 known-valid repository fixture의 policy fields를 확인했습니다. |
 | Diff static check | `git diff --check origin/main...HEAD` | PASS. 공백 오류가 없습니다. |
 | Pre-push gate | `git hook run pre-push` | PASS. docs evidence correction commit과 push 전에 실행합니다. |
 
@@ -42,7 +42,7 @@
 | RED | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest.test_skill_keeps_default_coordinator_block_and_policy_merge_exception` | FAIL. 기존 Skill에는 정책 참조형 Main Coordinator 예외가 없었습니다. |
 | GREEN | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest.test_skill_keeps_default_coordinator_block_and_policy_merge_exception` | PASS. 활성 정책 실험과 모든 정책 merge gate 입력을 참조하고, bootstrap·비활성·큐 밖·#36 만료·누락 입력의 기본 BLOCKED를 고정했습니다. |
 | Final suite | `python -m unittest scripts.tests.test_harness_gate` | PASS. 62 tests, failures 0, errors 0. |
-| Literal PR fixture gate | `python scripts/harness_gate.py --issue 60 --branch codex/issue-60-autonomous-queue-bootstrap --base-ref origin/main --check-links --check-branch --pr-body-file <literal-pr-body-fixture>` | PASS. 실제 PR #62 본문과 동일한 fixture의 Execution mode와 Issue evidence를 확인했습니다. |
+| Repository fixture gate | `python scripts/harness_gate.py --issue 60 --branch codex/issue-60-autonomous-queue-bootstrap --base-ref origin/main --check-links --check-branch --pr-body-file docs/testing/evidence/issue-60/pr-body-validation-fixture.md` | PASS. known-valid fixture의 Execution mode, reason, Level과 Issue evidence를 확인했습니다. live PR raw body와의 전체 일치는 검증하지 않습니다. |
 | Diff static check | `git diff --check origin/main...HEAD` | PASS. 공백 오류가 없습니다. |
 | Pre-push gate | `git hook run pre-push` | PASS. 최종 remediation과 evidence commit의 push 전에 실행했습니다. |
 
@@ -50,3 +50,14 @@
 
 - Level 5와 Level 6은 Issue 본문과 `acceptance-criteria.md`의 NO 결정에 따라 실행하지 않았습니다. 앱 런타임·HTTP 계약 변경이 없습니다.
 - 두 번째 `REVISE` 안전 정지 뒤 사용자 승인 최종 remediation Attempt의 fresh Review, QA, CI는 최신 HEAD에서 pending입니다. 이전 QA 결과는 이전 HEAD에만 적용되므로 stale이며 재실행이 필요합니다.
+
+## Human-approved Docs metadata recovery
+
+| 단계 | 명령 또는 확인 | 결과 |
+| --- | --- | --- |
+| Allowed name-only | `git diff --name-only` 결과를 승인된 Issue #60 fixture·evidence와 verification-log 경로 목록에 대조 | PASS. 허용된 docs 6개뿐이며 Skill, scripts, workflow, policy/rule, production/test/build/runtime 변경은 없습니다. |
+| Current final suite | `python -m unittest scripts.tests.test_harness_gate` | PASS. 62 tests, `OK`. |
+| Repository fixture preflight | `python scripts/harness_gate.py --issue 60 --branch codex/issue-60-autonomous-queue-bootstrap --base-ref origin/main --check-links --check-branch --include-worktree --pr-body-file docs/testing/evidence/issue-60/pr-body-validation-fixture.md` | PASS. known-valid fixed input의 policy validator fields가 유효합니다. |
+| Live PR body preflight | `gh pr view 62 --repo namdongyeob/coffee-order-system --json body`의 body를 저장소 밖 UTF-8 temp file로 생성한 뒤 같은 Issue gate의 `--pr-body-file`로 입력 | PASS. actual live body의 Execution mode, reason, Level과 policy validator가 유효합니다. fixture와 raw 전체 문자열을 비교하지 않았습니다. |
+| Diff static check | `git diff --check` | PASS. 공백 오류가 없습니다. |
+| Test count consistency | `rg -n "60 tests|61 tests|62 tests|test_harness_gate|pr-body-validation-fixture" docs/testing/evidence/issue-60/commands.md docs/testing/evidence/issue-60/pr-body-validation-fixture.md docs/testing/verification-log.md` | PASS. fixture와 현재 final claim은 62이며, 60·61은 이전 Attempt의 명시적 역사 기록으로만 남았습니다. |

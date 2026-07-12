@@ -7,7 +7,7 @@
 - [x] 새 Issue의 중복 검색·P0/P1 큐 삽입·비차단 backlog·정책 Issue 사람 보고 규칙을 명시했습니다.
 - [x] #36 종료 시 권한 만료, 실험 결과 보존, cleanup·transfer 후보 제시 규칙을 명시했습니다.
 - [x] #60 PR은 자동 merge 또는 Issue close 대상이 아니고 사람이 merge해야 하며, 사람 merge 뒤 자동 큐는 #61부터 시작하고 #45는 #61 완료 뒤에만 시작한다는 bootstrap 경계를 정책 계약 테스트로 고정했습니다.
-- [x] 하네스 focused 계약 테스트, 전체 Python 테스트 61건, Issue repository gate, diff check를 PASS했습니다.
+- [x] 하네스 focused 계약 테스트, 전체 Python 테스트 62건, Issue repository gate, diff check를 PASS했습니다.
 
 Execution mode: STRICT
 Execution mode reason: 현재 프로젝트의 Issue 큐, Main Coordinator merge·close 권한, 역할 격리와 workflow policy를 변경하는 bootstrap 작업입니다.

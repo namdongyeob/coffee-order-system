@@ -103,7 +103,7 @@ Branch: codex/issue-60-autonomous-queue-bootstrap
 
 - RED: 신규 Skill 정책 예외 계약 테스트는 현재 Skill에 예외 문구가 없어 FAIL했습니다.
 - GREEN: 활성화된 정책 실험과 모든 정책 merge gate 입력을 참조하는 Main Coordinator 예외, bootstrap·비활성 정책·승인 큐 밖·#36 만료·누락 입력의 기본 BLOCKED를 추가한 뒤 focused 계약 테스트가 PASS했습니다.
-- 최종: focused 계약 테스트, 전체 Python harness 62건, 실제 PR #62 본문과 일치하는 literal fixture를 포함한 Issue #60 gate, `git diff --check`, pre-push gate가 PASS했습니다.
+- 최종: focused 계약 테스트, 전체 Python harness 62건, known-valid fixture preflight와 live PR body preflight를 포함한 Issue #60 gate, `git diff --check`, pre-push gate가 PASS했습니다.
 - 시작: `2026-07-12T08:52:56.7213632+09:00`.
 - 종료: `2026-07-12T08:55:52.1026562+09:00`.
 - 소요: 2분 55초.
@@ -118,9 +118,40 @@ Branch: codex/issue-60-autonomous-queue-bootstrap
 
 ### Reverification
 
-- 실제 PR #62 본문은 변경 전후 동일하며, literal fixture와 비교한 뒤 `--pr-body-file`을 포함한 Issue gate가 PASS했습니다.
+- 저장소의 known-valid fixture와 실제 PR #62 live body를 각각 `--pr-body-file` 입력으로 검증해 Issue gate가 PASS했습니다. 두 입력의 raw 전체 일치 여부는 검증 계약이 아닙니다.
 - 현재 Attempt의 commit, 테스트 수, 현재 HEAD는 PR 본문 갱신 시 Main Coordinator가 반영할 후보입니다. 이 Attempt에서 GitHub PR 본문은 직접 수정하지 않았습니다.
 
 ### Next Attempt
 
 - 최종 remediation 뒤 최신 HEAD에서 fresh read-only Review, 독립 QA, 최신 CI를 다시 확인합니다. P0/P1, QA 실패, metadata mismatch 또는 CI 실패가 발생하면 추가 수정 없이 사용자에게 보고합니다. 모두 PASS여도 #60 PR은 사람이 merge할 때까지 draft 상태를 유지하며 #61·#45를 시작하지 않습니다.
+
+## Human-approved Docs metadata recovery
+
+### Generate
+
+- 자동 remediation 종료 뒤 사용자가 별도 Docs metadata recovery를 승인했습니다. 원래 Dev를 재사용하지 않고 Docs Agent가 known-valid 저장소 fixture와 live PR body의 독립 preflight, evidence metadata만 정합화합니다.
+- live PR body는 `gh pr view 62 --json body`에서 저장소 밖 temp file로 생성해 검증하며 GitHub PR 본문은 수정하지 않습니다.
+
+### Evaluate
+
+- known-valid fixture와 live PR body는 각각 policy validator가 요구하는 `Execution mode`, reason, Level 필드를 통과하면 됩니다. raw title, EOF, 전체 body equality는 계약이 아닙니다.
+- 현재 final harness suite는 `python -m unittest scripts.tests.test_harness_gate` 62 tests OK이며, 60·61건은 앞선 Attempt의 명시적인 역사적 관찰로만 유지합니다.
+
+### Failure Cause
+
+- prior raw equality 요구는 GitHub API 문자열과 Git EOF 표현의 차이, mutable PR metadata를 저장소 fixture에 중복하는 문제를 만든 설계 오류였습니다. 사용자가 fixture와 live body의 독립 validator preflight 정책으로 변경했습니다.
+- 완료 기준과 verification log의 현재 final test count가 61에 머물렀습니다.
+
+### Change Scope
+
+- known-valid 고정 입력인 `pr-body-validation-fixture.md`, Issue #60의 metadata 충돌 evidence, verification-log Issue #60 행만 수정합니다.
+- Skill, scripts, workflow, policy/rule, production/test/build/runtime과 live PR body는 수정하지 않습니다.
+
+### Reverification
+
+- known-valid fixture와 `gh pr view 62 --json body`로 만든 live temp file을 각각 `--pr-body-file`로 검증합니다. 비교 범위는 policy validator의 Execution mode/reason/Level 필드이며 raw title·EOF·전체 body equality는 확인하지 않습니다.
+- 실제 실행한 62-test suite, 두 preflight, Issue #60 gate, allowed name-only, diff check, test count consistency 결과는 `commands.md`에 기록합니다.
+
+### Next Attempt
+
+- metadata recovery commit의 fresh Review, 독립 QA, 최신 CI를 확인합니다. #60은 bootstrap이므로 사람이 merge할 때까지 자동 merge·close하지 않고 #61·#45를 시작하지 않습니다.
