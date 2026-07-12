@@ -119,7 +119,10 @@ Branch: codex/issue-66-metadata-recovery
 
 ### Reverification
 
-- metadata-only recovery budget은 별도로 1/2회를 사용합니다. 코드·정책 remediation budget과 Attempt 2의 Dev 반환 횟수는 변경하지 않습니다.
+- metadata-only recovery budget은 `eab7171`의 Issue #66 allowlist evidence 형식·EOF 동기화를 1회, `1f30e8b`의 pre-review evidence·verification 동기화를 1회로 계산해 총 2/2회를 사용했습니다.
+- recovery diff가 하나의 commit으로 push되면 수정한 metadata 파일 수와 관계없이 1회로 계산합니다. preflight, PR comment, CI 실행은 recovery 사용량에 포함하지 않습니다.
+- 이 사람 승인 ground-truth reconciliation은 기존 두 사용의 계수만 바로잡으므로 추가 recovery로 계산하지 않습니다. 사용량 정본은 이 attempt-log이며 metrics와 PR comment는 이를 참조합니다.
+- 코드·정책 remediation budget과 Attempt 2의 Dev 반환 횟수는 변경하지 않습니다.
 - Ended at 2026-07-12T14:56:35.2839046+09:00.
 - full 79-test harness, repository gate와 전체 base diff check가 모두 PASS했습니다.
 
