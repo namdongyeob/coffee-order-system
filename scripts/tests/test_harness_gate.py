@@ -637,9 +637,15 @@ class OrchestrationContractTest(unittest.TestCase):
 			"Do not restate those values in PR body prose.",
 			"observed results, decisions, and remaining risks",
 			"Record the Generate start timestamp when the Attempt starts and the Reverification end timestamp when it ends.",
+			"do not estimate: record `미측정`",
+			"temporary Markdown file outside the repository",
 			"python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>",
+			"Use that same passing file",
 			"gh pr create --body-file <temporary file>",
 			"gh pr edit <PR number> --body-file <temporary file>",
+			"Do not use an inline shell body.",
+			"Manual QA, Adversarial QA, cleanup receipt, read documents and roles, verification level and result, unverified items, and remaining risks remain required evidence.",
+			"The PR body must state material decisions and the remaining risk or gate status",
 			"These rules apply to PRs created or edited after Issue #55.",
 		):
 			with self.subTest(requirement=requirement):
