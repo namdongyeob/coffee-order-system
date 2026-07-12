@@ -8,3 +8,10 @@
 | Dev | `git diff --check` | 변경 diff whitespace 정적 검사 | PASS. 오류 없음. Windows LF/CRLF warning만 출력됐습니다. |
 
 No Gradle, Compose, runtime, HTTP, or CI workflow command was run by this documentation-only Dev Attempt.
+
+## Independent gates on Dev head
+
+- Fresh read-only Review APPROVED head `9b7b55471a4ac30743ebf0c20dcd780a45c0bc06`.
+- Independent QA PASS at Level 0 on the same head. No runtime level applies to this documentation-only Issue.
+- GitHub Actions `quality-gates` SUCCESS on the same head: https://github.com/namdongyeob/coffee-order-system/actions/runs/29178822969
+- These gate results do not apply to the new Docs synchronization head.
