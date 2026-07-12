@@ -24,4 +24,3 @@
 - 앱을 종료하고 `docker compose -f docker/compose.yaml --profile tools down -v`를 실행했습니다.
 - 프로젝트 Compose `ps`는 빈 목록이었습니다.
 - `docker ps`에는 기존 `rag-pgvector`만 남았으며 host 3306 MySQL과 다른 프로젝트 리소스를 건드리지 않았습니다.
-

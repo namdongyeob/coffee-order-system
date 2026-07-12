@@ -12,4 +12,3 @@ kafka_dlt-original-consumer-group:ranking-consumer-group
 __TypeId__:com.example.coffeeordersystem.order.event.OrderCompletedEvent
 key:6101
 value:{"eventId":"22222222-2222-2222-2222-222222222222","orderId":11002,"userId":6101,"menuId":1,"paidAmount":4500,"orderedAt":"2026-07-12T15:45:00"}
-
