@@ -7,3 +7,9 @@
 - 범위 이탈, 정본 충돌, 두 번째 복구 실패, 코드 P0/P1이 metadata-only 경로로 우회되지 않음을 확인했습니다.
 
 Level 5와 Level 6은 애플리케이션 런타임 및 HTTP 계약을 변경하지 않으므로 필요하지 않습니다.
+
+## Pre-review completeness observation
+
+- official Reviewer 배정 전에 Execution mode·Level 5/6, 한국어 PR 본문, HEAD, 테스트 수, evidence 존재, 정확한 9열 metrics, STRICT 역할 수와 실제 PR comment 링크, verification log와 명령 원문을 대조하도록 정책을 확인했습니다.
+- 불일치는 고정 allowlist와 확정된 정본 안에서만 metadata recovery를 사용하며 코드 Review remediation budget과 분리됩니다.
+- P2 finding의 등급 변경은 Issue #66에 포함하지 않으며 후속 Issue 후보로만 기록합니다.

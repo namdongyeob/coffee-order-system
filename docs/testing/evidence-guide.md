@@ -70,6 +70,8 @@ Record the Generate start timestamp when the Attempt starts and the Reverificati
 
 Before creating or editing a PR body, create a temporary Markdown file outside the repository and run `python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>`. Use that same passing file with `gh pr create --body-file <temporary file>` or `gh pr edit <PR number> --body-file <temporary file>`. Do not use an inline shell body. These rules apply to PRs created or edited after Issue #55.
 
+고정 자율 큐에서는 official Reviewer 배정 전에 `docs/ai/orchestration-policy.md`의 pre-review metadata completeness를 수행합니다. 저장소 밖 임시 파일은 UTF-8 no-BOM으로 만들고 preflight에 사용한 같은 파일을 `--body-file`로 게시합니다. PR 본문은 한국어로 작성하며 실제 HEAD·테스트 수·evidence와 일치해야 합니다.
+
 Manual QA, Adversarial QA, cleanup receipt, read documents and roles, verification level and result, unverified items, and remaining risks remain required evidence. They may live in linked Issue evidence when no material PR-body decision or risk needs prose. The PR body must state material decisions and the remaining risk or gate status, then link the detailed evidence instead of duplicating GitHub-owned metadata.
 
 - Automated verification.

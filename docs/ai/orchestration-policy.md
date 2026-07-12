@@ -81,6 +81,31 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 복구로 새 HEAD가 생기면 repository gate와 fresh Review, fresh QA, 최신 head CI를 모두 다시 실행합니다. fresh Review·QA·CI가 모두 PASS이면 큐를 계속할 수 있지만 기존 조건부 merge·close gate를 완화하지 않습니다. Review의 코드 또는 설계 P0/P1은 기존 Dev remediation budget을 따르며 metadata-only budget을 소비하지 않습니다.
 
+### Pre-review metadata completeness
+
+Dev 검증 뒤 official Reviewer를 배정하기 전에 Main Coordinator가 저장소 파일을 수정하지 않는 읽기 전용 completeness를 수행합니다. 검사 순서는 `Dev 검증 → pre-review metadata completeness/recovery → QA → Docs 최종 동기화 → fresh final Review → 최신 CI → merge`입니다.
+
+다음 항목을 실제 GitHub 상태, 실행 원문과 현재 Issue evidence에서 대조합니다.
+
+- Acceptance Criteria의 Execution mode와 Level 5/6 선언.
+- 한국어 PR 본문의 결정, 남은 위험, 실제 검증 결과와 존재하는 evidence 링크.
+- 실제 HEAD와 PR·evidence가 주장하는 HEAD.
+- 실제 테스트 수와 PR 본문·`commands.md`·`verification-log.md`의 테스트 수.
+- 필수 evidence 파일 존재와 metrics의 정확한 9열 형식.
+- STRICT Agent 수 4와 Dev, Review, QA, Docs 역할 근거. Main Coordinator와 CI는 제외합니다.
+- Review·QA 역할 보고 링크가 현재 PR의 실제 conversation comment인지 여부.
+- `verification-log.md`의 현재 Issue 행과 `commands.md`·`manual-qa.md`의 실행 결과.
+- 존재하지 않는 파일, 실행하지 않은 명령 또는 실행하지 않은 결과를 주장하지 않는지 여부.
+- PR body validator가 검사하는 Execution mode, reason과 정책 필드. 저장소 밖 UTF-8 no-BOM 임시 Markdown 파일을 preflight하고 같은 파일만 `--body-file`로 게시합니다.
+
+Agent 수, 테스트 수, HEAD, 역할 보고 링크와 위 필드가 모두 일치하면 `PASS: PRE-REVIEW METADATA COMPLETE`입니다. Agent 수 또는 테스트 수만 불일치하고 정본이 하나로 확정되면 metadata-only recovery를 배정한 뒤 다시 completeness를 실행합니다.
+
+존재하지 않는 evidence 파일 또는 역할 링크는 `FAIL: METADATA REFERENCE MISSING`입니다. 역할 링크는 현재 PR의 실제 conversation comment여야 합니다. evidence가 실행하지 않은 명령을 주장하면 `FAIL: UNEXECUTED COMMAND CLAIM`입니다. 두 FAIL은 고정 allowlist 안에서 정본이 확정되는 경우에만 metadata-only recovery 대상입니다.
+
+복구 diff에 `src/`, test, build, workflow 또는 기타 allowlist 밖 경로가 섞이면 `BLOCKED: METADATA RECOVERY SCOPE`입니다. 정본끼리 값이 충돌하면 추측하지 않고 `BLOCKED: METADATA GROUND TRUTH`입니다.
+
+completeness PASS 전에는 official Reviewer를 배정하지 않습니다. 이 metadata recovery는 코드 Review remediation 횟수를 소비하지 않습니다. 복구 후 새 HEAD에서는 fresh Review·QA·CI가 모두 필요하며 이전 HEAD의 판정을 재사용하지 않습니다. 이 절은 P2 finding의 등급이나 Review 판정 기준을 변경하지 않습니다.
+
 ## Main Coordinator 금지 규칙
 
 - 파일 생성·수정·삭제, 코드 또는 문서 patch 작성.

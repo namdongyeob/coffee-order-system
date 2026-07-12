@@ -64,3 +64,33 @@ Branch: codex/issue-66-metadata-recovery
 ### Next Attempt
 
 - 새 HEAD에서 fresh read-only Review, independent QA, Docs evidence synchronization과 최신 CI가 필요합니다. 두 번째 REVISE 또는 QA FAIL이면 안전 정지합니다.
+
+## Attempt 3 - Human-approved pre-review completeness scope
+
+### Generate
+
+- 사용자가 official Reviewer 전에 metadata 완전성을 확인하는 scope addition을 같은 Dev·worktree·PR에 승인했습니다. 이 Attempt의 별도 시작 시각은 명령 실행 전에 기록하지 못해 추정하지 않습니다.
+- 9개 명시 경로의 static contract tests를 먼저 추가했습니다.
+
+### Evaluate
+
+- RED에서 9개 테스트가 `Pre-review metadata completeness` 정책 절 부재로 예상대로 실패했습니다.
+- Agent 수·테스트 수·HEAD·역할 링크, 존재하는 evidence, 실제 명령, 9열 metrics, 현재 Issue verification log와 no-BOM body-file 절차를 completeness 입력으로 고정한 뒤 focused 9 tests가 PASS했습니다.
+
+### Failure Cause
+
+- 기존 metadata-only recovery는 Review·QA가 불일치를 발견한 뒤 복구하는 경계만 있었고, official Reviewer를 배정하기 전에 동일 항목을 확인하는 completeness gate와 실행 순서가 없었습니다.
+
+### Change Scope
+
+- Issue #66 workflow policy·Skill dispatch·agent rules·Evidence Guide, 9개 static contract tests와 Issue #66 evidence·한국어 PR 본문만 변경합니다.
+- production, 애플리케이션 test, build, workflow, P2 등급 정책과 Issue #11은 변경하지 않습니다.
+
+### Reverification
+
+- Ended at 2026-07-12T14:52:31.3581248+09:00.
+- focused 9 tests, 전체 harness 79 tests, Issue #66 gate, UTF-8 no-BOM 외부 PR body preflight와 전체 base diff check가 PASS했습니다.
+
+### Next Attempt
+
+- Pre-review completeness가 PASS한 뒤에만 QA를 배정합니다. 이후 Docs 최종 동기화, fresh final Review, 최신 CI 순서로 진행합니다.

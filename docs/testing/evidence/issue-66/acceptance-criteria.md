@@ -17,3 +17,6 @@ Level 6 reason: HTTP 계약을 변경하지 않습니다.
 - [x] 복구 뒤 새 HEAD에서 repository gate, fresh Review, fresh QA, 최신 CI를 다시 요구합니다.
 - [x] 성공, PR 본문·verification log 동기화, 범위 이탈, 정본 충돌, 반복 실패, 코드 P1의 7개 시나리오를 계약 테스트로 고정합니다.
 - [x] 기존 조건부 merge·close 안전 조건을 완화하지 않습니다.
+- [x] official Reviewer 배정 전 pre-review metadata completeness를 필수화합니다.
+- [x] Agent 수·테스트 수·HEAD·역할 링크의 일치, 누락 reference, 미실행 명령 주장, 범위 이탈, 정본 충돌의 9개 경로를 계약 테스트로 고정합니다.
+- [x] 실행 순서를 Dev 검증, completeness/recovery, QA, Docs, fresh final Review, 최신 CI, merge로 고정합니다.
