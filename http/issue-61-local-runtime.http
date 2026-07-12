@@ -1,0 +1,5 @@
+### Level 6 health
+GET http://localhost:8080/actuator/health
+
+### Level 6 representative API
+GET http://localhost:8080/api/menus
