@@ -1,10 +1,8 @@
 # Issue #71 Manual QA
 
-- 작업 유형: workflow policy와 harness Level 0 계약.
-- 자동 검증: focused 행위 계약, 전체 harness, repository gate, link check, diff check를 사용합니다.
-- 수동 검증: 변경 파일 allowlist와 #60/#55 보존 여부를 diff로 확인합니다.
-- Adversarial QA: 미래 Review·QA 링크 없이 pre-review가 가능하고, non-doc delta가 QA를 stale로 만드는 실패 경로를 계약 테스트로 검증합니다.
-- Remediation adversarial QA: screenshot 하위 경로, png, raw output, 임의 Markdown, 다른 Issue evidence, policy, scripts, src, test, build, workflow, runtime 경로가 모두 QA stale인지 명시적으로 검증합니다.
-- 보존 확인: 기존 `OrchestrationContractTest`의 #60 고정 큐·조건부 merge 및 #55 경량 body·외부 임시 파일 preflight 계약이 전체 suite에서 함께 PASS했습니다.
-- Cleanup: 애플리케이션, 컨테이너 또는 외부 runtime을 시작하지 않았으므로 정리 대상이 없습니다.
-- 미검증: Level 5/6은 Issue 범위가 아니므로 실행하지 않습니다.
+- 작업 유형은 workflow policy와 harness Level 0 계약입니다.
+- focused 행위 계약 28 tests와 전체 harness 76 tests로 미래 역할 링크 없는 pre-review, STRICT 역할 수, 고정 docs-only allowlist, non-doc QA stale, 조건부 merge와 다음 Issue 진입 조건을 검증했습니다.
+- adversarial 계약은 screenshot 하위 경로, png, raw output, 임의 Markdown, 다른 Issue evidence, policy, scripts, src, test, build, workflow, runtime 경로를 모두 QA stale로 판정합니다.
+- 저장소 gate와 링크 검사, diff 정적 검사, 저장소 밖 UTF-8 no-BOM 한국어 PR body preflight를 검증했습니다.
+- Level 5와 Level 6은 모두 NO이므로 애플리케이션, 컨테이너, HTTP/API/UI 수동 검증은 실행하지 않았습니다.
+- GitHub가 소유하는 현재 head, Review·QA·CI, merge 상태는 이 repository evidence에 복제하지 않습니다.
