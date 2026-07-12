@@ -56,6 +56,18 @@ Level 6 reason: 비어 있지 않은 이유
 
 PR 본문에는 `Related: #번호`로 Issue를 연결하고 다음을 남깁니다. PR이 Issue를 자동 종료하면 안 되므로 `Closes`는 사용하지 않습니다.
 
+### Minimum PR body and GitHub metadata
+
+GitHub UI already provides CI run IDs, commit SHAs, and diff statistics. Do not restate those values in PR body prose. Keep the minimum body focused on observed results, decisions, and remaining risks. Link detailed commands, raw output, and role verdicts from Issue evidence or GitHub comments.
+
+### Attempt timestamp recording
+
+Record the Generate start timestamp when the Attempt starts and the Reverification end timestamp when it ends. `metrics.md` working time is the actual elapsed minutes from the first Generate to the last Reverification. If either timestamp was not recorded at the time, do not estimate: record `미측정` and state the available range and evidence basis.
+
+### PR body preflight and publishing
+
+Before creating or editing a PR body, create a temporary Markdown file outside the repository and run `python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>`. Use that same passing file with `gh pr create --body-file <temporary file>` or `gh pr edit <PR number> --body-file <temporary file>`. Do not use an inline shell body. These rules apply to PRs created or edited after Issue #55.
+
 - Automated verification.
 - Manual QA.
 - Adversarial QA.

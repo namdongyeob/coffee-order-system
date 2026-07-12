@@ -627,6 +627,24 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_evidence_guide_pins_lightweight_pr_body_and_preflight_procedure(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		guide = (repository_root / "docs" / "testing" / "evidence-guide.md").read_text(
+			encoding="utf-8"
+		)
+
+		for requirement in (
+			"Do not restate those values in PR body prose.",
+			"observed results, decisions, and remaining risks",
+			"Record the Generate start timestamp when the Attempt starts and the Reverification end timestamp when it ends.",
+			"python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>",
+			"gh pr create --body-file <temporary file>",
+			"gh pr edit <PR number> --body-file <temporary file>",
+			"These rules apply to PRs created or edited after Issue #55.",
+		):
+			with self.subTest(requirement=requirement):
+				self.assertIn(requirement, guide)
+
 	def test_skill_keeps_default_coordinator_block_and_policy_merge_exception(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		skill = (
