@@ -9,5 +9,9 @@
 - `docker exec docker-redis-1 redis-cli ping` returned `PONG`.
 - `docker exec docker-kafka-1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list` returned `order.completed` and `__consumer_offsets`.
 - `Invoke-WebRequest http://localhost:18080` and `Invoke-WebRequest http://localhost:15540` both returned HTTP 200.
+- `git check-ignore -v --no-index .env` returned the `.gitignore` `.env` rule, proving a real local `.env` would be ignored without creating it.
+- A fresh PowerShell local-profile run set `SPRING_PROFILES_ACTIVE=local`, then started `CoffeeOrderSystemApplication`; the IntelliJ Run Configuration equivalent is documented with its exact profile and `LOCAL_*` values.
+- Kafka UI API `GET /api/clusters` returned cluster `coffee-order-local` with bootstrap server `kafka:9092`; its `order.completed` topic endpoint returned topic metadata.
+- RedisInsight `POST /api/databases` created `coffee-order-local` for Compose-network host `redis:6379` and returned Redis version `7.4.2` with a connection timestamp; raw Redis independently confirmed that service held `popular:menus:2026-07-12` member `1` score `1`.
 
 The Dev focused test and runtime commands are not independent QA results.

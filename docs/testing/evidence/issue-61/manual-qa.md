@@ -2,9 +2,11 @@
 
 ## Level 5
 
-Compose `tools` profile showed all five services running. MySQL, Redis, and Kafka health checks were healthy. The app ran with `SPRING_PROFILES_ACTIVE=local`; Flyway history contained four rows, Redis replied `PONG`, and Kafka exposed `order.completed`.
+Compose `tools` profile showed all five services running. MySQL, Redis, and Kafka health checks were healthy. A fresh PowerShell local-profile run set `SPRING_PROFILES_ACTIVE=local` and started `CoffeeOrderSystemApplication`; Flyway history contained four rows, Redis replied `PONG`, and Kafka exposed `order.completed`. IntelliJ uses the same `local` active profile and documented `LOCAL_*` variables; the Runbook gives the configuration and run confirmation sequence.
 
-Kafka UI was reachable at `http://localhost:18080` and RedisInsight at `http://localhost:15540`, both with HTTP 200. Kafka UI observes the `coffee-order-local` broker and the `order.completed` topic. RedisInsight can connect to `127.0.0.1:16379` as documented.
+Kafka UI was reachable at `http://localhost:18080` and RedisInsight at `http://localhost:15540`, both with HTTP 200. Kafka UI API returned the `coffee-order-local` cluster with its internal bootstrap server `kafka:9092`, and its topic endpoint returned `order.completed` metadata. RedisInsight API created `coffee-order-local` against Compose-network host `redis:6379` and returned Redis version `7.4.2` with a connection timestamp. Matching raw Redis output confirmed the actual project key `popular:menus:2026-07-12`, member `1`, score `1`.
+
+`git check-ignore -v --no-index .env` resolved to `.gitignore`'s `.env` rule. No `.env` file was created and no credentials were added to Git.
 
 ## Level 6 raw request and response
 

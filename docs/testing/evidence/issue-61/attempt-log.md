@@ -32,3 +32,26 @@ Branch: codex/issue-61-local-runtime
 ### Next Attempt
 
 - Run the full Gradle suite and repository gate, then create the draft PR. Fresh read-only Review, independent QA, Docs, and CI are required before the Coordinator may evaluate autonomous merge.
+
+## Review P1 remediation
+
+### Generate
+
+- Fresh Review found that `.env` was not ignored and that root HTTP 200 checks alone did not prove the two tools connected to their intended local services.
+
+### Evaluate
+
+- Added a `.gitignore` rule, verified it with `git check-ignore -v --no-index .env` without creating a secret file, and strengthened the Runbook/evidence with fresh local profile and IntelliJ-equivalent execution steps.
+- Added Kafka UI cluster/topic API evidence and RedisInsight connection plus matching raw key evidence.
+
+### Change Scope
+
+- `.gitignore`, Issue #61 Runbook, and Issue #61 evidence only. No application domain behavior or #45 files changed.
+
+### Reverification
+
+- Re-run Compose tools, local profile health/API, Kafka UI cluster/topic API, Redis key observation, focused test, full Gradle suite, repository gate, and diff check.
+
+### Next Attempt
+
+- Fresh Review and QA must assess the remediation head. This is the original Dev's single permitted Review return.

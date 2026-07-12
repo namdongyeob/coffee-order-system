@@ -39,3 +39,6 @@ out/
 ### Python ###
 __pycache__/
 *.py[cod]
+
+# Local runtime secrets must never be committed. Use .env.example for safe defaults.
+.env
