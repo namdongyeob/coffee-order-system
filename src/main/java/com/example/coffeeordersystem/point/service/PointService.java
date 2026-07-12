@@ -7,21 +7,38 @@ import com.example.coffeeordersystem.point.domain.UserPoint;
 import com.example.coffeeordersystem.point.dto.PointChargeResponse;
 import com.example.coffeeordersystem.point.repository.UserPointRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
 public class PointService {
 
 	private static final int MAX_CHARGE_AMOUNT = 1_000_000;
+	private static final int MAX_CONCURRENCY_RETRIES = 3;
 
 	private final UserPointRepository userPointRepository;
+	private final TransactionTemplate transactionTemplate;
 
-	@Transactional
 	public PointChargeResponse charge(Long userId, int amount) {
 		validateChargeAmount(amount);
 
+		for (int attempt = 0; attempt <= MAX_CONCURRENCY_RETRIES; attempt++) {
+			try {
+				return transactionTemplate.execute(status -> chargeInTransaction(userId, amount));
+			}
+			catch (CannotAcquireLockException | DataIntegrityViolationException exception) {
+				if (attempt == MAX_CONCURRENCY_RETRIES) {
+					throw exception;
+				}
+			}
+		}
+		throw new IllegalStateException("포인트 충전 재시도 상태가 올바르지 않습니다.");
+	}
+
+	private PointChargeResponse chargeInTransaction(Long userId, int amount) {
 		UserPoint userPoint = userPointRepository.findByUserIdForUpdate(userId)
 				.orElseGet(() -> userPointRepository.save(new UserPoint(userId, 0)));
 		userPoint.charge(amount);

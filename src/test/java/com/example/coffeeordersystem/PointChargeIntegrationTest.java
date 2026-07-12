@@ -8,6 +8,14 @@ import com.example.coffeeordersystem.point.domain.UserPoint;
 import com.example.coffeeordersystem.point.dto.PointChargeResponse;
 import com.example.coffeeordersystem.point.repository.UserPointRepository;
 import com.example.coffeeordersystem.point.service.PointService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,11 +25,23 @@ import org.springframework.context.annotation.Import;
 @SpringBootTest
 class PointChargeIntegrationTest {
 
+	private ExecutorService executorService;
+
 	@Autowired
 	PointService pointService;
 
 	@Autowired
 	UserPointRepository userPointRepository;
+
+	@BeforeEach
+	void setUp() {
+		executorService = Executors.newFixedThreadPool(10);
+	}
+
+	@AfterEach
+	void tearDown() {
+		executorService.shutdownNow();
+	}
 
 	@Test
 	void chargeCreatesUserPointWhenRowDoesNotExist() {
@@ -55,5 +75,52 @@ class PointChargeIntegrationTest {
 				.hasMessage("유효하지 않은 포인트 충전 요청입니다.");
 
 		assertThat(userPointRepository.findByUserId(12L)).isEmpty();
+	}
+
+	@Test
+	void concurrentChargesPreserveEveryAmountForExistingUserPoint() throws Exception {
+		userPointRepository.save(new UserPoint(21L, 1_000));
+
+		List<PointChargeResponse> responses = chargeConcurrently(21L, 100, 10);
+
+		assertThat(responses).hasSize(10);
+		assertThat(userPointRepository.findByUserId(21L))
+				.get()
+				.extracting(UserPoint::getBalance)
+				.isEqualTo(2_000);
+	}
+
+	@Test
+	void concurrentFirstChargesCreateOneRowAndPreserveEveryAmount() throws Exception {
+		List<PointChargeResponse> responses = chargeConcurrently(22L, 100, 10);
+
+		assertThat(responses).hasSize(10);
+		assertThat(userPointRepository.findByUserId(22L))
+				.get()
+				.extracting(UserPoint::getBalance)
+				.isEqualTo(1_000);
+	}
+
+	private List<PointChargeResponse> chargeConcurrently(Long userId, int amount, int requestCount) throws Exception {
+		CountDownLatch ready = new CountDownLatch(requestCount);
+		CountDownLatch start = new CountDownLatch(1);
+		List<Future<PointChargeResponse>> futures = new ArrayList<>();
+
+		for (int i = 0; i < requestCount; i++) {
+			futures.add(executorService.submit(() -> {
+				ready.countDown();
+				start.await();
+				return pointService.charge(userId, amount);
+			}));
+		}
+
+		ready.await();
+		start.countDown();
+
+		List<PointChargeResponse> responses = new ArrayList<>();
+		for (Future<PointChargeResponse> future : futures) {
+			responses.add(future.get());
+		}
+		return responses;
 	}
 }
