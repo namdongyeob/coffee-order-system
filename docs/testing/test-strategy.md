@@ -37,11 +37,17 @@
 - Dev Agent는 자기 변경 범위의 focused test를 실행합니다.
 - Combined Verifier는 독립 focused verification을 실행합니다.
 - Review Agent는 테스트를 재실행하지 않습니다. 대신 diff, 요구사항, 설계 경계, 테스트 케이스 누락을 검토합니다.
-- QA Agent는 Dev와 독립적으로 필요한 focused test, 전체 smoke test, Level 3~6 실제 검증을 실행하고 결과를 보고합니다.
+- QA Agent는 Dev와 독립적으로 필요한 focused test와 Level 3~6 실제 검증을 실행하고 결과를 보고합니다. STRICT에서 QA는 Level 1 전체 회귀 smoke를 로컬에서 재실행하지 않습니다.
 - Docs Agent는 확정된 검증 명령과 결과를 evidence와 verification-log에 옮깁니다. 결과를 추측하거나 다시 실행하지 않습니다.
 - Main Coordinator는 테스트를 실행하거나 결과 내용을 재판정하지 않고 선택된 모드의 독립 검증 보고와 GitHub Actions 상태의 존재만 확인합니다.
-- GitHub Actions가 컴파일과 전체 테스트의 최종 기계적 gate입니다.
+- GitHub Actions `quality-gates`가 컴파일과 전체 Level 1 회귀의 최종·단독 독립 기계적 gate입니다. CI가 unavailable, pending 또는 FAIL이면 QA의 focused 또는 Level 3~6 PASS로 대체할 수 없으며 PR은 blocked 상태를 유지합니다.
 - 같은 워크스페이스에서 Gradle 테스트를 병렬 실행하지 않습니다. 병렬 실행이 필요하면 별도 worktree 또는 별도 build directory를 사용합니다.
+
+## QA Level 1 경량화와 측정
+
+STRICT에서 제거한 QA 로컬 전체 회귀 smoke의 대체 층은 모든 PR에서 같은 전체 suite를 실행하는 GitHub Actions `quality-gates`입니다. Dev의 push 전 전체 회귀 의무, QA의 focused 검증, Level 3~6 실제 검증, CI workflow 자체는 이 규칙으로 변경하지 않습니다.
+
+후속 STRICT Issue의 `metrics.md`는 최소한 작업 시간, 재시도 수, Review 결함 수, QA 결함 수와 범위 밖 변경 파일 수를 고정 형식으로 기록합니다. 이 Issue의 비교 기준선은 #7 약 30분, #9 15분, #40의 초기 두 Attempt active duration 21분입니다. 실제 비용 감소 평가는 후속 Issue의 측정값만으로 수행하며, 추정값을 새 metrics에 기록하지 않습니다.
 
 ## k6 우선순위
 
