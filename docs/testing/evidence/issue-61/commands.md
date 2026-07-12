@@ -27,3 +27,11 @@ The Dev focused test and runtime commands are not independent QA results.
 - IntelliJ artifact records application startup in `13.909` seconds.
 - Kafka UI artifact records two consumed `order.completed` messages with key `6101`.
 - RedisInsight artifact records `redis:6379` and `popular:menus:2026-07-12` member `1`, score `2`.
+
+## Fresh independent QA on visual-evidence head
+
+- QA assessed head `4d70d7cbfaaae393595dda4aa499a85cfc2d2964`.
+- `python scripts/harness_gate.py --issue 61 --branch codex/issue-61-local-runtime --base-ref origin/main --check-links` passed.
+- `./gradlew.bat test --tests com.example.coffeeordersystem.LocalRuntimeConfigurationTest --no-daemon` passed.
+- The first full Gradle attempt encountered Testcontainers `apache/kafka-native` exit `126` during environment initialization. The final `./gradlew.bat test --no-daemon` rerun passed 47 tests with zero failures and zero errors.
+- QA used a clean project Compose environment for Level 5/6, confirmed the local application, health and representative API paths, `order.completed`, and the Redis ranking observation, then ran project `docker compose ... --profile tools down -v` cleanup. Existing MySQL 3306 and `rag-pgvector` were not targeted.

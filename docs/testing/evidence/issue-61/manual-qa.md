@@ -33,3 +33,9 @@ The earlier Dev runtime observations and raw API results above do not themselves
 - `screenshots/redisinsight-popular-menu-key.png` captured at 2026-07-12 12:09:16 KST shows RedisInsight connection `redis:6379` and the `popular:menus:2026-07-12` sorted set with member `1`, score `2`.
 
 The screenshot score `2` is a later user observation after two messages and does not replace the earlier Dev raw observation of score `1`.
+
+## Fresh independent QA on visual-evidence head
+
+Independent QA assessed head `4d70d7cbfaaae393595dda4aa499a85cfc2d2964`. It started a clean project Compose environment, confirmed the local application and Level 5/6 paths, then cleaned up its own project containers and volumes. The clean run confirmed the health and representative API paths, `order.completed`, and the Redis ranking observation. It did not alter the user-provided screenshots.
+
+The first full test attempt hit Testcontainers `apache/kafka-native` exit `126` during environment initialization. The focused class rerun passed, and the final full Gradle rerun passed all 47 tests with zero failures and zero errors. QA classified the initial result as environment initialization timing rather than an application regression.

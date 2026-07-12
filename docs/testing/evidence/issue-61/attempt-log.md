@@ -101,3 +101,27 @@ Branch: codex/issue-61-local-runtime
 ### Next Attempt
 
 - A fresh read-only Reviewer and independent QA must assess this evidence head. Latest CI must also pass before the Coordinator can evaluate the autonomous merge gate.
+
+## Fresh independent QA after visual evidence
+
+### Generate
+
+- An independent QA assessed the user-visual-evidence head `4d70d7cbfaaae393595dda4aa499a85cfc2d2964` without changing repository files.
+
+### Evaluate
+
+- The Issue #61 repository gate, focused Gradle class, and final full Gradle suite passed. The final full suite reported 47 tests, zero failures, and zero errors.
+- QA completed a clean Compose Level 5/6 run and cleanup. It confirmed the local application, health and representative API paths, Kafka `order.completed`, and Redis ranking observation.
+- The first full Gradle attempt encountered Testcontainers `apache/kafka-native` exit `126` during environment initialization. A focused rerun and the final full rerun passed, so QA classified that first result as environment initialization timing rather than an application defect.
+
+### Change Scope
+
+- QA made no repository change.
+
+### Reverification
+
+- QA PASS applies to head `4d70d7cbfaaae393595dda4aa499a85cfc2d2964`.
+
+### Next Attempt
+
+- This Docs synchronization creates a new head. Fresh read-only Review and latest CI are still required for that new head. Do not claim final Reviewer approval or CI success here.
