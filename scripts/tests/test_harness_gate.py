@@ -627,6 +627,96 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_skill_keeps_default_coordinator_block_and_policy_merge_exception(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		skill = (
+			repository_root / ".codex" / "skills" / "coffee-order-issue-loop" / "SKILL.md"
+		).read_text(encoding="utf-8")
+
+		self.assertIn("BLOCKED: COORDINATOR ONLY", skill)
+		self.assertIn(
+			"고정 자율 Issue 큐 실험이 활성화되어 있고 모든 정책 merge gate 입력이 확인된 경우에만 Main Coordinator의 merge 또는 Issue close를 예외로 허용합니다.",
+			skill,
+		)
+		self.assertIn(
+			"bootstrap Issue #60, 비활성 정책, 승인 큐 밖 Issue, Issue #36 종료 또는 만료, merge gate 입력 하나라도 누락이면 `BLOCKED: COORDINATOR ONLY`를 유지합니다.",
+			skill,
+		)
+		self.assertIn(
+			"이 Skill은 GitHub branch protection, ruleset, 기타 설정을 변경하지 않습니다.",
+			skill,
+		)
+		self.assertNotIn("#61 ->", skill)
+		self.assertNotIn("required CI checks", skill)
+
+	def test_global_merge_prohibitions_scope_the_fixed_experiment_exception(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+
+		self.assertIn(
+			"commit, push, 그리고 고정 자율 Issue 큐 실험 밖에서의 merge, Issue close.",
+			policy,
+		)
+		self.assertIn(
+			"고정 자율 Issue 큐 실험 밖에서는 어떤 Agent도 merge 또는 Issue close를 실행하지 않습니다.",
+			policy,
+		)
+		self.assertIn(
+			"고정 자율 Issue 큐 실험에서는 아래 열거된 모든 조건을 충족한 Main Coordinator만 merge 또는 Issue close를 실행할 수 있습니다.",
+			policy,
+		)
+
+	def test_fixed_autonomous_queue_experiment_contract_is_pinned(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+		agent_rules = (repository_root / "docs" / "ai" / "agent-rules.md").read_text(
+			encoding="utf-8"
+		)
+
+		policy_requirements = (
+			"`namdongyeob/coffee-order-system`만 적용합니다.",
+			"#61 -> #45 -> #55 -> #11 -> #21 -> #12 -> #13 -> #14 -> #15 -> #16 -> #51 -> #52 -> #53 -> #54 -> #56 -> #57 -> #58 -> #36",
+			"한 번에 Issue 하나와 production/test 작성자 한 명만 허용합니다.",
+			"Issue #60 PR은 자동 merge 또는 close하지 않으며 사람이 직접 merge합니다.",
+			"#61은 Issue #60 PR이 사람에 의해 merge된 뒤에만 시작합니다.",
+			"#45는 #61이 완료된 뒤에만 시작합니다.",
+			"Issue #36이 merge·close되거나 사용자가 중단을 선언하면 즉시 만료됩니다.",
+			"최종 팀 프로젝트에는 자동 이전하지 않습니다.",
+			"전체 대화를 상속하지 않은 fresh context",
+			"`APPROVED`, `REVISE`, `BLOCKED`",
+			"원래 Dev에게 한 번만 반환합니다.",
+			"fresh Reviewer가 전체 최종 diff를 재검토합니다.",
+			"두 번째 `REVISE`이면 자동 루프를 중단하고 사용자에게 보고합니다.",
+			"Issue의 측정 가능한 완료 기준을 모두 충족합니다.",
+			"필수 Dev verification이 PASS입니다.",
+			"fresh Reviewer 최종 판정이 `APPROVED`입니다.",
+			"독립 QA가 필요한 검증 Level을 `PASS`로 판정했습니다.",
+			"Docs evidence와 실제 역할 보고·명령·수치가 일치합니다.",
+			"required CI checks가 최신 head SHA에서 모두 PASS입니다.",
+			"Review가 확인한 head SHA와 merge 직전 head SHA가 같습니다.",
+			"PR base가 `main`이고 최신 `origin/main` 기준 merge 가능하며 conflict가 없습니다.",
+			"branch protection, required check, review 또는 hook을 우회하지 않습니다.",
+			"force push, 관리자 우회, check 무시 merge를 사용하지 않습니다.",
+			"중복 Issue를 먼저 검색한 뒤 후속 Issue 후보를 작성합니다.",
+			"현재 큐를 막는 P0/P1 결함은 Issue를 생성하고 큐 앞에 삽입할 수 있습니다.",
+			"비차단 개선은 backlog Issue로만 생성하고 현재 승인 큐를 자동 확장하지 않습니다.",
+			"정책 결정이 필요한 새 Issue는 생성 후 자동 구현하지 않고 사용자에게 보고합니다.",
+			"required check·branch protection·GitHub API 상태를 확실히 확인할 수 없음.",
+			"프로젝트 정책과 Main Coordinator의 운영 결정이며 GitHub branch protection 또는 ruleset 변경이 아닙니다.",
+		)
+		for requirement in policy_requirements:
+			with self.subTest(requirement=requirement):
+				self.assertIn(requirement, policy)
+
+		self.assertIn(
+			"고정 자율 Issue 큐 실험 밖에서는 사람이 PR merge와 Issue close를 결정합니다.",
+			agent_rules,
+		)
+
 	def test_execution_modes_keep_sources_separated(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		skill = (

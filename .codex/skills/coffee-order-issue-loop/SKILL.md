@@ -13,10 +13,18 @@ description: Use when Codex coordinates, implements, reviews, or performs QA for
 2. Redisson, Kafka 발행, Consumer 멱등성, Redis 랭킹, DLT 중 둘 이상을 한 Issue에 구현하려 하면 `BLOCKED: SPLIT ISSUES`를 반환합니다.
 3. 같은 Service, Entity, migration, 이벤트 계약, 트랜잭션 경계에 Dev Agent 둘 이상을 배정하려 하면 `BLOCKED: ONE WRITER`를 반환합니다.
 4. `docs/ai/orchestration-policy.md`가 정한 Dev 동시성 상한을 넘기면 `BLOCKED: DEV CONCURRENCY LIMIT`을 반환합니다.
-5. Main Coordinator에게 파일 수정, 코드리뷰, 테스트, commit, push, merge를 요구하면 `BLOCKED: COORDINATOR ONLY`를 반환합니다.
+5. Main Coordinator에게 파일 수정, 코드리뷰, 테스트, commit, push를 요구하면 `BLOCKED: COORDINATOR ONLY`를 반환합니다. merge 또는 Issue close도 아래 예외가 아닌 한 `BLOCKED: COORDINATOR ONLY`를 반환합니다.
 6. 선택한 execution mode에 필요한 독립 검증 보고 없이 완료하려 하면 `INCOMPLETE: MODE GATE REQUIRED`를 반환합니다.
 
 마감, 빠른 완료 요청, Agent 지연도 이 Gate의 예외가 아닙니다.
+
+## Coordinator Merge Exception
+
+`docs/ai/orchestration-policy.md`의 고정 자율 Issue 큐 실험이 활성화되어 있고 모든 정책 merge gate 입력이 확인된 경우에만 Main Coordinator의 merge 또는 Issue close를 예외로 허용합니다.
+
+bootstrap Issue #60, 비활성 정책, 승인 큐 밖 Issue, Issue #36 종료 또는 만료, merge gate 입력 하나라도 누락이면 `BLOCKED: COORDINATOR ONLY`를 유지합니다.
+
+이 Skill은 GitHub branch protection, ruleset, 기타 설정을 변경하지 않습니다.
 
 ## Source Contracts
 
