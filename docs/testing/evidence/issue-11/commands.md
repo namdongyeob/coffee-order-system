@@ -10,3 +10,11 @@
 - repository gate와 정적 검사는 evidence 동기화 뒤 실행합니다.
 
 첫 수동 Kafka CLI 입력은 `__TypeId__` header가 없어 listener 전에 역직렬화가 실패했으며 DLT 성공으로 계산하지 않았습니다. clean `down -v` 뒤 header를 포함한 입력으로 다시 관찰했습니다.
+
+## 최신 main 병합 뒤 Dev 재검증
+
+- 실행 head: merge commit `24691a93c87a091c5b8700264b0c360ddc3f170b`.
+- focused actual broker: `./gradlew.bat test --tests "*RankingEventConsumerDltIntegrationTest" --no-daemon --rerun-tasks` → PASS, `BUILD SUCCESSFUL in 1m 43s`.
+- 관련 Kafka actual broker: `./gradlew.bat test --tests "*RankingEventConsumerDltIntegrationTest" --tests "*RankingEventConsumerKafkaRedisIntegrationTest" --tests "*OrderEventKafkaIntegrationTest" --no-daemon --rerun-tasks` → PASS, `BUILD SUCCESSFUL in 2m 21s`.
+- Dev 전체 회귀: `./gradlew.bat test --no-daemon --rerun-tasks` → 48 tests, failures 0, errors 0, `BUILD SUCCESSFUL in 3m 16s`.
+- 기존 Level 5 Redis outage·retry 2회·DLT 원문과 cleanup evidence는 production/runtime 설정이 merge에서 변경되지 않아 보존하며 independent QA는 아직 실행하지 않았습니다.

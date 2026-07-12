@@ -34,3 +34,31 @@ Branch: codex/issue-11-kafka-retry-dlt-v2
 ### Next Attempt
 
 - 없음.
+
+## Attempt 2
+
+### Generate
+
+- 시작 시각: `2026-07-12T17:37:12+09:00` (승인된 merge commit 시각).
+- 최신 `origin/main` 병합 중 `docs/testing/verification-log.md` 단일 충돌을 사람 승인 범위에서 정합화했습니다.
+
+### Evaluate
+
+- main의 Issue #71 행과 기존 Issue #11 Level 1/4/5 행을 모두 보존했고 unresolved conflict는 0입니다.
+
+### Failure Cause
+
+- Issue #71과 Issue #11이 같은 verification log 끝에 각각 행을 추가해 일반 merge가 단일 content conflict로 중단됐습니다.
+
+### Change Scope
+
+- 충돌 해결은 `docs/testing/verification-log.md` 한 파일로 제한했고 production/test/Kafka 구현은 변경하지 않았습니다.
+
+### Reverification
+
+- 새 merge head에서 focused actual broker test PASS, 관련 Kafka 3-class PASS, 전체 48 tests PASS를 재확인했습니다.
+- 종료 시각: `2026-07-12T17:46:01.5355625+09:00`.
+
+### Next Attempt
+
+- 없음.
