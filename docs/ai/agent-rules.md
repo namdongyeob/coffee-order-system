@@ -12,7 +12,7 @@
 8. GitHub Actions가 `STANDARD`와 `STRICT`의 컴파일과 전체 테스트를 최종 기계 판정합니다.
 9. draft PR은 독립 검증과 CI를 시작하기 위한 중간 상태이며 완료가 아닙니다. Main Coordinator는 `docs/ai/orchestration-policy.md`가 정한 모드별 필수 독립 검증 보고와 CI PASS를 모두 확인한 뒤에만 `READY_FOR_HUMAN`으로 표시하며, pending 상태를 `READY_FOR_HUMAN`으로 표시하지 않습니다.
 10. 고정 자율 Issue 큐 실험 밖에서는 사람이 PR merge와 Issue close를 결정합니다. 실험의 적용 저장소, 고정 큐, bootstrap 경계, 조건부 merge·close, 안전 정지는 `docs/ai/orchestration-policy.md`만 따릅니다.
-11. 기계적으로 검증 가능한 metadata 불일치는 코드·정책 수정 반환과 구분하고, `docs/ai/orchestration-policy.md`의 고정 allowlist와 별도 recovery budget을 따릅니다. Main Coordinator는 저장소 파일을 직접 수정하지 않습니다.
-12. 고정 자율 Issue 큐의 순서는 `Dev 검증 -> pre-review metadata completeness/recovery -> QA -> Docs 최종 동기화 -> fresh final Review -> 최신 CI -> merge`입니다. completeness PASS 전에는 official Reviewer를 배정하지 않습니다.
+11. 고정 자율 Issue 큐의 순서는 `Dev 구현·검증 -> PR 생성과 경량 preflight -> fresh Review -> independent QA -> Docs evidence 1회 동기화 -> final Review -> 최신 CI -> merge·close`입니다. 아직 실행되지 않은 미래 역할의 링크나 판정을 앞 단계의 입력으로 요구하지 않습니다.
+12. metadata 오탈자는 final Review 전에 Docs Agent가 `attempt-log.md`, `commands.md`, GitHub 정본을 기준으로 한 번 정리합니다. 별도 recovery budget이나 상태 머신을 운영하지 않습니다.
 
 역할과 쓰기 권한은 `docs/ai/orchestration-policy.md`, 검증 기준은 `docs/testing/test-strategy.md`, evidence 형식은 `docs/testing/evidence-guide.md`를 따릅니다.
