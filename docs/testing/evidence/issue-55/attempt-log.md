@@ -56,7 +56,7 @@ Branch: codex/issue-55-metrics-automation
 
 ### Reverification
 
-- Ended at 2026-07-12T13:13:10+09:00. Focused RED/GREEN, full 63-test harness suite, Issue #55 repository gate, live PR body preflight, and `git diff --check` are recorded in `commands.md`.
+- Ended at 2026-07-12T13:14:23+09:00. Focused RED/GREEN, full 63-test harness suite, Issue #55 repository gate, live PR body preflight, and `git diff --check` are recorded in `commands.md`. The live body was updated only from the same repository-external file that passed preflight.
 
 ### Next Attempt
 
