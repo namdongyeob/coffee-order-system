@@ -2,11 +2,35 @@
 
 ## DLT 확인
 
-1. Kafka UI를 엽니다.
-2. `order.completed.DLT`를 확인합니다.
-3. 실패 원인을 파악합니다.
-4. 데이터 또는 코드를 수정합니다.
-5. 선택한 메시지를 수동 또는 스크립트로 재발행합니다.
+Consumer는 한 메시지의 최초 처리가 실패하면 1초 간격으로 2회 재시도합니다. 세 번째 처리까지 실패하면 원본 partition을 유지해 `order.completed.DLT`로 이동합니다.
+
+1. Kafka UI `http://localhost:18080`을 엽니다.
+2. `coffee-order-local` cluster에서 `order.completed.DLT` topic을 선택합니다.
+3. 메시지 key와 payload를 확인합니다.
+4. header에서 원본 topic, partition, offset과 exception class/message를 확인합니다.
+5. 아래 원인 표에 따라 데이터, 코드 또는 Redis 상태를 수정합니다.
+6. 운영자가 승인한 메시지만 원본 topic으로 수동 재발행합니다. 자동 replay API는 MVP 범위가 아닙니다.
+
+CLI로 원문을 확인하려면 프로젝트 Kafka가 실행 중인 상태에서 다음 명령을 사용합니다.
+
+```bash
+docker compose -f docker/compose.yaml exec kafka \
+  /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server kafka:9092 \
+  --topic order.completed.DLT \
+  --from-beginning \
+  --property print.key=true \
+  --property print.headers=true \
+  --property key.separator=' | '
+```
+
+관찰을 마치면 이 프로젝트가 시작한 리소스만 정리합니다.
+
+```bash
+docker compose -f docker/compose.yaml --profile tools down -v
+```
+
+기존 host 3306 MySQL과 `rag-pgvector` 등 다른 프로젝트 컨테이너는 중지하거나 삭제하지 않습니다.
 
 ## DLT 재처리 기준
 

@@ -1,0 +1,15 @@
+Issue #11 actual Kafka CLI DLT record excerpt
+Observed: 2026-07-12T15:45:02+09:00
+Command: kafka-console-consumer.sh --topic order.completed.DLT --from-beginning --property print.key=true --property print.headers=true
+
+kafka_dlt-exception-fqcn:org.springframework.kafka.listener.ListenerExecutionFailedException
+kafka_dlt-exception-cause-fqcn:org.springframework.dao.InvalidDataAccessApiUsageException
+kafka_dlt-exception-message:Listener method 'public void com.example.coffeeordersystem.ranking.consumer.RankingEventConsumer.consume(com.example.coffeeordersystem.order.event.OrderCompletedEvent)' threw exception; Unexpected exception while processing command
+kafka_dlt-original-topic:order.completed
+kafka_dlt-original-partition:0
+kafka_dlt-original-offset:0
+kafka_dlt-original-consumer-group:ranking-consumer-group
+__TypeId__:com.example.coffeeordersystem.order.event.OrderCompletedEvent
+key:6101
+value:{"eventId":"22222222-2222-2222-2222-222222222222","orderId":11002,"userId":6101,"menuId":1,"paidAmount":4500,"orderedAt":"2026-07-12T15:45:00"}
+
