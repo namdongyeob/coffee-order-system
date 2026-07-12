@@ -14,3 +14,12 @@
 - `git diff --check` → PASS.
 - 변경 파일과 diff를 확인해 포인트 충전 service/test, 포인트 정책과 Issue #21 evidence에만 변경이 있음을 확인했습니다.
 - secret 정적 검색에서 새 비밀값은 없었고 기존 `application-local.properties`의 환경변수 기본 개발값만 검색됐습니다.
+
+## Fresh Review P1 remediation
+
+- RED: `.\gradlew.bat test --tests com.example.coffeeordersystem.PointChargeIntegrationTest.chargeUsesIndependentTransactionWhenCalledInsideOuterTransaction --no-daemon` → 상위 transaction rollback 뒤 충전도 rollback되어 1 test FAIL.
+- GREEN: 같은 명령 → 전용 `REQUIRES_NEW` transaction 적용 뒤 1 test PASS, `BUILD SUCCESSFUL in 1m 32s`.
+- focused Level 3: `.\gradlew.bat test --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon` → 6 tests PASS, `BUILD SUCCESSFUL in 1m 19s`.
+- 관련 회귀: `.\gradlew.bat test --tests com.example.coffeeordersystem.PointChargeIntegrationTest --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon` → 15 tests PASS, `BUILD SUCCESSFUL in 1m 26s`.
+- 전체 회귀 1차: `.\gradlew.bat test --no-daemon` → Kafka Testcontainer가 RUNNING 로그를 기다리다 timeout되어 context 22 failures. 제품 assertion failure는 없었습니다.
+- 전체 회귀 fresh rerun: 같은 명령 → 51 tests PASS, `BUILD SUCCESSFUL in 2m 46s`.

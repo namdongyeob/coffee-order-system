@@ -9,7 +9,8 @@
 ## 정책 관찰
 
 - 기존 구현의 최초 생성 경쟁은 실제 MySQL에서 lock acquisition failure로 실패했습니다.
-- unique 제약 충돌 또는 lock acquisition 실패만 새 트랜잭션에서 최대 3회 재조회·재시도하며, 그 밖의 DB 오류를 성공으로 바꾸거나 추정하지 않습니다.
+- unique 제약 충돌 또는 lock acquisition 실패만 호출자의 트랜잭션과 독립된 `REQUIRES_NEW` 트랜잭션에서 최대 3회 재조회·재시도하며, 그 밖의 DB 오류를 성공으로 바꾸거나 추정하지 않습니다.
+- 실제 MySQL에서 상위 트랜잭션을 rollback해도 내부 충전 500P가 commit되어 시도 경계가 독립적임을 확인했습니다.
 
 ## 미실행 범위
 

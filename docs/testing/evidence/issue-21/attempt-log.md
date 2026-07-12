@@ -43,6 +43,8 @@ Branch: codex/issue-21-point-concurrency
 
 - GREEN: 기존 row와 missing row 동시 충전 테스트를 포함한 focused 5건이 모두 통과했습니다.
 - 관련 14건과 전체 50건도 통과했습니다.
+- Fresh Review에서 기본 `TransactionTemplate`의 `PROPAGATION_REQUIRED`가 상위 트랜잭션에 참여해 재시도 경계를 무너뜨릴 수 있다는 P1 한 건을 발견했습니다.
+- 상위 트랜잭션 rollback 뒤 충전도 함께 rollback되는 focused RED를 실제 MySQL에서 재현한 뒤 전용 template에 `PROPAGATION_REQUIRES_NEW`를 지정했습니다.
 
 ### Failure Cause
 
@@ -54,9 +56,10 @@ Branch: codex/issue-21-point-concurrency
 
 ### Reverification
 
-- focused 5 tests PASS, 관련 14 tests PASS, 전체 50 tests PASS입니다.
+- remediation propagation focused 1 test PASS, 전체 focused 6 tests PASS, 관련 15 tests PASS입니다.
+- 전체 회귀 첫 실행은 Kafka Testcontainer startup timeout으로 context가 실패했지만 제품 assertion 실패는 없었습니다. 코드 변경 없이 fresh rerun한 전체 51 tests가 PASS했습니다.
 - repository gate와 `git diff --check`가 PASS했습니다.
-- 종료 시각: `2026-07-12T19:13:09.6305437+09:00`.
+- 종료 시각: `2026-07-12T19:35:16.4749098+09:00`.
 
 ### Next Attempt
 

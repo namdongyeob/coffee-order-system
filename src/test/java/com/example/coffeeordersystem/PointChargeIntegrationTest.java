@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -32,6 +33,9 @@ class PointChargeIntegrationTest {
 
 	@Autowired
 	UserPointRepository userPointRepository;
+
+	@Autowired
+	TransactionTemplate transactionTemplate;
 
 	@BeforeEach
 	void setUp() {
@@ -99,6 +103,19 @@ class PointChargeIntegrationTest {
 				.get()
 				.extracting(UserPoint::getBalance)
 				.isEqualTo(1_000);
+	}
+
+	@Test
+	void chargeUsesIndependentTransactionWhenCalledInsideOuterTransaction() {
+		transactionTemplate.executeWithoutResult(status -> {
+			pointService.charge(23L, 500);
+			status.setRollbackOnly();
+		});
+
+		assertThat(userPointRepository.findByUserId(23L))
+				.get()
+				.extracting(UserPoint::getBalance)
+				.isEqualTo(500);
 	}
 
 	private List<PointChargeResponse> chargeConcurrently(Long userId, int amount, int requestCount) throws Exception {
