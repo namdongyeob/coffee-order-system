@@ -33,3 +33,34 @@ Branch: codex/issue-66-metadata-recovery
 ### Next Attempt
 
 - Draft PR 뒤 fresh read-only Review, independent QA, Docs evidence synchronization과 최신 CI가 필요합니다.
+
+## Attempt 2 - Review·QA remediation
+
+### Generate
+
+- Started at 2026-07-12T14:46:13.1020449+09:00 after the original Dev received its single allowed return.
+- Review P1과 QA FAIL이 공통으로 지적한 evidence 파일 2개의 불필요한 EOF blank line만 제거했습니다.
+
+### Evaluate
+
+- 정책·테스트 의미는 변경하지 않았습니다.
+- focused 7 tests와 전체 harness 70 tests, repository gate, live PR body preflight가 PASS했습니다.
+- commit 전 `git diff --check 2de3a1777ff55df0ac19374a9018d0db58abef86`가 PASS하여 작업 디렉터리의 correction을 포함한 전체 base diff를 확인했습니다.
+
+### Failure Cause
+
+- 최초 Dev 검증은 `git diff --check`만 실행해 uncommitted 변경만 비교했고, 이미 commit된 base diff의 EOF blank-line 오류를 놓쳤습니다.
+
+### Change Scope
+
+- `acceptance-criteria.md`, `manual-qa.md`의 EOF blank line과 이를 사실대로 기록하는 Issue #66 evidence 및 PR 본문만 허용합니다.
+- 정책·테스트 의미, production, build, workflow와 Issue #11은 변경하지 않습니다.
+
+### Reverification
+
+- Ended at 2026-07-12T14:48:07.5169917+09:00.
+- focused 7 tests, 전체 harness 70 tests, live PR body를 입력한 repository gate와 전체 base diff check가 PASS했습니다. commit 뒤 base diff를 다시 확인합니다.
+
+### Next Attempt
+
+- 새 HEAD에서 fresh read-only Review, independent QA, Docs evidence synchronization과 최신 CI가 필요합니다. 두 번째 REVISE 또는 QA FAIL이면 안전 정지합니다.

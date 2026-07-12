@@ -17,4 +17,3 @@ Level 6 reason: HTTP 계약을 변경하지 않습니다.
 - [x] 복구 뒤 새 HEAD에서 repository gate, fresh Review, fresh QA, 최신 CI를 다시 요구합니다.
 - [x] 성공, PR 본문·verification log 동기화, 범위 이탈, 정본 충돌, 반복 실패, 코드 P1의 7개 시나리오를 계약 테스트로 고정합니다.
 - [x] 기존 조건부 merge·close 안전 조건을 완화하지 않습니다.
-
