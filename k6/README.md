@@ -20,7 +20,7 @@ k6 run --summary-export stress-summary.json k6/order-stress.js
 k6 run --summary-export spike-summary.json k6/order-spike.js
 ```
 
-각 시나리오는 주문 HTTP 201과 JSON 응답을 성공으로 분류합니다. 그 밖의 응답은 `order_error_rate`에 기록하며 `checks`, `http_req_failed`, p95, 주문 성공·오류율 threshold를 함께 판정합니다. 요청에는 `test_type`, `scenario`, `profile`, `api`, `data_class=synthetic` tag가 붙습니다.
+각 시나리오는 주문 HTTP 201, JSON Content-Type, 실제 JSON parse와 필수 주문 응답 필드가 모두 유효할 때만 성공으로 분류합니다. malformed JSON은 예외로 실행을 중단하지 않고 `order_error_rate`에 기록하며 `checks`, `http_req_failed`, p95, 주문 성공·오류율 threshold를 함께 판정합니다. 요청에는 `test_type`, `scenario`, `profile`, `api`, `data_class=synthetic` tag가 붙습니다.
 
 ## 명시적 heavy 실행
 

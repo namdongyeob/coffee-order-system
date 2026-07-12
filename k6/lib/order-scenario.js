@@ -45,6 +45,37 @@ export function prepareSyntheticUsers(maxVUs, chargeRounds = 1) {
   return { userBase: USER_BASE, menuId: MENU_ID };
 }
 
+export function classifyOrderResponse(response) {
+  const statusOk = response.status === 201;
+  const contentType = (response.headers || {})['Content-Type'] ||
+    (response.headers || {})['content-type'] || '';
+  const contentTypeOk = contentType.includes('application/json');
+  let bodyOk = false;
+
+  if (contentTypeOk) {
+    try {
+      const body = response.json();
+      bodyOk = body !== null && typeof body === 'object' &&
+        typeof body.orderId === 'number' && body.orderId > 0 &&
+        typeof body.userId === 'number' && body.userId > 0 &&
+        typeof body.menuId === 'number' && body.menuId > 0 &&
+        typeof body.menuName === 'string' && body.menuName.length > 0 &&
+        typeof body.paidAmount === 'number' && body.paidAmount > 0 &&
+        body.status === 'PAID' &&
+        typeof body.orderedAt === 'string' && body.orderedAt.length > 0;
+    } catch (_) {
+      bodyOk = false;
+    }
+  }
+
+  return {
+    statusOk,
+    contentTypeOk,
+    bodyOk,
+    succeeded: statusOk && contentTypeOk && bodyOk,
+  };
+}
+
 export function createOrder(data, scenarioName) {
   const userId = data.userBase + __VU;
   const response = http.post(
@@ -56,13 +87,14 @@ export function createOrder(data, scenarioName) {
     },
   );
 
-  const succeeded = check(response, {
-    'order returns 201': (result) => result.status === 201,
-    'order response is JSON': (result) =>
-      (result.headers['Content-Type'] || '').includes('application/json'),
+  const classification = classifyOrderResponse(response);
+  check(classification, {
+    'order returns 201': (result) => result.statusOk,
+    'order response content type is JSON': (result) => result.contentTypeOk,
+    'order response JSON has required fields': (result) => result.bodyOk,
   });
-  orderSuccessRate.add(succeeded);
-  orderErrorRate.add(!succeeded);
+  orderSuccessRate.add(classification.succeeded);
+  orderErrorRate.add(!classification.succeeded);
   sleep(THINK_TIME_SECONDS);
 }
 

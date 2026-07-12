@@ -12,6 +12,16 @@ SCENARIOS = ("order-load.js", "order-stress.js", "order-spike.js")
 
 class K6ScenarioContractTest(unittest.TestCase):
 
+    def test_malformed_json_is_rejected_by_real_k6_runtime(self):
+        result = subprocess.run(
+            ["k6", "run", "--no-color", str(K6_DIR / "tests" / "order-response-contract.js")],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("malformed JSON is classified as an error without escaping", result.stdout)
+
     def test_all_scenarios_are_inspectable_and_bounded_by_default(self):
         for scenario in SCENARIOS:
             with self.subTest(scenario=scenario):
