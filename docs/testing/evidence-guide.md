@@ -41,6 +41,8 @@ docs/testing/evidence/issue-{number}/
 
 `metrics.md`는 [Issue metrics template](evidence/issue-metrics-template.md)를 복사해 작성합니다. 이 파일의 표 제목·열 순서·값 형식은 바꾸지 않으며, 측정 근거는 `commands.md`, `attempt-log.md`, Review/QA 보고 또는 PR 링크로 연결합니다.
 
+STRICT의 `Agent 수`는 필수 구성인 Dev, Review, QA, Docs의 역할 수 4를 사용합니다. Main Coordinator와 CI는 제외하고 동일 역할의 재시도는 중복 계산하지 않습니다. 아직 실행되지 않은 역할은 측정 근거에 pending으로 명시합니다.
+
 Execution mode와 Level 5/6 결정은 다음 고정 형식을 사용합니다. `scripts/harness_gate.py`가 이 필드를 검사합니다.
 
 ```text

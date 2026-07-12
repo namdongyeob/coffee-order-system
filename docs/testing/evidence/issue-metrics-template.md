@@ -18,6 +18,7 @@ Measured at: YYYY-MM-DD
 - 범위 밖 변경 파일 수는 허용 범위 밖으로 확인되어 제거 또는 후속 Issue로 분리한 파일 수입니다.
 - 읽은 핵심 문서 수는 Context Router 또는 작업 증빙에 명시한 정본 문서 수입니다.
 - `Agent 수`, 재시도, 정체, Review·QA 결함, 범위 밖 변경 파일, 읽은 핵심 문서 수는 셀에 정수만 기록합니다. 해당 역할이 아직 실행되지 않았다면 결함 수는 `0`으로 쓰고 pending 상태는 측정 근거에 적습니다.
+- STRICT의 Agent 수는 Dev, Review, QA, Docs 역할 수를 사용합니다. Main Coordinator와 CI는 제외하며 동일 역할의 재시도는 중복 계산하지 않습니다.
 
 ## Evidence links
 

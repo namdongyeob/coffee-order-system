@@ -64,6 +64,23 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 - 모든 실패를 임의로 자동 수정하는 오케스트레이터는 사용하지 않습니다. 실패를 환경, 테스트 계약, 구현 결함, 정책 미결정으로 분류한 뒤 승인된 수정 범위만 다음 Attempt에 전달합니다.
 - 자동 재시도는 같은 명령의 일시적 환경 실패처럼 원인과 수정 범위가 명확할 때만 허용합니다. 정책 변경, migration, 외부 인프라 설정은 사람 확인 없이 자동 수정하지 않습니다.
 
+### Metadata-only 자동 복구
+
+코드·정책 remediation budget과 metadata-only recovery budget을 분리합니다. Main Coordinator는 저장소 파일을 직접 수정하지 않고 원래 Dev 또는 Docs Agent에게 아래 고정 allowlist만 전달합니다. 한 Issue에서 metadata-only 자동 복구는 Issue당 최대 2회이며, 각 Attempt의 원인·변경 파일·횟수·결과를 `attempt-log.md`와 `metrics.md`에 기록합니다.
+
+- PR 본문의 현재 HEAD, 테스트 수, CI 상태, evidence 링크.
+- `metrics.md`의 기계적으로 산출 가능한 수치와 역할 보고 링크.
+- `verification-log.md`의 현재 Issue 검증 결과.
+- 현재 Issue evidence 문서 사이의 동일 사실 동기화.
+
+값의 정본은 GitHub의 현재 PR·check 상태, 실제 역할 보고 URL, 실제로 실행된 명령과 원문 결과, 현재 Issue evidence입니다. STRICT Agent 수는 Dev, Review, QA, Docs의 역할 수를 사용하고 Main Coordinator와 CI는 제외합니다. 동일 역할의 재시도는 중복 계산하지 않습니다. 계산 근거가 없으면 값을 추측하지 않습니다.
+
+복구 전에 대상 diff와 값의 정본을 확인하고, 복구 뒤에도 diff를 다시 확인합니다. allowlist 밖 파일이 하나라도 포함되면 `BLOCKED: METADATA RECOVERY SCOPE`로 안전 정지합니다. 특히 production, 테스트 코드, build, workflow, 정책 의미 변경은 metadata-only recovery로 자동 수정하지 않습니다.
+
+정본끼리 충돌하거나 계산 근거가 불명확하면 `BLOCKED: METADATA GROUND TRUTH`로 안전 정지합니다. 같은 metadata 오류가 반복되거나 두 번째 metadata-only 복구가 실패하면 추가 수정 없이 `BLOCKED: METADATA RETRY LIMIT`로 사용자에게 보고합니다.
+
+복구로 새 HEAD가 생기면 repository gate와 fresh Review, fresh QA, 최신 head CI를 모두 다시 실행합니다. fresh Review·QA·CI가 모두 PASS이면 큐를 계속할 수 있지만 기존 조건부 merge·close gate를 완화하지 않습니다. Review의 코드 또는 설계 P0/P1은 기존 Dev remediation budget을 따르며 metadata-only budget을 소비하지 않습니다.
+
 ## Main Coordinator 금지 규칙
 
 - 파일 생성·수정·삭제, 코드 또는 문서 patch 작성.
