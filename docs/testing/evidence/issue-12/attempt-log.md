@@ -56,9 +56,9 @@ Branch: codex/issue-12-http-artifacts
 
 ### Reverification
 
-- 마지막 Reverification 종료 시각: 2026-07-12T20:18:12+09:00.
+- 마지막 Reverification 종료 시각: 2026-07-12T20:20:00+09:00.
 - 실제 요청·응답 원문과 cleanup 결과는 `manual-qa.md`에 기록했습니다.
-- Issue #12 repository gate와 `git diff --check`가 PASS했습니다.
+- Issue #12 repository gate, `git diff --check`, 저장소 밖 PR body와 live PR body preflight가 PASS했습니다.
 
 ### Next Attempt
 

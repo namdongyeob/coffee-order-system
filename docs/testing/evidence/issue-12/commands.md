@@ -36,3 +36,5 @@
 
 - `python scripts/harness_gate.py --issue 12 --branch codex/issue-12-http-artifacts --base-ref origin/main --check-links`: PASS.
 - `git diff --check`: PASS.
+- 저장소 밖 UTF-8 no-BOM 한국어 PR body를 `--pr-body-file`로 preflight한 뒤 동일 파일로 draft PR #74를 생성했습니다.
+- `gh pr view 74`의 live body를 저장소 밖 파일로 다시 읽어 `--pr-body-file` preflight: PASS.
