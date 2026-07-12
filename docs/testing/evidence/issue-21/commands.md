@@ -23,3 +23,12 @@
 - 관련 회귀: `.\gradlew.bat test --tests com.example.coffeeordersystem.PointChargeIntegrationTest --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon` → 15 tests PASS, `BUILD SUCCESSFUL in 1m 26s`.
 - 전체 회귀 1차: `.\gradlew.bat test --no-daemon` → Kafka Testcontainer가 RUNNING 로그를 기다리다 timeout되어 context 22 failures. 제품 assertion failure는 없었습니다.
 - 전체 회귀 fresh rerun: 같은 명령 → 51 tests PASS, `BUILD SUCCESSFUL in 2m 46s`.
+
+## 독립 QA 실제 검증
+
+- Level 3 focused: `.\gradlew.bat test --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon` → 6 tests PASS.
+- 관련 회귀: `.\gradlew.bat test --tests com.example.coffeeordersystem.PointChargeIntegrationTest --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon` → 15 tests PASS.
+- 전체 회귀 1차: `.\gradlew.bat test --no-daemon` → Kafka Testcontainer startup timeout으로 context 22 failures. 제품 assertion failure는 없었습니다.
+- 코드 변경 없는 단일 fresh rerun: `.\gradlew.bat test --no-daemon` → 51 tests, failures 0, errors 0, skipped 0, `BUILD SUCCESSFUL in 2m 46s`.
+- `python scripts/harness_gate.py --issue 21 --branch codex/issue-21-point-concurrency --base-ref origin/main --check-links` → PASS.
+- `git diff --check` → PASS.
