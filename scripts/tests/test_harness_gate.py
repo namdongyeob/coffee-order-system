@@ -627,6 +627,137 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def _metadata_recovery_contract(self) -> str:
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+		return policy.split("### Metadata-only 자동 복구", 1)[1].split("\n### ", 1)[0]
+
+	def test_metadata_agent_count_recovery_uses_authoritative_strict_roles(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("Dev, Review, QA, Docs의 역할 수", contract)
+		self.assertIn("Main Coordinator와 CI는 제외", contract)
+		self.assertIn("동일 역할의 재시도는 중복 계산하지 않습니다", contract)
+		self.assertIn("fresh Review·QA·CI가 모두 PASS이면 큐를 계속", contract)
+
+	def test_pr_body_test_count_recovery_uses_ground_truth(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("PR 본문의 현재 HEAD, 테스트 수, CI 상태, evidence 링크", contract)
+		self.assertIn("실제로 실행된 명령과 원문 결과", contract)
+		self.assertIn("값을 추측하지 않습니다", contract)
+
+	def test_verification_log_current_issue_recovery_is_allowlisted(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("`verification-log.md`의 현재 Issue 검증 결과", contract)
+		self.assertIn("고정 allowlist", contract)
+
+	def test_metadata_recovery_blocks_diff_outside_allowlist(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("allowlist 밖 파일이 하나라도 포함되면", contract)
+		self.assertIn("`BLOCKED: METADATA RECOVERY SCOPE`", contract)
+		for forbidden in ("production", "테스트 코드", "build", "workflow", "정책 의미"):
+			with self.subTest(forbidden=forbidden):
+				self.assertIn(forbidden, contract)
+
+	def test_metadata_recovery_blocks_conflicting_sources(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("정본끼리 충돌", contract)
+		self.assertIn("`BLOCKED: METADATA GROUND TRUTH`", contract)
+
+	def test_metadata_recovery_stops_after_two_failed_attempts(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("Issue당 최대 2회", contract)
+		self.assertIn("두 번째 metadata-only 복구가 실패", contract)
+		self.assertIn("`BLOCKED: METADATA RETRY LIMIT`", contract)
+
+	def test_code_p1_keeps_existing_dev_remediation_budget_and_merge_gates(self):
+		contract = self._metadata_recovery_contract()
+
+		self.assertIn("Review의 코드 또는 설계 P0/P1", contract)
+		self.assertIn("기존 Dev remediation budget", contract)
+		self.assertIn("metadata-only budget을 소비하지 않습니다", contract)
+		self.assertIn("fresh Review, fresh QA, 최신 head CI", contract)
+		self.assertIn("기존 조건부 merge·close gate를 완화하지 않습니다", contract)
+
+	def _pre_review_completeness_contract(self) -> str:
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+		return policy.split("### Pre-review metadata completeness", 1)[1].split(
+			"\n### ", 1
+		)[0]
+
+	def test_pre_review_completeness_passes_when_all_authoritative_values_match(self):
+		contract = self._pre_review_completeness_contract()
+
+		for field in ("Agent 수", "테스트 수", "HEAD", "역할 보고 링크"):
+			with self.subTest(field=field):
+				self.assertIn(field, contract)
+		self.assertIn("`PASS: PRE-REVIEW METADATA COMPLETE`", contract)
+
+	def test_pre_review_completeness_recovers_agent_or_test_count_mismatch(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("Agent 수 또는 테스트 수만 불일치", contract)
+		self.assertIn("metadata-only recovery", contract)
+		self.assertIn("다시 completeness를 실행", contract)
+
+	def test_pre_review_completeness_fails_missing_evidence_or_comment_link(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("존재하지 않는 evidence 파일", contract)
+		self.assertIn("현재 PR의 실제 conversation comment", contract)
+		self.assertIn("`FAIL: METADATA REFERENCE MISSING`", contract)
+
+	def test_pre_review_completeness_fails_claimed_unexecuted_command(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("실행하지 않은 명령", contract)
+		self.assertIn("`FAIL: UNEXECUTED COMMAND CLAIM`", contract)
+
+	def test_pre_review_completeness_blocks_out_of_allowlist_paths(self):
+		contract = self._pre_review_completeness_contract()
+
+		for path in ("`src/`", "test", "build", "workflow"):
+			with self.subTest(path=path):
+				self.assertIn(path, contract)
+		self.assertIn("`BLOCKED: METADATA RECOVERY SCOPE`", contract)
+
+	def test_pre_review_completeness_blocks_conflicting_ground_truth(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("정본끼리 값이 충돌", contract)
+		self.assertIn("추측하지 않고", contract)
+		self.assertIn("`BLOCKED: METADATA GROUND TRUTH`", contract)
+
+	def test_official_reviewer_dispatch_requires_completeness_pass(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("completeness PASS 전에는 official Reviewer를 배정하지 않습니다", contract)
+
+	def test_metadata_recovery_does_not_consume_code_review_remediation(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("코드 Review remediation 횟수를 소비하지 않습니다", contract)
+
+	def test_recovery_head_requires_fresh_review_qa_and_ci(self):
+		contract = self._pre_review_completeness_contract()
+
+		self.assertIn("복구 후 새 HEAD", contract)
+		self.assertIn("fresh Review·QA·CI", contract)
+		self.assertIn(
+			"Dev 검증 → pre-review metadata completeness/recovery → QA → Docs 최종 동기화 → fresh final Review → 최신 CI → merge",
+			contract,
+		)
+
 	def test_evidence_guide_pins_lightweight_pr_body_and_preflight_procedure(self):
 		repository_root = Path(__file__).resolve().parents[2]
 		guide = (repository_root / "docs" / "testing" / "evidence-guide.md").read_text(

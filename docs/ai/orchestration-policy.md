@@ -64,6 +64,48 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 - 모든 실패를 임의로 자동 수정하는 오케스트레이터는 사용하지 않습니다. 실패를 환경, 테스트 계약, 구현 결함, 정책 미결정으로 분류한 뒤 승인된 수정 범위만 다음 Attempt에 전달합니다.
 - 자동 재시도는 같은 명령의 일시적 환경 실패처럼 원인과 수정 범위가 명확할 때만 허용합니다. 정책 변경, migration, 외부 인프라 설정은 사람 확인 없이 자동 수정하지 않습니다.
 
+### Metadata-only 자동 복구
+
+코드·정책 remediation budget과 metadata-only recovery budget을 분리합니다. Main Coordinator는 저장소 파일을 직접 수정하지 않고 원래 Dev 또는 Docs Agent에게 아래 고정 allowlist만 전달합니다. 한 Issue에서 metadata-only 자동 복구는 Issue당 최대 2회이며, 각 Attempt의 원인·변경 파일·횟수·결과를 `attempt-log.md`와 `metrics.md`에 기록합니다.
+
+- PR 본문의 현재 HEAD, 테스트 수, CI 상태, evidence 링크.
+- `metrics.md`의 기계적으로 산출 가능한 수치와 역할 보고 링크.
+- `verification-log.md`의 현재 Issue 검증 결과.
+- 현재 Issue evidence 문서 사이의 동일 사실 동기화.
+
+값의 정본은 GitHub의 현재 PR·check 상태, 실제 역할 보고 URL, 실제로 실행된 명령과 원문 결과, 현재 Issue evidence입니다. STRICT Agent 수는 Dev, Review, QA, Docs의 역할 수를 사용하고 Main Coordinator와 CI는 제외합니다. 동일 역할의 재시도는 중복 계산하지 않습니다. 계산 근거가 없으면 값을 추측하지 않습니다.
+
+복구 전에 대상 diff와 값의 정본을 확인하고, 복구 뒤에도 diff를 다시 확인합니다. allowlist 밖 파일이 하나라도 포함되면 `BLOCKED: METADATA RECOVERY SCOPE`로 안전 정지합니다. 특히 production, 테스트 코드, build, workflow, 정책 의미 변경은 metadata-only recovery로 자동 수정하지 않습니다.
+
+정본끼리 충돌하거나 계산 근거가 불명확하면 `BLOCKED: METADATA GROUND TRUTH`로 안전 정지합니다. 같은 metadata 오류가 반복되거나 두 번째 metadata-only 복구가 실패하면 추가 수정 없이 `BLOCKED: METADATA RETRY LIMIT`로 사용자에게 보고합니다.
+
+복구로 새 HEAD가 생기면 repository gate와 fresh Review, fresh QA, 최신 head CI를 모두 다시 실행합니다. fresh Review·QA·CI가 모두 PASS이면 큐를 계속할 수 있지만 기존 조건부 merge·close gate를 완화하지 않습니다. Review의 코드 또는 설계 P0/P1은 기존 Dev remediation budget을 따르며 metadata-only budget을 소비하지 않습니다.
+
+### Pre-review metadata completeness
+
+Dev 검증 뒤 official Reviewer를 배정하기 전에 Main Coordinator가 저장소 파일을 수정하지 않는 읽기 전용 completeness를 수행합니다. 검사 순서는 `Dev 검증 → pre-review metadata completeness/recovery → QA → Docs 최종 동기화 → fresh final Review → 최신 CI → merge`입니다.
+
+다음 항목을 실제 GitHub 상태, 실행 원문과 현재 Issue evidence에서 대조합니다.
+
+- Acceptance Criteria의 Execution mode와 Level 5/6 선언.
+- 한국어 PR 본문의 결정, 남은 위험, 실제 검증 결과와 존재하는 evidence 링크.
+- 실제 HEAD와 PR·evidence가 주장하는 HEAD.
+- 실제 테스트 수와 PR 본문·`commands.md`·`verification-log.md`의 테스트 수.
+- 필수 evidence 파일 존재와 metrics의 정확한 9열 형식.
+- STRICT Agent 수 4와 Dev, Review, QA, Docs 역할 근거. Main Coordinator와 CI는 제외합니다.
+- Review·QA 역할 보고 링크가 현재 PR의 실제 conversation comment인지 여부.
+- `verification-log.md`의 현재 Issue 행과 `commands.md`·`manual-qa.md`의 실행 결과.
+- 존재하지 않는 파일, 실행하지 않은 명령 또는 실행하지 않은 결과를 주장하지 않는지 여부.
+- PR body validator가 검사하는 Execution mode, reason과 정책 필드. 저장소 밖 UTF-8 no-BOM 임시 Markdown 파일을 preflight하고 같은 파일만 `--body-file`로 게시합니다.
+
+Agent 수, 테스트 수, HEAD, 역할 보고 링크와 위 필드가 모두 일치하면 `PASS: PRE-REVIEW METADATA COMPLETE`입니다. Agent 수 또는 테스트 수만 불일치하고 정본이 하나로 확정되면 metadata-only recovery를 배정한 뒤 다시 completeness를 실행합니다.
+
+존재하지 않는 evidence 파일 또는 역할 링크는 `FAIL: METADATA REFERENCE MISSING`입니다. 역할 링크는 현재 PR의 실제 conversation comment여야 합니다. evidence가 실행하지 않은 명령을 주장하면 `FAIL: UNEXECUTED COMMAND CLAIM`입니다. 두 FAIL은 고정 allowlist 안에서 정본이 확정되는 경우에만 metadata-only recovery 대상입니다.
+
+복구 diff에 `src/`, test, build, workflow 또는 기타 allowlist 밖 경로가 섞이면 `BLOCKED: METADATA RECOVERY SCOPE`입니다. 정본끼리 값이 충돌하면 추측하지 않고 `BLOCKED: METADATA GROUND TRUTH`입니다.
+
+completeness PASS 전에는 official Reviewer를 배정하지 않습니다. 이 metadata recovery는 코드 Review remediation 횟수를 소비하지 않습니다. 복구 후 새 HEAD에서는 fresh Review·QA·CI가 모두 필요하며 이전 HEAD의 판정을 재사용하지 않습니다. 이 절은 P2 finding의 등급이나 Review 판정 기준을 변경하지 않습니다.
+
 ## Main Coordinator 금지 규칙
 
 - 파일 생성·수정·삭제, 코드 또는 문서 patch 작성.

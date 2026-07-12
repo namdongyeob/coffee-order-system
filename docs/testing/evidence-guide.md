@@ -41,6 +41,8 @@ docs/testing/evidence/issue-{number}/
 
 `metrics.md`는 [Issue metrics template](evidence/issue-metrics-template.md)를 복사해 작성합니다. 이 파일의 표 제목·열 순서·값 형식은 바꾸지 않으며, 측정 근거는 `commands.md`, `attempt-log.md`, Review/QA 보고 또는 PR 링크로 연결합니다.
 
+STRICT의 `Agent 수`는 필수 구성인 Dev, Review, QA, Docs의 역할 수 4를 사용합니다. Main Coordinator와 CI는 제외하고 동일 역할의 재시도는 중복 계산하지 않습니다. 아직 실행되지 않은 역할은 측정 근거에 pending으로 명시합니다.
+
 Execution mode와 Level 5/6 결정은 다음 고정 형식을 사용합니다. `scripts/harness_gate.py`가 이 필드를 검사합니다.
 
 ```text
@@ -67,6 +69,8 @@ Record the Generate start timestamp when the Attempt starts and the Reverificati
 ### PR body preflight and publishing
 
 Before creating or editing a PR body, create a temporary Markdown file outside the repository and run `python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>`. Use that same passing file with `gh pr create --body-file <temporary file>` or `gh pr edit <PR number> --body-file <temporary file>`. Do not use an inline shell body. These rules apply to PRs created or edited after Issue #55.
+
+고정 자율 큐에서는 official Reviewer 배정 전에 `docs/ai/orchestration-policy.md`의 pre-review metadata completeness를 수행합니다. 저장소 밖 임시 파일은 UTF-8 no-BOM으로 만들고 preflight에 사용한 같은 파일을 `--body-file`로 게시합니다. PR 본문은 한국어로 작성하며 실제 HEAD·테스트 수·evidence와 일치해야 합니다.
 
 Manual QA, Adversarial QA, cleanup receipt, read documents and roles, verification level and result, unverified items, and remaining risks remain required evidence. They may live in linked Issue evidence when no material PR-body decision or risk needs prose. The PR body must state material decisions and the remaining risk or gate status, then link the detailed evidence instead of duplicating GitHub-owned metadata.
 
