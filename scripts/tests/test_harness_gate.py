@@ -627,6 +627,116 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_autonomous_queue_clean_pr_lifecycle_reaches_next_issue_without_cycle(self):
+		state = harness_gate.AutonomousQueueState()
+
+		self.assertEqual(harness_gate.QueueStage.INTAKE, state.stage)
+		state = state.start_dev()
+		state = state.complete_dev(
+			verification_passed=True,
+			evidence_skeleton=True,
+			pr_body_preflight_passed=True,
+			execution_mode="STRICT",
+			level_decisions=True,
+		)
+		self.assertEqual(harness_gate.QueueStage.PRE_REVIEW_READY, state.stage)
+		self.assertTrue(state.can_dispatch_review_and_qa())
+		self.assertIsNone(state.review_url)
+		self.assertIsNone(state.qa_url)
+
+		state = state.record_review(
+			verdict="APPROVED", comment_url="https://github.test/pr/1#review", head_sha="abc"
+		)
+		state = state.record_qa(
+			verdict="PASS", comment_url="https://github.test/pr/1#qa", validation_sha="abc"
+		)
+		state = state.finalize_docs(evidence_complete=True)
+		state = state.record_final_review(verdict="APPROVED", review_sha="abc", head_sha="abc")
+		state = state.record_ci(status="PASS", check_sha="abc", head_sha="abc")
+		state = state.evaluate_merge_ready(mergeable="CLEAN")
+		self.assertEqual(harness_gate.QueueStage.MERGE_READY, state.stage)
+
+		state = state.record_merge_and_close(merge_commit="def", issue_closed=True)
+		self.assertEqual(harness_gate.QueueStage.MERGED_AND_CLOSED, state.stage)
+		self.assertTrue(state.can_start_next_issue())
+
+	def test_pre_review_does_not_require_future_review_or_qa_inputs(self):
+		state = harness_gate.AutonomousQueueState().start_dev().complete_dev(
+			verification_passed=True,
+			evidence_skeleton=True,
+			pr_body_preflight_passed=True,
+			execution_mode="STRICT",
+			level_decisions=True,
+		)
+
+		self.assertEqual(harness_gate.QueueStage.PRE_REVIEW_READY, state.stage)
+		self.assertTrue(state.can_dispatch_review_and_qa())
+
+	def test_qa_cannot_be_recorded_before_review(self):
+		state = harness_gate.AutonomousQueueState().start_dev().complete_dev(
+			verification_passed=True,
+			evidence_skeleton=True,
+			pr_body_preflight_passed=True,
+			execution_mode="STRICT",
+			level_decisions=True,
+		)
+
+		with self.assertRaisesRegex(ValueError, "REVIEW_COMPLETED"):
+			state.record_qa("PASS", "https://github.test/pr/1#qa", "abc")
+
+	def test_final_gate_requires_review_and_qa_links(self):
+		state = harness_gate.AutonomousQueueState(
+			stage=harness_gate.QueueStage.DOCS_FINALIZED,
+			head_sha="abc",
+			review_verdict="APPROVED",
+			qa_verdict="PASS",
+			docs_evidence_complete=True,
+		)
+
+		with self.assertRaisesRegex(ValueError, "Review와 QA comment URL"):
+			state.record_final_review("APPROVED", "abc", "abc")
+
+	def test_final_review_sha_must_match_current_head(self):
+		state = harness_gate.AutonomousQueueState(
+			stage=harness_gate.QueueStage.DOCS_FINALIZED,
+			head_sha="new",
+			review_url="https://github.test/pr/1#review",
+			review_verdict="APPROVED",
+			qa_url="https://github.test/pr/1#qa",
+			qa_verdict="PASS",
+			docs_evidence_complete=True,
+		)
+
+		with self.assertRaisesRegex(ValueError, "현재 head SHA"):
+			state.record_final_review("APPROVED", "old", "new")
+
+	def test_pr_body_snapshot_is_not_used_as_gate_source(self):
+		state = harness_gate.AutonomousQueueState(pr_body_gate_snapshot="PASS").start_dev()
+
+		with self.assertRaisesRegex(ValueError, "Dev verification"):
+			state.complete_dev(False, True, True, "STRICT", True)
+
+	def test_future_stage_dependency_is_rejected(self):
+		dependencies = harness_gate.autonomous_queue_dependencies()
+		dependencies[harness_gate.QueueStage.PRE_REVIEW_READY].add(
+			harness_gate.QueueStage.REVIEW_COMPLETED
+		)
+
+		with self.assertRaisesRegex(ValueError, "future stage"):
+			harness_gate.validate_queue_dependencies(dependencies)
+
+	def test_gate_dependency_cycle_is_rejected(self):
+		dependencies = harness_gate.autonomous_queue_dependencies()
+		dependencies[harness_gate.QueueStage.REVIEW_COMPLETED].add(
+			harness_gate.QueueStage.QA_COMPLETED
+		)
+		dependencies[harness_gate.QueueStage.QA_COMPLETED].add(
+			harness_gate.QueueStage.REVIEW_COMPLETED
+		)
+
+		with self.assertRaisesRegex(ValueError, "cycle|future stage"):
+			harness_gate.validate_queue_dependencies(dependencies)
+
 	def _metadata_recovery_contract(self) -> str:
 		repository_root = Path(__file__).resolve().parents[2]
 		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
@@ -691,72 +801,39 @@ class OrchestrationContractTest(unittest.TestCase):
 		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
 			encoding="utf-8"
 		)
-		return policy.split("### Pre-review metadata completeness", 1)[1].split(
+		return policy.split("### 자율 큐 Gate 상태 머신", 1)[1].split(
 			"\n### ", 1
 		)[0]
 
-	def test_pre_review_completeness_passes_when_all_authoritative_values_match(self):
+	def test_policy_defines_all_ordered_lifecycle_stages(self):
 		contract = self._pre_review_completeness_contract()
 
-		for field in ("Agent 수", "테스트 수", "HEAD", "역할 보고 링크"):
+		for field in harness_gate.QueueStage:
 			with self.subTest(field=field):
-				self.assertIn(field, contract)
-		self.assertIn("`PASS: PRE-REVIEW METADATA COMPLETE`", contract)
+				self.assertIn(f"`{field.name}`", contract)
 
-	def test_pre_review_completeness_recovers_agent_or_test_count_mismatch(self):
+	def test_policy_pre_review_requires_only_currently_available_inputs(self):
 		contract = self._pre_review_completeness_contract()
 
-		self.assertIn("Agent 수 또는 테스트 수만 불일치", contract)
-		self.assertIn("metadata-only recovery", contract)
-		self.assertIn("다시 completeness를 실행", contract)
+		self.assertIn("Dev verification", contract)
+		self.assertIn("evidence skeleton", contract)
+		self.assertIn("PR body preflight", contract)
+		self.assertIn("Review·QA 댓글 URL을 요구하지 않습니다", contract)
 
-	def test_pre_review_completeness_fails_missing_evidence_or_comment_link(self):
+	def test_policy_uses_github_as_mutable_gate_source(self):
 		contract = self._pre_review_completeness_contract()
 
-		self.assertIn("존재하지 않는 evidence 파일", contract)
-		self.assertIn("현재 PR의 실제 conversation comment", contract)
-		self.assertIn("`FAIL: METADATA REFERENCE MISSING`", contract)
+		self.assertIn("PR 본문은 가변 Gate 상태의 정본이 아닙니다", contract)
+		self.assertIn("Review·QA 댓글과 CI는 GitHub가 정본", contract)
+		self.assertIn("GitHub의 현재 head checks를 직접 조회", contract)
 
-	def test_pre_review_completeness_fails_claimed_unexecuted_command(self):
+	def test_policy_lists_machine_recovery_and_narrow_safety_stops(self):
 		contract = self._pre_review_completeness_contract()
 
-		self.assertIn("실행하지 않은 명령", contract)
-		self.assertIn("`FAIL: UNEXECUTED COMMAND CLAIM`", contract)
-
-	def test_pre_review_completeness_blocks_out_of_allowlist_paths(self):
-		contract = self._pre_review_completeness_contract()
-
-		for path in ("`src/`", "test", "build", "workflow"):
-			with self.subTest(path=path):
-				self.assertIn(path, contract)
-		self.assertIn("`BLOCKED: METADATA RECOVERY SCOPE`", contract)
-
-	def test_pre_review_completeness_blocks_conflicting_ground_truth(self):
-		contract = self._pre_review_completeness_contract()
-
-		self.assertIn("정본끼리 값이 충돌", contract)
-		self.assertIn("추측하지 않고", contract)
-		self.assertIn("`BLOCKED: METADATA GROUND TRUTH`", contract)
-
-	def test_official_reviewer_dispatch_requires_completeness_pass(self):
-		contract = self._pre_review_completeness_contract()
-
-		self.assertIn("completeness PASS 전에는 official Reviewer를 배정하지 않습니다", contract)
-
-	def test_metadata_recovery_does_not_consume_code_review_remediation(self):
-		contract = self._pre_review_completeness_contract()
-
-		self.assertIn("코드 Review remediation 횟수를 소비하지 않습니다", contract)
-
-	def test_recovery_head_requires_fresh_review_qa_and_ci(self):
-		contract = self._pre_review_completeness_contract()
-
-		self.assertIn("복구 후 새 HEAD", contract)
-		self.assertIn("fresh Review·QA·CI", contract)
-		self.assertIn(
-			"Dev 검증 → pre-review metadata completeness/recovery → QA → Docs 최종 동기화 → fresh final Review → 최신 CI → merge",
-			contract,
-		)
+		self.assertIn("사람 결정 없이 자동 처리", contract)
+		self.assertIn("edited 또는 ready 이벤트", contract)
+		self.assertIn("다음 경우에만 안전 정지", contract)
+		self.assertIn("recovery budget 초과", contract)
 
 	def test_evidence_guide_pins_lightweight_pr_body_and_preflight_procedure(self):
 		repository_root = Path(__file__).resolve().parents[2]
@@ -834,7 +911,7 @@ class OrchestrationContractTest(unittest.TestCase):
 
 		policy_requirements = (
 			"`namdongyeob/coffee-order-system`만 적용합니다.",
-			"#61 -> #45 -> #55 -> #11 -> #21 -> #12 -> #13 -> #14 -> #15 -> #16 -> #51 -> #52 -> #53 -> #54 -> #56 -> #57 -> #58 -> #36",
+			"#61 -> #45 -> #55 -> #69 -> #11 -> #21 -> #12 -> #13 -> #14 -> #15 -> #16 -> #51 -> #52 -> #53 -> #54 -> #56 -> #57 -> #58 -> #36",
 			"한 번에 Issue 하나와 production/test 작성자 한 명만 허용합니다.",
 			"Issue #60 PR은 자동 merge 또는 close하지 않으며 사람이 직접 merge합니다.",
 			"#61은 Issue #60 PR이 사람에 의해 merge된 뒤에만 시작합니다.",

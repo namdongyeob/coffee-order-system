@@ -6,6 +6,8 @@ import argparse
 import re
 import subprocess
 import sys
+from dataclasses import dataclass, replace
+from enum import IntEnum
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -67,6 +69,205 @@ VERIFICATION_LOG_COLUMNS = (
 )
 VALID_VERIFICATION_LEVELS = tuple(f"Level {level}" for level in range(8))
 VALID_VERIFICATION_RESULTS = ("PASS", "FAIL", "PARTIAL")
+
+
+class QueueStage(IntEnum):
+    """Ordered lifecycle stages for one autonomous queue Issue."""
+
+    INTAKE = 1
+    DEV_IN_PROGRESS = 2
+    DEV_VERIFIED = 3
+    PRE_REVIEW_READY = 4
+    REVIEW_COMPLETED = 5
+    QA_COMPLETED = 6
+    DOCS_FINALIZED = 7
+    FINAL_REVIEW_COMPLETED = 8
+    CI_GREEN = 9
+    MERGE_READY = 10
+    MERGED_AND_CLOSED = 11
+
+
+def autonomous_queue_dependencies() -> dict[QueueStage, set[QueueStage]]:
+    """Return the direct, acyclic prerequisites for the queue lifecycle."""
+    return {
+        QueueStage.INTAKE: set(),
+        QueueStage.DEV_IN_PROGRESS: {QueueStage.INTAKE},
+        QueueStage.DEV_VERIFIED: {QueueStage.DEV_IN_PROGRESS},
+        QueueStage.PRE_REVIEW_READY: {QueueStage.DEV_VERIFIED},
+        QueueStage.REVIEW_COMPLETED: {QueueStage.PRE_REVIEW_READY},
+        QueueStage.QA_COMPLETED: {QueueStage.REVIEW_COMPLETED},
+        QueueStage.DOCS_FINALIZED: {QueueStage.QA_COMPLETED},
+        QueueStage.FINAL_REVIEW_COMPLETED: {QueueStage.DOCS_FINALIZED},
+        QueueStage.CI_GREEN: {QueueStage.FINAL_REVIEW_COMPLETED},
+        QueueStage.MERGE_READY: {QueueStage.CI_GREEN},
+        QueueStage.MERGED_AND_CLOSED: {QueueStage.MERGE_READY},
+    }
+
+
+def validate_queue_dependencies(
+    dependencies: dict[QueueStage, set[QueueStage]],
+) -> None:
+    """Reject missing gates, future inputs, and cycles in a lifecycle contract."""
+    expected = set(QueueStage)
+    if set(dependencies) != expected:
+        raise ValueError("queue dependencies must define every stage exactly once")
+    for stage, prerequisites in dependencies.items():
+        for prerequisite in prerequisites:
+            if prerequisite >= stage:
+                raise ValueError(
+                    f"future stage dependency or cycle: {stage.name} requires {prerequisite.name}"
+                )
+
+    visiting: set[QueueStage] = set()
+    visited: set[QueueStage] = set()
+
+    def visit(stage: QueueStage) -> None:
+        if stage in visiting:
+            raise ValueError(f"queue dependency cycle at {stage.name}")
+        if stage in visited:
+            return
+        visiting.add(stage)
+        for prerequisite in dependencies[stage]:
+            visit(prerequisite)
+        visiting.remove(stage)
+        visited.add(stage)
+
+    for stage in QueueStage:
+        visit(stage)
+
+
+@dataclass(frozen=True)
+class AutonomousQueueState:
+    """Pure state model; GitHub comments/checks are supplied by the coordinator."""
+
+    stage: QueueStage = QueueStage.INTAKE
+    head_sha: str | None = None
+    review_url: str | None = None
+    review_verdict: str | None = None
+    qa_url: str | None = None
+    qa_verdict: str | None = None
+    docs_evidence_complete: bool = False
+    final_review_sha: str | None = None
+    ci_check_sha: str | None = None
+    pr_body_gate_snapshot: str | None = None
+
+    def _require_stage(self, expected: QueueStage) -> None:
+        if self.stage != expected:
+            raise ValueError(f"expected {expected.name}, found {self.stage.name}")
+
+    def start_dev(self) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.INTAKE)
+        return replace(self, stage=QueueStage.DEV_IN_PROGRESS)
+
+    def complete_dev(
+        self,
+        verification_passed: bool,
+        evidence_skeleton: bool,
+        pr_body_preflight_passed: bool,
+        execution_mode: str | None,
+        level_decisions: bool,
+    ) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.DEV_IN_PROGRESS)
+        if not verification_passed:
+            raise ValueError("Dev verification must pass")
+        if not all((evidence_skeleton, pr_body_preflight_passed, execution_mode, level_decisions)):
+            raise ValueError("PRE_REVIEW_READY inputs are incomplete")
+        verified = replace(self, stage=QueueStage.DEV_VERIFIED)
+        return replace(verified, stage=QueueStage.PRE_REVIEW_READY)
+
+    def can_dispatch_review_and_qa(self) -> bool:
+        return self.stage == QueueStage.PRE_REVIEW_READY
+
+    def record_review(
+        self, verdict: str, comment_url: str, head_sha: str
+    ) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.PRE_REVIEW_READY)
+        if verdict != "APPROVED" or not comment_url or not head_sha:
+            raise ValueError("Review APPROVED, comment URL, and head SHA are required")
+        return replace(
+            self,
+            stage=QueueStage.REVIEW_COMPLETED,
+            head_sha=head_sha,
+            review_url=comment_url,
+            review_verdict=verdict,
+        )
+
+    def record_qa(
+        self, verdict: str, comment_url: str, validation_sha: str
+    ) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.REVIEW_COMPLETED)
+        if verdict != "PASS" or not comment_url or validation_sha != self.head_sha:
+            raise ValueError("QA PASS, comment URL, and current validation SHA are required")
+        return replace(
+            self,
+            stage=QueueStage.QA_COMPLETED,
+            qa_url=comment_url,
+            qa_verdict=verdict,
+        )
+
+    def finalize_docs(self, evidence_complete: bool) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.QA_COMPLETED)
+        if not evidence_complete:
+            raise ValueError("Docs evidence must be complete")
+        return replace(
+            self,
+            stage=QueueStage.DOCS_FINALIZED,
+            docs_evidence_complete=True,
+        )
+
+    def record_final_review(
+        self, verdict: str, review_sha: str, head_sha: str
+    ) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.DOCS_FINALIZED)
+        if not self.review_url or not self.qa_url:
+            raise ValueError("Review와 QA comment URL이 final gate에 필요합니다")
+        if verdict != "APPROVED" or review_sha != head_sha:
+            raise ValueError("final Review SHA는 현재 head SHA와 일치해야 합니다")
+        return replace(
+            self,
+            stage=QueueStage.FINAL_REVIEW_COMPLETED,
+            head_sha=head_sha,
+            final_review_sha=review_sha,
+        )
+
+    def record_ci(
+        self, status: str, check_sha: str, head_sha: str
+    ) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.FINAL_REVIEW_COMPLETED)
+        if status != "PASS" or check_sha != head_sha or head_sha != self.head_sha:
+            raise ValueError("latest GitHub check must PASS on the current head SHA")
+        return replace(
+            self,
+            stage=QueueStage.CI_GREEN,
+            ci_check_sha=check_sha,
+        )
+
+    def evaluate_merge_ready(self, mergeable: str) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.CI_GREEN)
+        required = (
+            self.review_verdict == "APPROVED",
+            self.qa_verdict == "PASS",
+            self.docs_evidence_complete,
+            self.final_review_sha == self.head_sha,
+            self.ci_check_sha == self.head_sha,
+            bool(self.review_url),
+            bool(self.qa_url),
+            mergeable == "CLEAN",
+        )
+        if not all(required):
+            raise ValueError("MERGE_READY inputs are incomplete")
+        return replace(self, stage=QueueStage.MERGE_READY)
+
+    def record_merge_and_close(
+        self, merge_commit: str, issue_closed: bool
+    ) -> "AutonomousQueueState":
+        self._require_stage(QueueStage.MERGE_READY)
+        if not merge_commit or not issue_closed:
+            raise ValueError("merge commit and closed Issue are required")
+        return replace(self, stage=QueueStage.MERGED_AND_CLOSED)
+
+    def can_start_next_issue(self) -> bool:
+        return self.stage == QueueStage.MERGED_AND_CLOSED
 
 
 def validate_branch(branch: str) -> list[str]:
