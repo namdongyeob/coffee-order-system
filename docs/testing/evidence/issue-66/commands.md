@@ -15,8 +15,13 @@
 | Attempt 3 GREEN | 같은 9개 exact contract tests | PASS. 9 tests passed. |
 | Attempt 3 full | `python -m unittest scripts.tests.test_harness_gate` | PASS. 79 tests passed. |
 | Attempt 3 gate/body/diff | Issue #66 gate, UTF-8 no-BOM 외부 body preflight, base diff check | PASS. 외부 body의 UTF-8 BOM은 `False`였습니다. |
+| Attempt 4 source check | live PR #67, source HEAD `fe366e075863926f86802df4036d0519a647fba8`, Issue #66 evidence와 실제 역할 댓글 URL 대조 | PASS. 필수 evidence 5개와 현재 PR의 Review·QA 역사적 댓글을 확인했습니다. |
+| Attempt 4 full | `python -m unittest scripts.tests.test_harness_gate` | PASS. 79 tests passed. |
+| Attempt 4 gate | `python scripts/harness_gate.py --issue 66 --branch codex/issue-66-metadata-recovery --base-ref origin/main --check-links --include-worktree` | PASS. |
+| Attempt 4 base diff | `git diff --check 2de3a1777ff55df0ac19374a9018d0db58abef86` | PASS. |
 
 ## Reverification
 
 - Focused 7 tests, full 70-test harness, repository gate와 diff check가 모두 PASS했습니다.
 - Attempt 3 focused 9 tests, full 79-test harness, gate, body preflight와 base diff check가 PASS했습니다.
+- Attempt 4 metadata recovery에서 full 79-test harness, repository gate와 전체 base diff check가 PASS했습니다.

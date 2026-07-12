@@ -94,3 +94,35 @@ Branch: codex/issue-66-metadata-recovery
 ### Next Attempt
 
 - Pre-review completeness가 PASS한 뒤에만 QA를 배정합니다. 이후 Docs 최종 동기화, fresh final Review, 최신 CI 순서로 진행합니다.
+
+## Attempt 4 - Pre-review metadata-only recovery
+
+### Generate
+
+- Started at 2026-07-12T14:55:25.6781649+09:00 after the user approved the fixed metadata allowlist recovery before official Review.
+- live PR #67, current source HEAD `fe366e075863926f86802df4036d0519a647fba8`, 실제 역할 댓글과 저장소 evidence를 읽기 전용으로 대조했습니다.
+
+### Evaluate
+
+- `python -m unittest scripts.tests.test_harness_gate`의 실제 최신 결과는 79 tests PASS입니다.
+- 필수 evidence 5개가 모두 존재하고 metrics 표가 정확한 9열이며 STRICT Agent 수가 Dev, Review, QA, Docs 4명인지 확인했습니다.
+- remediation 이전 Review·QA 역할 댓글이 현재 PR #67의 실제 conversation comment인지 확인했습니다.
+
+### Failure Cause
+
+- pre-review completeness 구현 뒤 evidence에 실제 역할 댓글 URL이 아직 연결되지 않았고, metrics는 Review·QA·Docs를 모두 pending으로 표현해 이미 존재하는 역사적 역할 보고와 맞지 않았습니다.
+
+### Change Scope
+
+- 현재 Issue #66 evidence와 `verification-log.md`의 동일 사실만 동기화합니다.
+- 정책, Skill, 테스트, production, build, workflow와 PR 본문은 Docs Agent가 변경하지 않습니다.
+
+### Reverification
+
+- metadata-only recovery budget은 별도로 1/2회를 사용합니다. 코드·정책 remediation budget과 Attempt 2의 Dev 반환 횟수는 변경하지 않습니다.
+- Ended at 2026-07-12T14:56:35.2839046+09:00.
+- full 79-test harness, repository gate와 전체 base diff check가 모두 PASS했습니다.
+
+### Next Attempt
+
+- PASS: PRE-REVIEW METADATA COMPLETE 확인 뒤 independent QA, Docs 최종 동기화, fresh final read-only Review와 최신 CI 순서로 진행합니다.
