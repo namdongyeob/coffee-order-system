@@ -67,6 +67,61 @@ VERIFICATION_LOG_COLUMNS = (
 )
 VALID_VERIFICATION_LEVELS = tuple(f"Level {level}" for level in range(8))
 VALID_VERIFICATION_RESULTS = ("PASS", "FAIL", "PARTIAL")
+STRICT_AGENT_ROLES = frozenset({"Dev", "Review", "QA", "Docs"})
+QA_PRESERVING_DOCS = frozenset({"docs/testing/verification-log.md"})
+
+
+def pre_review_ready(*, dev_verified: bool, evidence_ready: bool, pr_body_preflight_passed: bool) -> bool:
+    """Allow Review after only the inputs that exist before Review."""
+    return dev_verified and evidence_ready and pr_body_preflight_passed
+
+
+def strict_agent_role_count(roles: list[str]) -> int:
+    """Count unique STRICT roles; Coordinator, CI, and retries are excluded."""
+    return len(STRICT_AGENT_ROLES.intersection(roles))
+
+
+def required_evidence_exists(file_names: list[str] | tuple[str, ...]) -> bool:
+    """Return whether the lightweight preflight has every base evidence file."""
+    return set(REQUIRED_EVIDENCE_FILES).issubset(file_names)
+
+
+def qa_remains_valid(
+    qa_head: str,
+    current_head: str,
+    changed_paths: list[str],
+    issue_number: int,
+) -> bool:
+    """Keep QA only when a later commit changes Issue evidence allowlist docs."""
+    if qa_head == current_head:
+        return True
+    if not changed_paths:
+        return False
+    evidence_prefix = f"docs/testing/evidence/issue-{issue_number}/"
+    return all(
+        path.startswith(evidence_prefix) or path in QA_PRESERVING_DOCS
+        for path in changed_paths
+    )
+
+
+def autonomous_merge_ready(
+    *,
+    review_approved: bool,
+    qa_passed: bool,
+    docs_evidence_ready: bool,
+    ci_passed: bool,
+    review_head: str,
+    current_head: str,
+    mergeable_clean: bool,
+) -> bool:
+    """Apply the existing #60 merge gate without storing mutable snapshots."""
+    return all((review_approved, qa_passed, docs_evidence_ready, ci_passed,
+                review_head == current_head, mergeable_clean))
+
+
+def next_issue_allowed(merged: bool, issue_closed: bool, merge_commit_exists: bool) -> bool:
+    """Start the next queue item only after merge and close are observable."""
+    return merged and issue_closed and merge_commit_exists
 
 
 def validate_branch(branch: str) -> list[str]:

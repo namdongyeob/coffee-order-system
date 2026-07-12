@@ -51,12 +51,6 @@ Skill은 역할 권한이나 테스트 수준을 복사하지 않습니다. 위 
 4. Agent가 멈추면 Main은 한 번 상태를 요청합니다. 응답이 없으면 같은 최소 패킷으로 동일 역할을 한 번 재배정합니다.
 5. 재배정 Agent도 멈추면 `BLOCKED: AGENT STALLED`로 전환합니다.
 
-### Metadata-only Recovery Dispatch
-
-기계적으로 검증 가능한 metadata 불일치는 `docs/ai/orchestration-policy.md`의 고정 allowlist, 정본, 별도 횟수 제한과 BLOCKED 판정을 조회합니다. Main Coordinator는 파일을 직접 수정하지 않고 원래 Dev 또는 Docs Agent에게 제한된 recovery를 배정합니다. 코드·정책 결함, allowlist 밖 변경, 불명확한 계산 근거에는 이 경로를 사용하지 않으며 상세 파일 목록이나 횟수·산식은 이 Skill에 중복하지 않습니다.
-
-Dev 검증 뒤 official Reviewer 배정 전에는 같은 정책의 pre-review metadata completeness 판정이 PASS인지 확인합니다. pending 또는 FAIL이면 Reviewer를 배정하지 않고 정책이 허용한 역할에만 recovery를 전달합니다.
-
 ## Completion Gate
 
 선택한 mode의 완료 입력은 `docs/ai/orchestration-policy.md`의 실행 모드 표를 그대로 따릅니다. 하나라도 없으면 `FAIL` 또는 `BLOCKED`이며 Main은 누락된 정책상 역할을 배정합니다.
