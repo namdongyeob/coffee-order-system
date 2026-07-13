@@ -89,7 +89,8 @@ ROLE_PACKET_REQUIRED_FIELDS = frozenset(
         "diff_scope",
     }
 )
-ROLE_PACKET_FORBIDDEN_FIELDS = ("source_contents", "conversation", "source_snapshot")
+ROLE_PACKET_ALLOWED_FIELDS = ROLE_PACKET_REQUIRED_FIELDS.union({"previous_p0_p1_finding"})
+ROLE_PACKET_DOCUMENT_PATH_PATTERN = re.compile(r"^(?:AGENTS\.md|docs/(?:ai|testing)/[^/]+\.md|\.codex/skills/[^/]+/SKILL\.md)$")
 
 
 def pre_review_ready(*, dev_verified: bool, evidence_ready: bool, pr_body_preflight_passed: bool) -> bool:
@@ -108,17 +109,26 @@ def required_evidence_exists(file_names: list[str] | tuple[str, ...]) -> bool:
 
 
 def validate_role_packet(packet: dict[str, object]) -> list[str]:
-    """Reject incomplete packets and copied source or conversation payloads."""
+    """Enforce the minimal packet schema without copied source or conversation payloads."""
     errors = [
         f"missing role packet field: {field}"
         for field in sorted(ROLE_PACKET_REQUIRED_FIELDS)
         if not packet.get(field)
     ]
     errors.extend(
-        f"forbidden role packet field: {field}"
-        for field in ROLE_PACKET_FORBIDDEN_FIELDS
-        if field in packet
+        f"non-allowlisted role packet field: {field}"
+        for field in packet
+        if field not in ROLE_PACKET_ALLOWED_FIELDS
     )
+    documents = packet.get("required_documents")
+    if not isinstance(documents, list) or not 3 <= len(documents) <= 5:
+        errors.append("role packet requires 3~5 canonical document paths.")
+    elif any(
+        not isinstance(document, str)
+        or ROLE_PACKET_DOCUMENT_PATH_PATTERN.fullmatch(document) is None
+        for document in documents
+    ):
+        errors.append("role packet requires only canonical document paths.")
     return errors
 
 

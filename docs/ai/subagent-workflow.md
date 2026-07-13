@@ -19,9 +19,9 @@ worktree 경로: <absolute path>
 base SHA: <base SHA>
 head SHA: <head SHA>
 Acceptance Criteria: <short criteria>
-필수 문서 경로: <3~5 canonical paths>
+필수 문서 경로: <3~5 canonical repository-relative paths: AGENTS.md, docs/ai/*.md, docs/testing/*.md, .codex/skills/*/SKILL.md>
 Diff 범위: <allowed paths and exclusions>
 직전 P0/P1 finding: <finding or 없음>
 ```
 
-모든 역할은 위 packet과 필요한 focused 명령, 마지막 `Next Attempt`만 전달합니다. source 본문, 전체 대화 fork, 전체 attempt-log, 전체 테스트 출력, `tasks/**/sources` 복사본을 전달하거나 만들지 않습니다. 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.
+모든 역할은 위 allowlist packet과 필요한 focused 명령, 마지막 `Next Attempt`만 전달합니다. allowlist 밖 packet key, source 본문, 전체 대화 fork, 전체 attempt-log, 전체 테스트 출력, `tasks/**/sources` 복사본을 전달하거나 만들지 않습니다. 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.

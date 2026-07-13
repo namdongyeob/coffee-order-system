@@ -31,4 +31,30 @@ Branch: codex/issue-78-harness-lightweight
 
 ### Next Attempt
 
-- 없음. fresh Review·independent QA·최신 CI와 mergeable 상태는 GitHub 정본에서 후속 역할이 확인합니다.
+- P1 remediation 1회로 최소 packet schema의 allowlist와 3~5 canonical 문서 경로를 기계 계약으로 보강합니다.
+
+## Attempt 2
+
+### Generate
+
+- PR #80 review의 P1을 확인했습니다. 기존 금지 key 목록이 `source_body`, `conversation_history`, `prompt` 같은 우회 key를 통과시키고 문서 경로 수를 검사하지 않았습니다.
+
+### Evaluate
+
+- 최소 packet 검증은 명시적인 allowlist가 필요하고 `required_documents`는 canonical repository-relative 경로 3~5개만 허용해야 합니다.
+
+### Failure Cause
+
+- 알려진 금지 key만 거부하는 방식은 새로운 payload key를 일반적으로 차단하지 못했습니다.
+
+### Change Scope
+
+- `scripts/harness_gate.py`, 직접 harness unit test, role packet 관련 문서와 Issue #78 evidence만 수정합니다.
+
+### Reverification
+
+- focused packet contract 3 tests는 PASS했습니다. 전체 harness와 repository gate, diff, actual PR body preflight는 최종 실행 뒤 기록합니다.
+
+### Next Attempt
+
+- 없음. 이 remediation은 허용된 1회 수정이며 fresh Review·independent QA·최신 CI와 mergeable 상태는 GitHub 정본에서 확인합니다.

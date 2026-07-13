@@ -66,7 +66,7 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 ### 경량 자율 큐 흐름
 
-고정 자율 Issue 큐는 새 자동화 엔진이나 별도 metadata recovery budget을 두지 않습니다. fresh Review·QA·Docs는 전체 Dev 대화 대신 Issue URL, worktree 경로, base/head SHA, Acceptance Criteria, 필수 정본 문서 3~5개 경로, diff 범위와 직전 P0/P1 finding만 담은 경로 기반 최소 역할 packet을 받습니다. source 본문, 전체 conversation, `tasks/**/sources` 복사본은 packet과 저장소에 만들지 않으며 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.
+고정 자율 Issue 큐는 새 자동화 엔진이나 별도 metadata recovery budget을 두지 않습니다. fresh Review·QA·Docs는 전체 Dev 대화 대신 Issue URL, worktree 경로, base/head SHA, Acceptance Criteria, 필수 정본 문서 3~5개 경로, diff 범위와 직전 P0/P1 finding만 담은 경로 기반 최소 역할 packet을 받습니다. packet key는 이 allowlist만 허용하며, 문서 경로는 `AGENTS.md`, `docs/ai/*.md`, `docs/testing/*.md`, `.codex/skills/*/SKILL.md`의 canonical repository-relative 경로만 사용합니다. source 본문, 전체 conversation, `tasks/**/sources` 복사본은 packet과 저장소에 만들지 않으며 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.
 
 `Dev 구현·focused 검증과 evidence·PR body preflight -> fresh Review -> independent QA -> 최신 CI -> merge·close` 순서로 진행합니다. QA 뒤 repository HEAD가 바뀌지 않으면 post-QA Docs commit과 두 번째 전체 Review를 요구하지 않습니다. Review·QA·CI·현재 head·mergeable 같은 가변 상태는 GitHub comments/checks만 정본으로 사용하며 GitHub-only 갱신은 repository commit을 만들지 않습니다. QA 뒤 production, test, build, runtime, workflow, API·도메인 정책 문서가 바뀌면 Review와 필요한 QA는 stale입니다.
 

@@ -634,31 +634,69 @@ class OrchestrationContractTest(unittest.TestCase):
 			"base_sha": "base",
 			"head_sha": "head",
 			"acceptance_criteria": "12개 계약 테스트를 반영합니다.",
-			"required_documents": ["AGENTS.md", "docs/ai/orchestration-policy.md"],
+			"required_documents": [
+				"AGENTS.md",
+				"docs/ai/orchestration-policy.md",
+				"docs/testing/test-strategy.md",
+			],
 			"diff_scope": "scripts/harness_gate.py와 직접 harness 단위 테스트",
 			"previous_p0_p1_finding": "없음",
 		}
 
 		self.assertEqual([], harness_gate.validate_role_packet(packet))
 
-	def test_role_packet_rejects_inlined_source_or_conversation(self):
+	def test_role_packet_rejects_any_non_allowlisted_inline_payload_key(self):
 		packet = {
 			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
 			"worktree_path": "C:/worktrees/issue-78",
 			"base_sha": "base",
 			"head_sha": "head",
 			"acceptance_criteria": "본문",
-			"required_documents": ["AGENTS.md"],
+			"required_documents": [
+				"AGENTS.md",
+				"docs/ai/orchestration-policy.md",
+				"docs/testing/test-strategy.md",
+			],
 			"diff_scope": "scripts/",
-			"source_contents": "def copied_source(): pass",
-			"conversation": "전체 대화 로그",
+			"source_body": "def copied_source(): pass",
+			"conversation_history": "전체 대화 로그",
+			"prompt": "복사한 source snapshot",
 		}
 
 		errors = harness_gate.validate_role_packet(packet)
 
-		self.assertEqual(2, len(errors))
-		self.assertIn("source_contents", errors[0])
-		self.assertIn("conversation", errors[1])
+		self.assertEqual(3, len(errors))
+		self.assertIn("source_body", errors[0])
+		self.assertIn("conversation_history", errors[1])
+		self.assertIn("prompt", errors[2])
+
+	def test_role_packet_requires_three_to_five_canonical_document_paths(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "본문",
+			"required_documents": ["AGENTS.md", "docs/ai/orchestration-policy.md"],
+			"diff_scope": "scripts/",
+		}
+
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("3~5", errors[0])
+
+		packet["required_documents"] = [
+			"AGENTS.md",
+			"docs/ai/orchestration-policy.md",
+			"docs/testing/test-strategy.md",
+			"docs/testing/evidence-guide.md",
+			"../not-canonical.md",
+		]
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("canonical", errors[0])
 
 	def test_unchanged_repository_after_qa_needs_no_docs_commit_or_second_review(self):
 		self.assertEqual(
