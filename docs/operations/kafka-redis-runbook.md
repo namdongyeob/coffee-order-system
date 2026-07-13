@@ -6,9 +6,10 @@
 2. MySQL·Redis·Kafka만 실행한 뒤 다음 명령으로 maintenance runner를 시작합니다.
 
 ```powershell
-gradlew bootRun --args="--spring.profiles.active=local --ranking.consumer.enabled=false --ranking.rebuild.maintenance=true --ranking.rebuild.enabled=true"
-# Windows: .\gradlew.bat ..., macOS·Linux: ./gradlew ...
+.\gradlew.bat bootRun --args="--spring.profiles.active=local --ranking.consumer.enabled=false --ranking.rebuild.maintenance=true --ranking.rebuild.enabled=true"
 ```
+
+Windows(PowerShell) 기준입니다. macOS·Linux는 `./gradlew bootRun --args="..."`로 실행합니다.
 
 3. runner는 snapshot과 partition별 end offset을 고정하고 earliest부터 exclusive end까지 replay합니다.
 4. `[snapshot-7일, snapshot)`의 `PAID` 주문 DB 집계와 replay가 날짜·menuId별로 같을 때만 Lua로 대상 날짜 key를 원자 교체합니다.

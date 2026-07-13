@@ -22,7 +22,7 @@
 - DB schema, JPA mapping, transaction, lock이 핵심인 Issue는 Level 3 DB Integration으로 검증합니다.
 - Kafka, Redis, Redisson, DLT가 핵심인 Issue는 Level 4 Infra Integration으로 검증합니다.
 - Testcontainers는 필요한 검증 레벨에서만 사용합니다. Controller 계약만 확인하는 Issue에 무거운 full context 테스트를 기본값으로 두지 않습니다.
-- Dev는 변경 범위 focused test를 기본 실행합니다. DB migration, 공통 transaction, event payload, Kafka 공통 consumer 설정, security, build/test infrastructure처럼 영향 범위가 넓은 변경만 push 전 로컬 전체 `gradlew test --no-daemon`(Windows: `gradlew.bat test --no-daemon`, macOS·Linux: `./gradlew test --no-daemon`) 회귀를 실행합니다. 그 외 변경의 전체 Level 1 회귀는 GitHub Actions `quality-gates`가 최종·단독으로 판정합니다.
+- Dev는 변경 범위 focused test를 기본 실행합니다. DB migration, 공통 transaction, event payload, Kafka 공통 consumer 설정, security, build/test infrastructure처럼 영향 범위가 넓은 변경만 push 전 로컬 전체 회귀(Windows: `.\gradlew.bat test --no-daemon`, macOS·Linux: `./gradlew test --no-daemon`)를 실행합니다. 그 외 변경의 전체 Level 1 회귀는 GitHub Actions `quality-gates`가 최종·단독으로 판정합니다.
 - Level 1 전체 회귀 smoke는 전체 suite 상태를 기록할 뿐이며 Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다.
 - 문서·Issue 템플릿만 바꾼 PR은 로컬에서 하네스 테스트와 링크 검사를 우선하고, 전체 Gradle 테스트는 GitHub Actions 결과로 확인할 수 있습니다. workflow나 검증 스크립트를 바꾼 PR은 로컬에서도 관련 전체 검증을 한 번 실행합니다.
 - Legacy evidence 인정과 backfill은 [Evidence Guide](evidence-guide.md)의 단일 정본을 따릅니다. 이 문서는 Legacy 여부를 별도로 판정하지 않습니다.
