@@ -1,0 +1,119 @@
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+
+     execution: local
+        script: k6/order-spike.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 8 max VUs, 21s max duration (incl. graceful stop):
+              * order_spike: Up to 8 looping VUs for 16s over 5 stages (gracefulRampDown: 5s, gracefulStop: 5s)
+
+
+running (01.0s), 0/8 VUs, 0 complete and 0 interrupted iterations
+order_spike   [   4% ] 0/8 VUs  00.6s/16.0s
+
+running (02.0s), 0/8 VUs, 0 complete and 0 interrupted iterations
+order_spike   [  10% ] 0/8 VUs  01.6s/16.0s
+
+running (03.0s), 0/8 VUs, 0 complete and 0 interrupted iterations
+order_spike   [  16% ] 0/8 VUs  02.6s/16.0s
+
+running (04.0s), 3/8 VUs, 3 complete and 0 interrupted iterations
+order_spike   [  23% ] 3/8 VUs  03.6s/16.0s
+
+running (05.0s), 6/8 VUs, 16 complete and 0 interrupted iterations
+order_spike   [  29% ] 6/8 VUs  04.6s/16.0s
+
+running (06.0s), 8/8 VUs, 44 complete and 0 interrupted iterations
+order_spike   [  35% ] 8/8 VUs  05.6s/16.0s
+
+running (07.0s), 8/8 VUs, 71 complete and 0 interrupted iterations
+order_spike   [  41% ] 8/8 VUs  06.6s/16.0s
+
+running (08.0s), 8/8 VUs, 96 complete and 0 interrupted iterations
+order_spike   [  48% ] 8/8 VUs  07.6s/16.0s
+
+running (09.0s), 8/8 VUs, 120 complete and 0 interrupted iterations
+order_spike   [  54% ] 8/8 VUs  08.6s/16.0s
+
+running (10.0s), 8/8 VUs, 150 complete and 0 interrupted iterations
+order_spike   [  60% ] 8/8 VUs  09.6s/16.0s
+
+running (11.0s), 7/8 VUs, 177 complete and 0 interrupted iterations
+order_spike   [  66% ] 7/8 VUs  10.6s/16.0s
+
+running (12.0s), 5/8 VUs, 203 complete and 0 interrupted iterations
+order_spike   [  73% ] 5/8 VUs  11.6s/16.0s
+
+running (13.0s), 3/8 VUs, 219 complete and 0 interrupted iterations
+order_spike   [  79% ] 3/8 VUs  12.6s/16.0s
+
+running (14.0s), 1/8 VUs, 227 complete and 0 interrupted iterations
+order_spike   [  85% ] 1/8 VUs  13.6s/16.0s
+
+running (15.0s), 1/8 VUs, 231 complete and 0 interrupted iterations
+order_spike   [  91% ] 1/8 VUs  14.6s/16.0s
+
+running (16.0s), 1/8 VUs, 235 complete and 0 interrupted iterations
+order_spike   [  98% ] 1/8 VUs  15.6s/16.0s
+
+
+  █ THRESHOLDS
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration
+    ✓ 'p(95)<2000' p(95)=145.15ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+    order_error_rate
+    ✓ 'rate<0.01' rate=0.00%
+
+    order_success_rate
+    ✓ 'rate>0.99' rate=100.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 719     43.903254/s
+    checks_succeeded...: 100.00% 719 out of 719
+    checks_failed......: 0.00%   0 out of 719
+
+    ✓ synthetic user charged
+    ✓ order returns 201
+    ✓ order response content type is JSON
+    ✓ order response JSON has required fields
+
+    CUSTOM
+    order_error_rate...............: 0.00%   0 out of 237
+    order_success_rate.............: 100.00% 237 out of 237
+
+    HTTP
+    http_req_duration..............: avg=81.81ms  min=25.00ms  med=75.76ms  max=170.36ms p(90)=124.46ms p(95)=145.15ms count=245
+      { expected_response:true }...: avg=81.81ms  min=25.00ms  med=75.76ms  max=170.36ms p(90)=124.46ms p(95)=145.15ms count=245
+    http_req_failed................: 0.00%   0 out of 245
+    http_reqs......................: 245     14.96008/s
+
+    EXECUTION
+    iteration_duration.............: avg=284.36ms min=239.21ms med=277.43ms max=371.38ms p(90)=327.46ms p(95)=350.23ms count=237
+    iterations.....................: 237     14.471587/s
+    vus............................: 1       min=0          max=8
+    vus_max........................: 8       min=8          max=8
+
+    NETWORK
+    data_received..................: 66 kB   4.0 kB/s
+    data_sent......................: 40 kB   2.4 kB/s
+
+
+
+
+running (16.4s), 0/8 VUs, 237 complete and 0 interrupted iterations
+order_spike ✓ [ 100% ] 0/8 VUs  16s

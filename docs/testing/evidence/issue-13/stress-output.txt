@@ -1,0 +1,119 @@
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+
+     execution: local
+        script: k6/order-stress.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 6 max VUs, 21s max duration (incl. graceful stop):
+              * order_stress: Up to 6 looping VUs for 16s over 4 stages (gracefulRampDown: 5s, gracefulStop: 5s)
+
+
+running (01.0s), 0/6 VUs, 0 complete and 0 interrupted iterations
+order_stress   [   4% ] 0/6 VUs  00.6s/16.0s
+
+running (02.0s), 1/6 VUs, 0 complete and 0 interrupted iterations
+order_stress   [  10% ] 1/6 VUs  01.6s/16.0s
+
+running (03.0s), 1/6 VUs, 3 complete and 0 interrupted iterations
+order_stress   [  16% ] 1/6 VUs  02.6s/16.0s
+
+running (04.0s), 2/6 VUs, 7 complete and 0 interrupted iterations
+order_stress   [  23% ] 2/6 VUs  03.6s/16.0s
+
+running (05.0s), 2/6 VUs, 9 complete and 0 interrupted iterations
+order_stress   [  29% ] 2/6 VUs  04.6s/16.0s
+
+running (06.0s), 3/6 VUs, 14 complete and 0 interrupted iterations
+order_stress   [  35% ] 3/6 VUs  05.6s/16.0s
+
+running (07.0s), 3/6 VUs, 19 complete and 0 interrupted iterations
+order_stress   [  41% ] 3/6 VUs  06.6s/16.0s
+
+running (08.0s), 3/6 VUs, 24 complete and 0 interrupted iterations
+order_stress   [  48% ] 3/6 VUs  07.6s/16.0s
+
+running (09.0s), 4/6 VUs, 27 complete and 0 interrupted iterations
+order_stress   [  54% ] 4/6 VUs  08.6s/16.0s
+
+running (10.0s), 4/6 VUs, 35 complete and 0 interrupted iterations
+order_stress   [  60% ] 4/6 VUs  09.6s/16.0s
+
+running (11.0s), 5/6 VUs, 43 complete and 0 interrupted iterations
+order_stress   [  66% ] 5/6 VUs  10.6s/16.0s
+
+running (12.0s), 5/6 VUs, 60 complete and 0 interrupted iterations
+order_stress   [  73% ] 5/6 VUs  11.6s/16.0s
+
+running (13.0s), 5/6 VUs, 76 complete and 0 interrupted iterations
+order_stress   [  79% ] 5/6 VUs  12.6s/16.0s
+
+running (14.0s), 6/6 VUs, 90 complete and 0 interrupted iterations
+order_stress   [  85% ] 6/6 VUs  13.6s/16.0s
+
+running (15.0s), 4/6 VUs, 101 complete and 0 interrupted iterations
+order_stress   [  91% ] 4/6 VUs  14.6s/16.0s
+
+running (16.0s), 1/6 VUs, 109 complete and 0 interrupted iterations
+order_stress   [  98% ] 1/6 VUs  15.6s/16.0s
+
+
+  █ THRESHOLDS
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration
+    ✓ 'p(95)<1500' p(95)=628.41ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+    order_error_rate
+    ✓ 'rate<0.01' rate=0.00%
+
+    order_success_rate
+    ✓ 'rate>0.99' rate=100.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 339     20.487207/s
+    checks_succeeded...: 100.00% 339 out of 339
+    checks_failed......: 0.00%   0 out of 339
+
+    ✓ synthetic user charged
+    ✓ order returns 201
+    ✓ order response content type is JSON
+    ✓ order response JSON has required fields
+
+    CUSTOM
+    order_error_rate...............: 0.00%   0 out of 111
+    order_success_rate.............: 100.00% 111 out of 111
+
+    HTTP
+    http_req_duration..............: avg=222.72ms min=54.46ms  med=186.11ms max=823.42ms  p(90)=426.25ms p(95)=628.41ms count=117
+      { expected_response:true }...: avg=222.72ms min=54.46ms  med=186.11ms max=823.42ms  p(90)=426.25ms p(95)=628.41ms count=117
+    http_req_failed................: 0.00%   0 out of 117
+    http_reqs......................: 117     7.070806/s
+
+    EXECUTION
+    iteration_duration.............: avg=432.67ms min=254.71ms med=393.94ms max=1024.13ms p(90)=628.61ms p(95)=860.97ms count=111
+    iterations.....................: 111     6.708201/s
+    vus............................: 1       min=0          max=6
+    vus_max........................: 6       min=6          max=6
+
+    NETWORK
+    data_received..................: 31 kB   1.9 kB/s
+    data_sent......................: 19 kB   1.1 kB/s
+
+
+
+
+running (16.5s), 0/6 VUs, 111 complete and 0 interrupted iterations
+order_stress ✓ [ 100% ] 0/6 VUs  16s
