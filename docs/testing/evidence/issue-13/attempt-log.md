@@ -134,9 +134,12 @@ Branch: codex/issue-13-k6-scenarios
 
 ## 최종 Docs 동기화
 
-- 기준 HEAD: `a1fc5f9cfa9cf5740b9addaca2c9c1b99fa38cf8`.
-- 사용자 별도 승인을 받은 마지막 test-only remediation 뒤 fresh final Review는 P0/P1/P2 0건으로 `APPROVED`했고 independent QA는 `PASS`했습니다.
 - actual k6 contract는 exit 0, assertions 7/7이었고 focused Python 3/3, 세 `k6 inspect`, repository gate, diff check, live 한국어 PR body 외부 UTF-8 no-BOM preflight가 PASS했습니다.
 - invalid-response 내부 check 실패 5건은 의도된 거부 관찰이며 contract threshold는 PASS했습니다.
 - 마지막 변경은 contract test와 evidence만 바꿨고 runtime/helper는 불변이므로 직전 current-code Level 7 결과와 cleanup evidence는 유효합니다. 마지막 test-only remediation 뒤 Level 7은 재실행하지 않았습니다.
 - 최종 Docs 역할은 허용된 Issue #13 evidence 5개와 `docs/testing/verification-log.md`만 append하고 k6 script·test·raw result와 PR 본문을 변경하지 않습니다.
+
+## Docs metadata-only recovery
+
+- 변동 가능한 GitHub HEAD·Review·QA 상태를 저장소 evidence에 복제한 뒤 Docs 커밋으로 해당 상태가 stale해졌고, 사용자가 이 snapshot 표현의 제거를 승인했습니다.
+- 실제 명령·테스트 결과·카운트·Level 7 지표·contract assertions·기대된 invalid-response 내부 check·파일 경로·기능 결정·남은 위험은 불변 근거로 유지합니다.
