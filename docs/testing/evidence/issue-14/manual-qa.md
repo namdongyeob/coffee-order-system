@@ -31,3 +31,13 @@
 - clean Compose Level 5에서 health 200, charge 200, order 201 뒤 live score `1`, normal offset `1`, log-end `1`, lag `0`을 확인했습니다.
 - Maintenance success는 삭제한 live key의 score `1` 복구와 temp/backup 0개를, DB mismatch는 non-zero 종료와 live score `1`, offset `1`, lag `0`, temp/backup 0개 보존을 확인했습니다.
 - QA가 시작한 앱과 project Compose·volume·network를 정리했고 port 8080은 free였습니다. 기존 `rag-pgvector`는 건드리지 않았습니다.
+
+## Retention P1 Level 5 재검증
+
+- clean Compose의 MySQL 8.4.5, Redis 7.4.2, Kafka 3.9.1이 healthy였고 local app health 200, charge 200, order 201을 확인했습니다.
+- 성공 시나리오는 old offset `0`을 실제 삭제해 Kafka earliest `1`, latest `2`를 만들고 actual API가 생성한 recent offset `1`은 보존했습니다.
+- maintenance runner는 current earliest `1`부터 replay해 live key의 member `1` score `1`을 만들고 normal group offset을 `2`로 이동했습니다. log-end `2`, lag `0`, temp/backup key 0개였습니다.
+- 실패 시나리오는 recent offset까지 실제 삭제해 earliest/latest `2/2`로 만들었습니다. DB에는 PAID 주문이 남아 있어 runner가 `Kafka replay와 DB 집계가 일치하지 않습니다`로 exit `1`했습니다.
+- 실패 뒤 live member `1` score `1`, normal offset `2`, lag `0`, temp/backup key 0개와 lock 0개를 확인했습니다.
+- old raw event에는 Spring type header가 없어 일반 consumer가 역직렬화하지 못했지만, 성공 시나리오 전에 해당 old offset 자체를 삭제했습니다. rebuild runner는 String deserializer로 actual recent event를 replay했으며 이 QA 입력 오류를 기능 성공으로 계산하지 않았습니다.
+- 성공 관찰 뒤 non-web context가 자동 종료되지 않아 본 작업이 시작한 maintenance 프로세스만 종료했습니다. 마지막에는 Compose `down -v`, project service 0개와 port 8080 free를 확인했습니다.

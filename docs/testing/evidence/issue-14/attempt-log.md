@@ -73,3 +73,43 @@ Branch: codex/issue-14-ranking-rebuild
 ### Next Attempt
 
 - 없음.
+
+## Attempt 3
+
+### Generate
+
+- 두 번째 fresh Review가 current earliest offset이 `0`보다 크다는 이유만으로 rebuild를 거부하면 최근 7일 데이터가 보존된 정상 retention 상황도 실행할 수 없다는 P1을 보고했습니다.
+- 사용자 승인 범위에서 offset 0 전제를 제거하고 current earliest replay와 DB exact comparison을 완전성 gate로 유지했습니다.
+- current earliest `> 0` recent 보존 성공과 필요한 recent event 실제 유실 실패를 actual Kafka `deleteRecords`로 검증하는 통합 테스트를 추가했습니다.
+
+### Evaluate
+
+- RED는 이전 offset 0 전제에서 예상대로 실패했고, GREEN 2건과 최초 focused 11건·related 회귀는 PASS했습니다.
+- 최초 full과 깨끗한 격리 실행에서 기존 DLT timing failure가 반복돼 retention commit 없이 안전 정지했습니다.
+- 원인은 범위 밖 blocker Issue #77로 분리됐고, #77 merge 뒤 일반 merge commit으로 최신 main을 반영했습니다. 공통 append-only `verification-log.md` 단일 충돌은 양쪽 행을 모두 보존해 해결했습니다.
+
+### Failure Cause
+
+- Issue #14 결함은 current earliest가 0보다 큰 정상 retention 상태를 곧바로 실패 처리한 잘못된 전제였습니다.
+- DLT failure는 retention diff와 무관한 기존 timing 결함이었고 Issue #77에서 listener assignment 동기화로 해결됐습니다. 이 PR은 DLT production/test를 수정하지 않았습니다.
+
+### Change Scope
+
+- `RankingRebuildService`의 offset 0 거부 제거, `RankingRebuildServiceIntegrationTest`의 retained/lost retention 계약, Issue #14 evidence만 변경했습니다.
+- 최신 main merge에서는 #77 DLT test/evidence와 양쪽 verification-log 행만 반영했습니다.
+
+### Reverification
+
+- 최신 main 기준 focused 11 tests PASS, `BUILD SUCCESSFUL in 2m 34s`.
+- related ranking/Kafka 28 tests PASS, `BUILD SUCCESSFUL in 4m 57s`.
+- 전체 62 tests PASS, `BUILD SUCCESSFUL in 4m 53s`.
+- Level 5에서 earliest `1` recent 보존 success와 earliest/latest `2/2` actual recent loss의 DB mismatch fail-closed, live·normal offset 보존, temp/backup cleanup을 확인했습니다.
+
+### Role verification history
+
+- 두 번째 Review P1 한 건을 사용자가 마지막 제한 remediation으로 승인했습니다.
+- 반복 DLT failure는 Issue #77 blocker로 분리했고 #77 merge·close 뒤 같은 PR에서 검증을 재개했습니다.
+
+### Next Attempt
+
+- Fresh read-only Review와 independent QA.

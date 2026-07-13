@@ -27,7 +27,6 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.AlterConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
-import org.apache.kafka.clients.admin.ListOffsetsResult;
 import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -207,13 +206,6 @@ public class RankingRebuildService {
 				.map(info -> new TopicPartition(TOPIC, info.partition())).toList();
 		Map<TopicPartition, OffsetSpec> latest = partitions.stream()
 				.collect(Collectors.toMap(partition -> partition, partition -> OffsetSpec.latest()));
-		Map<TopicPartition, OffsetSpec> earliest = partitions.stream()
-				.collect(Collectors.toMap(partition -> partition, partition -> OffsetSpec.earliest()));
-		Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> beginnings = admin.listOffsets(earliest)
-				.all().get(10, TimeUnit.SECONDS);
-		if (beginnings.values().stream().anyMatch(info -> info.offset() > 0)) {
-			throw new RankingRebuildException("Kafka retention으로 earliest offset이 유실되어 rebuild할 수 없습니다");
-		}
 		return admin.listOffsets(latest).all().get(10, TimeUnit.SECONDS).entrySet().stream()
 				.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().offset()));
 	}

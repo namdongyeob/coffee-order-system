@@ -17,9 +17,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.NewPartitions;
+import org.apache.kafka.clients.admin.RecordsToDelete;
+import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -113,7 +114,7 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(5)
+	@Order(6)
 	void rebuildsThroughActualKafkaMysqlAndRedisThenMovesNormalGroupOffset() throws Exception {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
@@ -149,10 +150,25 @@ class RankingRebuildServiceIntegrationTest {
 
 	@Test
 	@Order(1)
-	void mismatchFailsWithoutChangingLiveKeysOrNormalOffsetsAndCleansTemporaryKeys() throws Exception {
+	void retainedRecentEventsRebuildWhenCurrentEarliestOffsetIsGreaterThanZero() throws Exception {
 		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
+		deleteBeforeCurrentEnds();
+		publish(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+
+		RankingRebuildResult result = service.rebuild();
+
+		assertThat(result.counts()).containsEntry(new RankingRebuildCount("2026-07-12", 1L), 1L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+	}
+
+	@Test
+	@Order(2)
+	void retentionLossOfRequiredRecentEventFailsAndPreservesLiveKeysAndNormalOffsets() throws Exception {
+		deleteBeforeCurrentEnds();
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
 
 		assertThatThrownBy(service::rebuild)
 				.isInstanceOf(RankingRebuildException.class)
@@ -160,10 +176,11 @@ class RankingRebuildServiceIntegrationTest {
 
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
 		assertThat(redis.keys("rebuild:popular:menus:*")).isEmpty();
+		assertThat(normalOffsets()).isEqualTo(before);
 	}
 
 	@Test
-	@Order(2)
+	@Order(3)
 	void distributedLockRejectsConcurrentRunner() {
 		redis.opsForValue().set(RankingRebuildLock.KEY, "other", Duration.ofMillis(100));
 		assertThat(rebuildLock.renew("other")).isTrue();
@@ -177,7 +194,7 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(3)
+	@Order(4)
 	void lostLeaseStopsBeforeSwapAndOffsetMutation() throws Exception {
 		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
 		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
@@ -195,7 +212,7 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(4)
+	@Order(5)
 	void activeNormalConsumerMemberBlocksRebuild() throws Exception {
 		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
 		Map<String, Object> properties = new HashMap<>();
@@ -218,7 +235,7 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(6)
+	@Order(7)
 	void partialOffsetMoveTimeoutRestoresAllOffsetsAndLiveRedis() throws Exception {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
@@ -245,7 +262,7 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(7)
+	@Order(8)
 	void compensationFailureReportsUncertainOffsetStateWithoutClaimingRollback() throws Exception {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
@@ -280,6 +297,26 @@ class RankingRebuildServiceIntegrationTest {
 				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
 			return admin.listConsumerGroupOffsets("ranking-consumer-group")
 					.partitionsToOffsetAndMetadata().get(10, TimeUnit.SECONDS);
+		}
+	}
+
+	private void deleteBeforeCurrentEnds() throws Exception {
+		try (AdminClient admin = AdminClient.create(Map.of(
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+			List<TopicPartition> partitions = admin.describeTopics(List.of("order.completed")).allTopicNames()
+					.get(10, TimeUnit.SECONDS).get("order.completed").partitions().stream()
+					.map(info -> new TopicPartition("order.completed", info.partition())).toList();
+			Map<TopicPartition, OffsetSpec> latest = partitions.stream()
+					.collect(java.util.stream.Collectors.toMap(partition -> partition, partition -> OffsetSpec.latest()));
+			Map<TopicPartition, org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo> ends =
+					admin.listOffsets(latest).all().get(10, TimeUnit.SECONDS);
+			Map<TopicPartition, RecordsToDelete> deletes = ends.entrySet().stream()
+					.filter(entry -> entry.getValue().offset() > 0)
+					.collect(java.util.stream.Collectors.toMap(Map.Entry::getKey,
+							entry -> RecordsToDelete.beforeOffset(entry.getValue().offset())));
+			if (!deletes.isEmpty()) {
+				admin.deleteRecords(deletes).all().get(10, TimeUnit.SECONDS);
+			}
 		}
 	}
 
