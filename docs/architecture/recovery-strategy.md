@@ -1,5 +1,16 @@
 # 복구 전략
 
+## Issue #14 maintenance rebuild 계약
+
+- 일반 `ranking-consumer-group`의 활성 member가 없는 maintenance window에서만 실행합니다.
+- Redis의 `ranking:rebuild:lock`을 획득한 runner 한 개만 실행합니다.
+- 시작 시 `Asia/Seoul` snapshot과 partition별 exclusive end offset을 고정합니다. `ranking-rebuild-group`의 committed offset은 무시하고 earliest부터 읽습니다.
+- 집계 범위는 `[snapshot - 7일, snapshot)`입니다. 이 범위와 교차하는 모든 날짜 key를 같은 temp/live 집합으로 다루므로 snapshot이 자정이 아니면 경계 날짜를 포함해 최대 8개가 될 수 있습니다.
+- replay와 같은 범위의 `PAID` 주문을 날짜·menuId별로 정확히 비교합니다. retention 유실, malformed event, timeout, 불일치는 fail-closed입니다.
+- 검증 전에는 실행별 temp namespace만 갱신합니다. 검증 성공 뒤 Lua 한 번으로 기존 live를 backup하고 temp를 교체합니다.
+- Redis 교체 뒤에만 정상 consumer group offset을 캡처한 end로 이동합니다. offset 이동 실패 시 live key를 복원하고 temp를 삭제합니다.
+- 매번 새 snapshot과 namespace를 사용하며 일반 `processed_event` 이력을 사용하지 않습니다.
+
 ## Redis 랭킹 유실
 
 Redis 랭킹 데이터는 파생 데이터입니다. 복구 후보는 다음과 같습니다.

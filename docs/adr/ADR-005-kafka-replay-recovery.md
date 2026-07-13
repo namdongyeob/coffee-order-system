@@ -1,5 +1,9 @@
 # ADR-005 Kafka Replay 복구
 
+## Issue #14 구현 결정
+
+Kafka replay 후보를 maintenance 전용 runner로 채택했습니다. online rebuild 대신 일반 consumer의 활성 member가 없음을 확인하고, earliest replay·고정 end offset·DB 정확 비교·Redis temp/backup Lua 교체·성공 후 정상 group offset 이동을 하나의 fail-closed 절차로 묶습니다.
+
 ## 상태와 결정일
 
 Challenge candidate. 결정일: 2026-07-09.
