@@ -23,9 +23,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.kafka.KafkaContainer;
@@ -40,6 +42,9 @@ class RankingEventConsumerDltIntegrationTest {
 	@Autowired
 	KafkaContainer kafkaContainer;
 
+	@Autowired
+	KafkaListenerEndpointRegistry listenerEndpointRegistry;
+
 	@MockitoBean
 	RankingEventProcessor processor;
 
@@ -50,6 +55,8 @@ class RankingEventConsumerDltIntegrationTest {
 				LocalDateTime.of(2026, 7, 12, 15, 30));
 		doThrow(new IllegalStateException("forced ranking failure"))
 				.when(processor).process(any(OrderCompletedEvent.class));
+		listenerEndpointRegistry.getListenerContainers().forEach(
+				container -> ContainerTestUtils.waitForAssignment(container, 1));
 
 		Map<String, Object> properties = KafkaTestUtils.consumerProps(
 				kafkaContainer.getBootstrapServers(), "issue-11-dlt-observer-" + UUID.randomUUID(), "false");
