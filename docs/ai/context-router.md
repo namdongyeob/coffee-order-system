@@ -75,6 +75,7 @@
 
 - [모델·도구 매핑](model-tooling-map.md). 서브에이전트별 모델 override나 실행 환경 CLI 문제를 다룰 때 Main Coordinator와 해당 역할이 읽습니다.
 - [하네스 지표와 이전](harness-metrics-and-transfer.md). 지표를 집계하거나 최종 프로젝트 이전을 준비할 때만 읽습니다.
+- [자율 큐 runbook](autonomous-queue-runbook.md). 이 저장소 한정 자율 Issue 큐 실험을 운영할 때 Main Coordinator만 읽습니다.
 
 ## 하네스 계약
 
