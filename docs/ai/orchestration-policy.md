@@ -66,7 +66,9 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 ### 경량 자율 큐 흐름
 
-고정 자율 Issue 큐는 새 자동화 엔진이나 별도 metadata recovery budget을 두지 않습니다. `Dev 구현·검증 -> PR 생성과 경량 preflight -> fresh Review -> independent QA -> Docs evidence 1회 동기화 -> final Review -> 최신 CI -> merge·close` 순서로 진행합니다. 아직 실행되지 않은 Review·QA 링크 또는 판정을 앞 단계에서 요구하지 않습니다.
+고정 자율 Issue 큐는 새 자동화 엔진이나 별도 metadata recovery budget을 두지 않습니다. fresh Review·QA·Docs는 전체 Dev 대화 대신 Issue URL, worktree 경로, base/head SHA, Acceptance Criteria, 필수 정본 문서 3~5개 경로, diff 범위와 직전 P0/P1 finding만 담은 경로 기반 최소 역할 packet을 받습니다. source 본문, 전체 conversation, `tasks/**/sources` 복사본은 packet과 저장소에 만들지 않으며 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.
+
+`Dev 구현·focused 검증과 evidence·PR body preflight -> fresh Review -> independent QA -> 최신 CI -> merge·close` 순서로 진행합니다. QA 뒤 repository HEAD가 바뀌지 않으면 post-QA Docs commit과 두 번째 전체 Review를 요구하지 않습니다. Review·QA·CI·현재 head·mergeable 같은 가변 상태는 GitHub comments/checks만 정본으로 사용하며 GitHub-only 갱신은 repository commit을 만들지 않습니다. QA 뒤 production, test, build, runtime, workflow, API·도메인 정책 문서가 바뀌면 Review와 필요한 QA는 stale입니다.
 
 정본은 다음처럼 한 곳씩만 둡니다.
 
@@ -78,7 +80,16 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 PR 생성 전 경량 preflight는 기본 evidence, Execution mode와 reason, Level 5/6 결정과 reason, 실제 command 결과, metrics 9열, 존재하지 않는 파일·실행하지 않은 명령 주장, 한국어 UTF-8 no-BOM body, 범위 밖 변경과 비밀값을 검사합니다. PR 본문에는 현재 head, CI·Review·QA·Gate 상태, Agent·retry 수, diff 통계, 파일 목록 또는 테스트 수를 복제하지 않습니다.
 
-Review APPROVED 뒤 independent QA를 실행하고, QA PASS 뒤 Docs Agent가 evidence를 한 번만 동기화합니다. QA head부터 현재 head까지의 변경이 해당 Issue evidence의 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`와 `docs/testing/verification-log.md`뿐이면 QA 판정은 유지하고 final Reviewer가 delta를 확인합니다. screenshot, binary, raw output, 임의 파일과 다른 Issue evidence를 포함해 이 고정 Markdown allowlist 밖 변경이 하나라도 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
+Review APPROVED 뒤 independent QA를 실행합니다. QA head부터 현재 head까지의 변경이 해당 Issue evidence의 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`와 `docs/testing/verification-log.md`뿐이면 QA 판정은 유지합니다. screenshot, binary, raw output, 임의 파일과 다른 Issue evidence를 포함해 이 고정 Markdown allowlist 밖 변경이 하나라도 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
+
+### 검증 소유권과 범위 밖 flaky
+
+- Dev는 변경 범위 focused 테스트를 실행합니다. DB migration, 공통 transaction, event payload, Kafka 공통 consumer 설정, security, build/test infrastructure처럼 영향 범위가 넓은 변경만 Dev 로컬 전체 회귀를 유지합니다.
+- QA는 Dev 명령을 반복하지 않고 실제 DB·Kafka·Redis·HTTP·운영 실패 경로처럼 독립적인 미검증 위험만 실행합니다.
+- GitHub Actions `quality-gates`는 전체 Level 1 회귀의 최종·단독 정본입니다.
+- 전체 회귀 실패가 current diff와 관련될 수 있으면 flaky 경로에 넣지 않고 현재 Issue 결함으로 처리합니다. 명확히 범위 밖인 기존 테스트만 clean process에서 1회 격리 실행합니다.
+- 격리 PASS와 current head CI PASS가 함께 있으면 flaky 후보를 기록하고 진행합니다. 격리 FAIL은 중복 검색 뒤 별도 blocker Issue와 test-only 원인 진단·조건 기반 동기화 1회까지만 허용하며 자동 merge하지 않습니다.
+- blocker에서 production 변경 필요, 원인 불명 또는 안정화 실패이면 안전 정지합니다. `BLOCKED` 상태는 외부 상태 변화나 사용자 승인 전에는 Agent dispatch, Review·QA 재실행 또는 wake-up 반복을 만들지 않습니다.
 
 metadata 오탈자는 final Review 전에 Docs Agent가 테스트 수, Agent 수, evidence 링크, verification-log 행, 존재하지 않는 PR 파일 참조와 metrics 계산만 정본에 따라 한 번 정리합니다. 별도 budget이나 상태 머신은 없으며, 정본이 충돌하거나 계산할 수 없을 때만 안전 정지합니다. 코드·정책·보안·데이터 P0/P1은 원래 Dev에게 한 번 반환하고 두 번째 P0/P1은 안전 정지합니다. 완료 기준을 위반하지 않는 P2는 비차단 권고 또는 후속 Issue로 남깁니다.
 

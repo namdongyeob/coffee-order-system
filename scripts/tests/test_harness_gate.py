@@ -627,6 +627,98 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_minimal_role_packet_with_required_references_passes(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "12개 계약 테스트를 반영합니다.",
+			"required_documents": ["AGENTS.md", "docs/ai/orchestration-policy.md"],
+			"diff_scope": "scripts/harness_gate.py와 직접 harness 단위 테스트",
+			"previous_p0_p1_finding": "없음",
+		}
+
+		self.assertEqual([], harness_gate.validate_role_packet(packet))
+
+	def test_role_packet_rejects_inlined_source_or_conversation(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "본문",
+			"required_documents": ["AGENTS.md"],
+			"diff_scope": "scripts/",
+			"source_contents": "def copied_source(): pass",
+			"conversation": "전체 대화 로그",
+		}
+
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(2, len(errors))
+		self.assertIn("source_contents", errors[0])
+		self.assertIn("conversation", errors[1])
+
+	def test_unchanged_repository_after_qa_needs_no_docs_commit_or_second_review(self):
+		self.assertEqual(
+			{"docs_commit_required": False, "full_review_required": False, "qa_stale": False},
+			harness_gate.post_qa_requirements(repository_changed=False, changed_paths=[]),
+		)
+
+	def test_runtime_or_policy_change_after_qa_stales_review_and_qa(self):
+		for path in ("src/main/java/App.java", "build.gradle", "docs/ai/orchestration-policy.md"):
+			with self.subTest(path=path):
+				self.assertEqual(
+					{"docs_commit_required": False, "full_review_required": True, "qa_stale": True},
+					harness_gate.post_qa_requirements(repository_changed=True, changed_paths=[path]),
+				)
+
+	def test_github_only_state_update_does_not_require_repository_commit(self):
+		self.assertFalse(harness_gate.github_state_requires_repository_commit())
+
+	def test_verification_owners_are_separated(self):
+		self.assertEqual("Dev", harness_gate.verification_owner("focused", broad_risk=False))
+		self.assertEqual("QA", harness_gate.verification_owner("independent-risk", broad_risk=False))
+		self.assertEqual("CI", harness_gate.verification_owner("full-regression", broad_risk=False))
+
+	def test_broad_risk_change_keeps_dev_full_regression(self):
+		self.assertEqual("Dev", harness_gate.verification_owner("full-regression", broad_risk=True))
+
+	def test_current_diff_related_failure_cannot_enter_flaky_path(self):
+		self.assertEqual(
+			"current-issue-defect",
+			harness_gate.flaky_next_action(diff_related=True, isolated_result=None, ci_passed=None, blocker_state=None),
+		)
+
+	def test_out_of_scope_isolation_pass_and_ci_pass_continue_issue(self):
+		self.assertEqual(
+			"continue-with-flaky-candidate",
+			harness_gate.flaky_next_action(diff_related=False, isolated_result="PASS", ci_passed=True, blocker_state=None),
+		)
+
+	def test_out_of_scope_isolation_failure_creates_test_only_blocker(self):
+		self.assertEqual(
+			"create-test-only-blocker",
+			harness_gate.flaky_next_action(diff_related=False, isolated_result="FAIL", ci_passed=None, blocker_state=None),
+		)
+
+	def test_unresolved_or_production_blocker_safely_stops(self):
+		for blocker_state in ("production-change-required", "cause-unknown", "stabilization-failed"):
+			with self.subTest(blocker_state=blocker_state):
+				self.assertEqual(
+					"blocked-safe-stop",
+					harness_gate.flaky_next_action(
+						diff_related=False,
+						isolated_result="FAIL",
+						ci_passed=None,
+						blocker_state=blocker_state,
+					),
+				)
+
+	def test_blocked_without_external_change_does_not_repeat_dispatch_or_verification(self):
+		self.assertFalse(harness_gate.blocked_wakeup_requires_work(external_state_changed=False))
+
 	def test_new_pr_can_reach_review_without_future_role_links(self):
 		self.assertTrue(
 			harness_gate.pre_review_ready(

@@ -78,6 +78,18 @@ QA_PRESERVING_EVIDENCE_FILES = frozenset(
         "metrics.md",
     }
 )
+ROLE_PACKET_REQUIRED_FIELDS = frozenset(
+    {
+        "issue_url",
+        "worktree_path",
+        "base_sha",
+        "head_sha",
+        "acceptance_criteria",
+        "required_documents",
+        "diff_scope",
+    }
+)
+ROLE_PACKET_FORBIDDEN_FIELDS = ("source_contents", "conversation", "source_snapshot")
 
 
 def pre_review_ready(*, dev_verified: bool, evidence_ready: bool, pr_body_preflight_passed: bool) -> bool:
@@ -93,6 +105,67 @@ def strict_agent_role_count(roles: list[str]) -> int:
 def required_evidence_exists(file_names: list[str] | tuple[str, ...]) -> bool:
     """Return whether the lightweight preflight has every base evidence file."""
     return set(REQUIRED_EVIDENCE_FILES).issubset(file_names)
+
+
+def validate_role_packet(packet: dict[str, object]) -> list[str]:
+    """Reject incomplete packets and copied source or conversation payloads."""
+    errors = [
+        f"missing role packet field: {field}"
+        for field in sorted(ROLE_PACKET_REQUIRED_FIELDS)
+        if not packet.get(field)
+    ]
+    errors.extend(
+        f"forbidden role packet field: {field}"
+        for field in ROLE_PACKET_FORBIDDEN_FIELDS
+        if field in packet
+    )
+    return errors
+
+
+def post_qa_requirements(*, repository_changed: bool, changed_paths: list[str]) -> dict[str, bool]:
+    """Require fresh Review and QA only after a repository change following QA."""
+    stale = repository_changed and bool(changed_paths)
+    return {
+        "docs_commit_required": False,
+        "full_review_required": stale,
+        "qa_stale": stale,
+    }
+
+
+def github_state_requires_repository_commit() -> bool:
+    """Keep mutable Review, QA, CI, and mergeability state in GitHub only."""
+    return False
+
+
+def verification_owner(verification: str, *, broad_risk: bool) -> str:
+    """Separate focused Dev work, independent QA risk checks, and CI regression."""
+    if verification == "full-regression":
+        return "Dev" if broad_risk else "CI"
+    if verification == "focused":
+        return "Dev"
+    if verification == "independent-risk":
+        return "QA"
+    raise ValueError(f"unknown verification type: {verification}")
+
+
+def flaky_next_action(
+    *, diff_related: bool, isolated_result: str | None, ci_passed: bool | None, blocker_state: str | None
+) -> str:
+    """Keep current-diff failures out of the bounded out-of-scope flaky path."""
+    if diff_related:
+        return "current-issue-defect"
+    if blocker_state in {"production-change-required", "cause-unknown", "stabilization-failed"}:
+        return "blocked-safe-stop"
+    if isolated_result == "PASS" and ci_passed:
+        return "continue-with-flaky-candidate"
+    if isolated_result == "FAIL":
+        return "create-test-only-blocker"
+    return "blocked-safe-stop"
+
+
+def blocked_wakeup_requires_work(*, external_state_changed: bool) -> bool:
+    """Prevent repeated dispatch and verification while a blocker is unchanged."""
+    return external_state_changed
 
 
 def qa_remains_valid(

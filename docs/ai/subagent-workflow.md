@@ -11,4 +11,17 @@
 | Docs Agent | 확정된 검증 명령과 결과, Issue evidence 위치, 허용 문서 범위 | evidence와 verification log 반영 파일, 기록한 결과, 남은 위험 |
 | Main Coordinator | 역할별 보고, evidence 존재 여부, CI 상태 | 선택 mode 충족 여부와 다음 역할에 전달할 최소 상태 |
 
-모든 역할은 전체 대화 fork, 전체 attempt-log, 전체 테스트 출력 대신 Issue, AC, 직접 문서, 허용 범위, 명령, 마지막 `Next Attempt`만 전달합니다.
+## 최소 역할 packet 템플릿
+
+```text
+Issue URL: <live issue URL>
+worktree 경로: <absolute path>
+base SHA: <base SHA>
+head SHA: <head SHA>
+Acceptance Criteria: <short criteria>
+필수 문서 경로: <3~5 canonical paths>
+Diff 범위: <allowed paths and exclusions>
+직전 P0/P1 finding: <finding or 없음>
+```
+
+모든 역할은 위 packet과 필요한 focused 명령, 마지막 `Next Attempt`만 전달합니다. source 본문, 전체 대화 fork, 전체 attempt-log, 전체 테스트 출력, `tasks/**/sources` 복사본을 전달하거나 만들지 않습니다. 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.
