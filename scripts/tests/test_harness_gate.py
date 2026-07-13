@@ -698,6 +698,36 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertEqual(1, len(errors))
 		self.assertIn("canonical", errors[0])
 
+	def test_role_packet_rejects_duplicate_or_missing_canonical_documents(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "본문",
+			"required_documents": [
+				"AGENTS.md",
+				"docs/ai/orchestration-policy.md",
+				"docs/ai/orchestration-policy.md",
+			],
+			"diff_scope": "scripts/",
+		}
+
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("distinct", errors[0])
+
+		packet["required_documents"] = [
+			"AGENTS.md",
+			"docs/ai/orchestration-policy.md",
+			"docs/ai/not-a-real-policy.md",
+		]
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("existing", errors[0])
+
 	def test_unchanged_repository_after_qa_needs_no_docs_commit_or_second_review(self):
 		self.assertEqual(
 			{"docs_commit_required": False, "full_review_required": False, "qa_stale": False},
@@ -780,6 +810,7 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_strict_agent_count_uses_unique_roles_only(self):
 		roles = ["Dev", "Review", "QA", "Docs", "Main Coordinator", "CI", "Review"]
 		self.assertEqual(4, harness_gate.strict_agent_role_count(roles))
+		self.assertEqual(3, harness_gate.strict_agent_role_count(["Dev", "Review", "QA", "CI"]))
 
 	def test_missing_evidence_file_fails_lightweight_preflight(self):
 		self.assertFalse(harness_gate.required_evidence_exists(["commands.md"]))
@@ -961,7 +992,7 @@ class OrchestrationContractTest(unittest.TestCase):
 			"필수 Dev verification이 PASS입니다.",
 			"fresh Reviewer 최종 판정이 `APPROVED`입니다.",
 			"독립 QA가 필요한 검증 Level을 `PASS`로 판정했습니다.",
-			"Docs evidence와 실제 역할 보고·명령·수치가 일치합니다.",
+			"evidence와 실제 역할 보고·명령·수치가 일치하며, Docs Agent를 호출했다면 그 반영도 일치합니다.",
 			"required CI checks가 최신 head SHA에서 모두 PASS입니다.",
 			"Review가 확인한 head SHA와 merge 직전 head SHA가 같습니다.",
 			"PR base가 `main`이고 최신 `origin/main` 기준 merge 가능하며 conflict가 없습니다.",
@@ -1022,9 +1053,13 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertRegex(policy, r"`SOLO`.*문서 전용.*Solo Agent 한 명")
 		self.assertRegex(policy, r"`STANDARD`.*Dev Agent.*Combined Verifier.*CI")
 		self.assertNotRegex(policy, r"`STANDARD`[^\n]*Docs Agent")
-		self.assertRegex(
-			policy, r"`STRICT`.*Dev Agent.*Review Agent.*QA Agent.*Docs Agent.*CI"
+		self.assertRegex(policy, r"`STRICT`.*Dev Agent.*Review Agent.*QA Agent.*CI")
+		self.assertNotRegex(policy, r"`STRICT`.*Docs Agent.*CI")
+		self.assertIn(
+			"Dev가 PR 전 evidence를 완성한 STRICT 흐름에서는 Docs Agent를 기본 dispatch하지 않습니다.",
+			policy,
 		)
+		self.assertIn("metadata 불일치가 있을 때만", policy)
 		self.assertIn("실행 모드별 역할 구성은 `docs/ai/orchestration-policy.md`", agent_rules)
 		self.assertNotIn("Combined Verifier", agent_rules)
 

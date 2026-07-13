@@ -7,7 +7,7 @@ Measured at: 2026-07-13
 
 | 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| STRICT | 4 | 1 | 1 | 0 | 1 | 0 | 0 | 5 |
+| STRICT | 3 | 1 | 1 | 0 | 1 | 0 | 0 | 5 |
 
 ## Pilot 전 비교 기준과 수집 가능 지표
 
@@ -19,6 +19,6 @@ Measured at: 2026-07-13
 
 ## 측정 근거
 
-- Agent 수 4는 STRICT의 Dev, Review, QA, Docs 고유 역할이며 Main Coordinator와 CI 및 같은 역할 재시도는 제외합니다.
+- Agent 수 3은 이번 STRICT의 Dev, Review, QA 고유 역할이며 Main Coordinator와 CI 및 같은 역할 재시도는 제외합니다. Dev가 PR 전 evidence를 완성했고 metadata 불일치가 없어 Docs Agent는 dispatch하지 않았습니다.
 - 작업 시간은 Generate `2026-07-13T15:30:36.9501401+09:00`부터 repository gate와 diff 검사 종료 직후 `2026-07-13T15:31:37.1950448+09:00`까지 1분 0.2449047초를 정수 형식에 맞춰 1분으로 반올림한 실측값입니다.
 - P1 Review finding 1건으로 허용된 remediation 1회를 수행했습니다. QA 결함과 범위 밖 변경 파일은 0건입니다.

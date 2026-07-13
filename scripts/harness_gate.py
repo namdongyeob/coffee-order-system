@@ -91,6 +91,7 @@ ROLE_PACKET_REQUIRED_FIELDS = frozenset(
 )
 ROLE_PACKET_ALLOWED_FIELDS = ROLE_PACKET_REQUIRED_FIELDS.union({"previous_p0_p1_finding"})
 ROLE_PACKET_DOCUMENT_PATH_PATTERN = re.compile(r"^(?:AGENTS\.md|docs/(?:ai|testing)/[^/]+\.md|\.codex/skills/[^/]+/SKILL\.md)$")
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def pre_review_ready(*, dev_verified: bool, evidence_ready: bool, pr_body_preflight_passed: bool) -> bool:
@@ -129,6 +130,10 @@ def validate_role_packet(packet: dict[str, object]) -> list[str]:
         for document in documents
     ):
         errors.append("role packet requires only canonical document paths.")
+    elif len(set(documents)) != len(documents):
+        errors.append("role packet requires distinct canonical document paths.")
+    elif any(not (REPOSITORY_ROOT / document).is_file() for document in documents):
+        errors.append("role packet requires existing canonical document paths.")
     return errors
 
 

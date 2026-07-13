@@ -53,7 +53,9 @@ Branch: codex/issue-78-harness-lightweight
 
 ### Reverification
 
-- focused packet contract 3 tests는 PASS했습니다. 전체 harness와 repository gate, diff, actual PR body preflight는 최종 실행 뒤 기록합니다.
+- P0 remediation RED는 중복 canonical 문서 경로와 기본 Docs dispatch가 각각 실패한 것으로 확인했습니다.
+- focused orchestration contract 42 tests와 전체 harness 90 tests가 PASS했습니다.
+- repository gate, `git diff --check`, actual PR body preflight는 최종 실행 뒤 같은 head에서 기록합니다.
 
 ### Next Attempt
 

@@ -8,7 +8,7 @@
 | Combined Verifier | Dev diff, Issue와 AC, focused verification 명령, evidence 위치 | 독립 검토·검증 결과, 발견한 위험, Dev 반환 범위 또는 PASS, 다음 Attempt |
 | Review Agent | Dev diff, Issue와 AC, Review Gate, 변경 영역의 직접 문서 | 요구사항·회귀·테스트·추상화·문서 품질 판정, Dev 반환 범위 또는 Follow-up Issue 후보 |
 | QA Agent | Dev 결과, Issue evidence, 필요한 검증 명령과 환경 조건 | PASS/FAIL/BLOCKED/PARTIAL, 실행 결과, 미검증 Level과 이유, evidence 누락, Dev 반환 범위 또는 Follow-up Issue 후보 |
-| Docs Agent | 확정된 검증 명령과 결과, Issue evidence 위치, 허용 문서 범위 | evidence와 verification log 반영 파일, 기록한 결과, 남은 위험 |
+| Docs Agent | Dev evidence와 정본의 metadata 불일치, 확정된 검증 명령과 결과, Issue evidence 위치, 허용 문서 범위 | metadata 불일치 정리 파일, 기록한 결과, 남은 위험. 불일치가 없으면 dispatch하지 않습니다. |
 | Main Coordinator | 역할별 보고, evidence 존재 여부, CI 상태 | 선택 mode 충족 여부와 다음 역할에 전달할 최소 상태 |
 
 ## 최소 역할 packet 템플릿

@@ -38,7 +38,7 @@
 - Combined Verifier는 독립 focused verification을 실행합니다.
 - Review Agent는 테스트를 재실행하지 않습니다. 대신 diff, 요구사항, 설계 경계, 테스트 케이스 누락을 검토합니다.
 - QA Agent는 Dev와 독립적으로 필요한 focused test와 Level 3~6 실제 검증을 실행하고 결과를 보고합니다. STRICT에서 QA는 Level 1 전체 회귀 smoke를 로컬에서 재실행하지 않습니다.
-- Docs Agent는 확정된 검증 명령과 결과를 evidence와 verification-log에 옮깁니다. 결과를 추측하거나 다시 실행하지 않습니다.
+- Dev가 PR 전 evidence를 완성한 뒤 metadata 불일치가 확인된 경우에만 Docs Agent가 확정된 검증 명령과 결과를 evidence와 verification-log에 옮깁니다. 결과를 추측하거나 다시 실행하지 않습니다.
 - Main Coordinator는 테스트를 실행하거나 결과 내용을 재판정하지 않고 선택된 모드의 독립 검증 보고와 GitHub Actions 상태의 존재만 확인합니다.
 - GitHub Actions `quality-gates`가 컴파일과 전체 Level 1 회귀의 최종·단독 독립 기계적 gate입니다. CI가 unavailable, pending 또는 FAIL이면 QA의 focused 또는 Level 3~6 PASS로 대체할 수 없으며 PR은 blocked 상태를 유지합니다.
 - 같은 워크스페이스에서 Gradle 테스트를 병렬 실행하지 않습니다. 병렬 실행이 필요하면 별도 worktree 또는 별도 build directory를 사용합니다.
