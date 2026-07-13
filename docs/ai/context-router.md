@@ -69,6 +69,14 @@
 - 제외. 애플리케이션 코드, build·infra 설정, 도메인·ADR 문서는 하네스 계약이 직접 참조하지 않으면 읽지 않습니다.
 - 추가 탐색. 필수 문서 사이에 실행 주체·Gate·evidence 계약 충돌이 있을 때만 [규칙 정본 지도](rule-source-map.md)에서 충돌한 정본을 찾아 한 단계 확장합니다.
 
+## 조건부 참조 문서
+
+핵심 실행 계약에서 분리한 아래 문서는 기본 역할 packet이나 공통 hot path에 포함하지 않고 해당 조건에서만 읽습니다.
+
+- [모델·도구 매핑](model-tooling-map.md). 서브에이전트별 모델 override나 실행 환경 CLI 문제를 다룰 때 Main Coordinator와 해당 역할이 읽습니다.
+- [하네스 지표와 이전](harness-metrics-and-transfer.md). 지표를 집계하거나 최종 프로젝트 이전을 준비할 때만 읽습니다.
+- [자율 큐 runbook](autonomous-queue-runbook.md). 이 저장소 한정 자율 Issue 큐 실험을 운영할 때 Main Coordinator만 읽습니다.
+
 ## 하네스 계약
 
 이 문서에 선언한 저장소 상대 Markdown 링크는 [harness gate](../../scripts/harness_gate.py)가 `--check-links` 또는 `--links-only` 실행 때 존재 여부를 검사합니다. 경로를 추가·변경할 때는 성공과 의도된 누락 실패를 [harness 단위 테스트](../../scripts/tests/test_harness_gate.py)로 함께 검증합니다.

@@ -1210,14 +1210,14 @@ class OrchestrationContractTest(unittest.TestCase):
 
 	def test_fixed_autonomous_queue_experiment_contract_is_pinned(self):
 		repository_root = Path(__file__).resolve().parents[2]
-		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
-			encoding="utf-8"
-		)
+		runbook = (
+			repository_root / "docs" / "ai" / "autonomous-queue-runbook.md"
+		).read_text(encoding="utf-8")
 		agent_rules = (repository_root / "docs" / "ai" / "agent-rules.md").read_text(
 			encoding="utf-8"
 		)
 
-		policy_requirements = (
+		runbook_requirements = (
 			"`namdongyeob/coffee-order-system`만 적용합니다.",
 			"#61 -> #45 -> #55 -> #11 -> #21 -> #12 -> #13 -> #14 -> #15 -> #16 -> #51 -> #52 -> #53 -> #54 -> #56 -> #57 -> #58 -> #36",
 			"한 번에 Issue 하나와 production/test 작성자 한 명만 허용합니다.",
@@ -1248,14 +1248,36 @@ class OrchestrationContractTest(unittest.TestCase):
 			"required check·branch protection·GitHub API 상태를 확실히 확인할 수 없음.",
 			"프로젝트 정책과 Main Coordinator의 운영 결정이며 GitHub branch protection 또는 ruleset 변경이 아닙니다.",
 		)
-		for requirement in policy_requirements:
+		for requirement in runbook_requirements:
 			with self.subTest(requirement=requirement):
-				self.assertIn(requirement, policy)
+				self.assertIn(requirement, runbook)
 
 		self.assertIn(
 			"고정 자율 Issue 큐 실험 밖에서는 사람이 PR merge와 Issue close를 결정합니다.",
 			agent_rules,
 		)
+
+	def test_core_contract_pins_ci_ground_truth_and_merge_governance(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		policy = (repository_root / "docs" / "ai" / "orchestration-policy.md").read_text(
+			encoding="utf-8"
+		)
+		runbook = (
+			repository_root / "docs" / "ai" / "autonomous-queue-runbook.md"
+		).read_text(encoding="utf-8")
+
+		self.assertIn(
+			"machine ground truth는 현재 PR head의 GitHub Actions CI run conclusion",
+			policy,
+		)
+		self.assertIn("기본 merge 거버넌스는 사람 도메인 오너의 최종 merge 승인", policy)
+		self.assertIn("AI는 1차 결함 탐지와 독립 검증을 담당", policy)
+		self.assertIn("`STRICT-lite` 등 새 실행 등급은 추가하지 않습니다", policy)
+		# 조건부 문서 분리와 evidence-guide 단일 정본 참조로 도달한 실측 safe floor.
+		# 남은 본문은 모드·역할·동시성·거버넌스·동결 등 더 줄일 수 없는 핵심 안전 규칙이다.
+		# 회귀 방지용 상한이며, 안전 규칙을 밀어내지 않는 추가 감축이 생기면 더 낮춘다.
+		self.assertLessEqual(len(policy.encode("utf-8")), 15360)
+		self.assertIn("`namdongyeob/coffee-order-system`만 적용합니다.", runbook)
 
 	def test_execution_modes_keep_sources_separated(self):
 		repository_root = Path(__file__).resolve().parents[2]
