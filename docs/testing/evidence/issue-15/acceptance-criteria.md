@@ -29,4 +29,4 @@ Level 6 reason: 공개 HTTP API를 추가하거나 변경하지 않습니다.
 
 ## 현재 판정
 
-- PASS. execution head `a49e0103d938f8f078601afb4502e04a5f7ded73`의 상세 검증 결과는 `verification.md`를 정본으로 확인합니다.
+- PASS. execution head `a49e0103d938f8f078601afb4502e04a5f7ded73`의 필수 Level 4·5 상세 검증 결과는 `verification.md`를 정본으로 확인합니다. 이후 전체 Gradle 시도는 terminal 결과 없이 중단된 PARTIAL 관찰이며, 이를 PASS 또는 FAIL로 해석하지 않습니다.
