@@ -67,8 +67,9 @@ VERIFICATION_LOG_COLUMNS = (
 )
 VALID_VERIFICATION_LEVELS = tuple(f"Level {level}" for level in range(8))
 VALID_VERIFICATION_RESULTS = ("PASS", "FAIL", "PARTIAL")
+VERIFICATION_LOG_HEADER = "# 검증 로그\n\n| " + " | ".join(VERIFICATION_LOG_COLUMNS) + " |\n| " + " | ".join("---" for _ in VERIFICATION_LOG_COLUMNS) + " |\n"
 STRICT_AGENT_ROLES = frozenset({"Dev", "Review", "QA", "Docs"})
-QA_PRESERVING_DOCS = frozenset({"docs/testing/verification-log.md"})
+QA_PRESERVING_DOCS = frozenset()
 QA_PRESERVING_EVIDENCE_FILES = frozenset(
     {
         "acceptance-criteria.md",
@@ -76,6 +77,7 @@ QA_PRESERVING_EVIDENCE_FILES = frozenset(
         "commands.md",
         "manual-qa.md",
         "metrics.md",
+        "verification.md",
     }
 )
 ROLE_PACKET_REQUIRED_FIELDS = frozenset(
@@ -422,6 +424,34 @@ def validate_metrics(markdown: str, path: Path | None = None) -> list[str]:
     return errors
 
 
+def verification_file_path(issue: int) -> Path:
+    """Return the Issue-local verification source path relative to the repository root."""
+    return Path("docs") / "testing" / "evidence" / f"issue-{issue}" / "verification.md"
+
+
+def verification_source_files(repository_root: Path) -> list[Path]:
+    """Return every committed verification source in deterministic path order."""
+    evidence_root = repository_root / "docs" / "testing" / "evidence"
+    return sorted(evidence_root.glob("**/verification.md"), key=lambda path: path.as_posix())
+
+
+def rebuild_verification_log(repository_root: Path) -> str:
+    """Render the uncommitted global view from Issue-local and legacy sources."""
+    rows: list[str] = []
+    for source in verification_source_files(repository_root):
+        lines = source.read_text(encoding="utf-8").splitlines()
+        header = "| " + " | ".join(VERIFICATION_LOG_COLUMNS) + " |"
+        try:
+            start = next(index for index, line in enumerate(lines) if line.strip() == header) + 2
+        except StopIteration:
+            continue
+        rows.extend(
+            line for line in lines[start:]
+            if line.strip() and line.lstrip().startswith("|")
+        )
+    return VERIFICATION_LOG_HEADER + "\n".join(rows) + ("\n" if rows else "")
+
+
 def _verification_rows(markdown: str) -> tuple[list[dict[str, str]], list[str]]:
     lines = markdown.splitlines()
     expected_header = "| " + " | ".join(VERIFICATION_LOG_COLUMNS) + " |"
@@ -568,9 +598,9 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
         attempt_log = attempt_log_path.read_text(encoding="utf-8")
         errors.extend(validate_attempt_log(attempt_log, attempt_log_path))
 
-    verification_log = repository_root / "docs" / "testing" / "verification-log.md"
+    verification_log = repository_root / verification_file_path(issue)
     if not verification_log.is_file():
-        errors.append(f"ERROR: missing verification log: {verification_log}")
+        errors.append(f"ERROR: missing Issue verification source: {verification_log}")
     else:
         errors.extend(
             validate_verification_log(

@@ -51,14 +51,14 @@
 ### QA
 
 - 필수. [QA Gate](qa-gate.md), [테스트 전략](../testing/test-strategy.md), [evidence 안내](../testing/evidence-guide.md), [실행 모드와 역할](orchestration-policy.md)을 읽습니다.
-- 조건부. 실제 변경 영역의 개발 hot path와 기존 [검증 로그](../testing/verification-log.md)를 추가합니다.
+- 조건부. 실제 변경 영역의 개발 hot path와 대상 Issue의 `verification.md`를 추가합니다.
 - 제외. 구현과 무관한 ADR·도메인 문서는 읽지 않습니다.
 - 추가 탐색. 필수 검증 Level의 근거가 불명확할 때 [요구사항](../product/requirements.md)을 추가합니다.
 
 ### Docs와 evidence
 
 - 필수. [evidence 안내](../testing/evidence-guide.md), [규칙 정본 지도](rule-source-map.md), [완료 전 검사 목록](issue-completion-checklist.md), [실행 모드와 역할](orchestration-policy.md)을 읽습니다.
-- 조건부. 대상 Issue의 evidence, [검증 로그](../testing/verification-log.md), 변경된 hot path 정본을 추가합니다.
+- 조건부. 대상 Issue의 evidence와 `verification.md`, 변경된 hot path 정본을 추가합니다.
 - 제외. 구현 코드와 전체 도메인 문서는 evidence에 필요한 근거가 없으면 읽지 않습니다.
 - 추가 탐색. evidence와 실제 명령·결과가 일치하지 않을 때 해당 명령의 소유 문서와 변경 diff만 추가합니다.
 

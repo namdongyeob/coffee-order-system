@@ -1,0 +1,6 @@
+# 검증 로그
+
+| 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-07-12 | Issue #55 evidence guide policy | Level 0 | PASS | Documentation and static contract | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest`; `python scripts/harness_gate.py --issue 55 --branch codex/issue-55-metrics-automation --base-ref origin/main --check-links`; `git diff --check` | Minimum PR body, timestamp recording, temporary-file preflight, and `--body-file` procedure are documented and contract-tested. Level 5/6 are not required. |
+| 2026-07-12 | Issue #55 evidence guide remediation | Level 0 | PASS | Fixed wording contract and evidence reconciliation | `python -m unittest scripts.tests.test_harness_gate.OrchestrationContractTest`; `python scripts/harness_gate.py --issue 55 --branch codex/issue-55-metrics-automation --base-ref origin/main --check-links`; `git diff --check` | The contract now pins `미측정`, repository-external temporary body, same passing `--body-file`, inline-shell prohibition, retained checklist evidence, and PR decision/gate-status wording. The PowerShell UTF-8 parameter observation is a command compatibility issue, not a product defect. |

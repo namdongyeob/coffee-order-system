@@ -8,7 +8,7 @@ git config --local --get core.hooksPath
 ```
 
 - `pre-commit`: `main`과 `master` 직접 커밋을 차단합니다.
-- `pre-push`: branch 이름의 `issue-N`을 읽어 evidence, verification-log, 변경 Markdown 링크를 검사합니다.
+- `pre-push`: branch 이름의 `issue-N`을 읽어 evidence, Issue별 `verification.md`, 변경 Markdown 링크를 검사합니다.
 - Git 표준 옵션 `--no-verify`로 훅을 우회할 수 있지만, 긴급 상황에서만 사용하고 우회 이유와 재검증 결과를 PR에 남깁니다.
 
 ## 하네스 검사
@@ -19,7 +19,9 @@ python scripts/harness_gate.py --issue 23 --base-ref origin/main --check-links -
 python scripts/harness_gate.py --links-only --base-ref origin/main
 ```
 
-검사 항목은 Level 5/6 결정과 이유, Attempt 필수 섹션, Issue 검증 로그, 변경 Markdown의 상대 링크입니다. 실패 항목이 있으면 구체적인 경로와 누락 필드를 출력하고 종료 코드 1을 반환합니다.
+검사 항목은 Level 5/6 결정과 이유, Attempt 필수 섹션, Issue별 검증 정본, 변경 Markdown의 상대 링크입니다. 실패 항목이 있으면 구체적인 경로와 누락 필드를 출력하고 종료 코드 1을 반환합니다.
+
+전역 검증 뷰는 커밋하지 않습니다. 필요할 때 `python scripts/rebuild_verification_log.py`로 표준 출력에 재현합니다.
 
 ## workspace 제한으로 Codex CLI 시작
 

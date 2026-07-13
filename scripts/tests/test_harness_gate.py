@@ -1,5 +1,6 @@
 # 하네스 품질 게이트의 성공과 실패 조건을 검증하는 테스트
 import io
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -164,7 +165,7 @@ def write_issue_evidence(
 	(evidence / "commands.md").write_text("# Commands\n- unittest: PASS\n", encoding="utf-8")
 	(evidence / "manual-qa.md").write_text("# Manual QA\n- harness: PASS\n", encoding="utf-8")
 	(evidence / "metrics.md").write_text(VALID_METRICS, encoding="utf-8")
-	verification_path = root / "docs" / "testing" / "verification-log.md"
+	verification_path = evidence / "verification.md"
 	verification_path.write_text(verification, encoding="utf-8")
 
 
@@ -262,7 +263,7 @@ class EvidenceValidationTest(unittest.TestCase):
 			(evidence / "attempt-log.md").write_text(VALID_ATTEMPT, encoding="utf-8")
 			(evidence / "commands.md").write_text("# Commands\n", encoding="utf-8")
 			(evidence / "manual-qa.md").write_text("# Manual QA\n", encoding="utf-8")
-			verification = root / "docs" / "testing" / "verification-log.md"
+			verification = evidence / "verification.md"
 			verification.write_text(
 				verification_log(
 					"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
@@ -289,7 +290,7 @@ class EvidenceValidationTest(unittest.TestCase):
 				"# Manual QA\n- main branch guard: PASS\n", encoding="utf-8"
 			)
 			(evidence / "metrics.md").write_text(VALID_METRICS, encoding="utf-8")
-			verification = root / "docs" / "testing" / "verification-log.md"
+			verification = evidence / "verification.md"
 			verification.write_text(
 				verification_log(
 					"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
@@ -481,19 +482,73 @@ class VerificationLogValidationTest(unittest.TestCase):
 					errors = harness_gate.validate_issue_evidence(root, 23)
 					self.assertTrue(any("Issue #23 required Level 6 PASS" in error for error in errors))
 
-	def test_repository_verification_log_is_normalized(self):
-		repository_root = Path(__file__).resolve().parents[2]
-		markdown = (repository_root / "docs" / "testing" / "verification-log.md").read_text(
-			encoding="utf-8"
+	def test_issue_evidence_requires_issue_local_verification_file(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-10 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | 완료 |"
+				),
+			)
+			(root / "docs" / "testing" / "evidence" / "issue-23" / "verification.md").unlink()
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("verification.md" in error for error in errors))
+
+	def test_issue_local_verification_path_prevents_parallel_issue_file_conflicts(self):
+		self.assertEqual(
+			Path("docs/testing/evidence/issue-51/verification.md"),
+			harness_gate.verification_file_path(51),
 		)
+		self.assertNotEqual(
+			harness_gate.verification_file_path(51),
+			harness_gate.verification_file_path(52),
+		)
+
+	def test_two_branch_fixture_has_no_common_verification_source_file(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			repository = Path(temp_dir)
+			def git(*args: str) -> str:
+				return subprocess.run(
+					["git", *args], cwd=repository, text=True, check=True,
+					stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+				).stdout
+
+			git("init", "--initial-branch=main")
+			git("config", "user.email", "fixture@example.test")
+			git("config", "user.name", "fixture")
+			(repository / "README.md").write_text("fixture\n", encoding="utf-8")
+			git("add", "README.md")
+			git("commit", "-m", "fixture base")
+
+			for issue in (51, 52):
+				branch = f"issue-{issue}"
+				git("switch", "-c", branch, "main")
+				path = repository / harness_gate.verification_file_path(issue)
+				path.parent.mkdir(parents=True, exist_ok=True)
+				path.write_text(verification_log(
+					f"| 2026-07-13 | Issue #{issue} | Level 0 | PASS | fixture | `command` | preserved |"
+				), encoding="utf-8")
+				git("add", path.relative_to(repository).as_posix())
+				git("commit", "-m", f"issue {issue} verification")
+
+			changed = [
+				set(git("diff", "--name-only", f"main...issue-{issue}").splitlines())
+				for issue in (51, 52)
+			]
+			self.assertEqual(set(), changed[0].intersection(changed[1]))
+
+	def test_repository_verification_log_is_rebuildable_from_issue_sources(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		markdown = harness_gate.rebuild_verification_log(repository_root)
 
 		self.assertEqual([], harness_gate.validate_verification_log(markdown, 23))
 
-	def test_repository_keeps_legacy_verification_identifiers(self):
+	def test_repository_keeps_legacy_verification_identifiers_after_migration(self):
 		repository_root = Path(__file__).resolve().parents[2]
-		markdown = (repository_root / "docs" / "testing" / "verification-log.md").read_text(
-			encoding="utf-8"
-		)
+		markdown = harness_gate.rebuild_verification_log(repository_root)
 		rows, errors = harness_gate._verification_rows(markdown)
 		actual_identifiers = {
 			(row["Issue"], row["Level"], row["명령/Evidence"])
@@ -503,6 +558,28 @@ class VerificationLogValidationTest(unittest.TestCase):
 		self.assertEqual([], errors)
 		self.assertEqual(25, len(LEGACY_VERIFICATION_IDENTIFIERS))
 		self.assertEqual(set(), LEGACY_VERIFICATION_IDENTIFIERS - actual_identifiers)
+
+	def test_migration_preserves_original_row_text_verbatim(self):
+		from scripts.migrate_verification_log import migrate
+
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			source = root / "docs" / "testing" / "verification-log.md"
+			source.parent.mkdir(parents=True)
+			issue_row = "| 2026-07-13 | Issue #51 | Level 0 | PASS | 범위 | `echo a|b` | 원문 보존 |"
+			legacy_row = "| 2026-07-12 | bootstrap | Level 1 | PARTIAL | 범위 | `command` | legacy |"
+			source.write_text(verification_log(issue_row, legacy_row), encoding="utf-8")
+
+			migrate(root, source)
+
+			self.assertIn(
+				issue_row,
+				(root / "docs" / "testing" / "evidence" / "issue-51" / "verification.md").read_text(encoding="utf-8"),
+			)
+			self.assertIn(
+				legacy_row,
+				(root / "docs" / "testing" / "evidence" / "legacy" / "verification.md").read_text(encoding="utf-8"),
+			)
 
 	def test_level_1_smoke_does_not_replace_focused_evidence(self):
 		repository_root = Path(__file__).resolve().parents[2]
@@ -826,7 +903,7 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_qa_remains_valid_for_issue_evidence_only_delta(self):
 		paths = [
 			"docs/testing/evidence/issue-71/commands.md",
-			"docs/testing/verification-log.md",
+			"docs/testing/evidence/issue-71/verification.md",
 		]
 		self.assertTrue(harness_gate.qa_remains_valid("qa-head", "docs-head", paths, 71))
 

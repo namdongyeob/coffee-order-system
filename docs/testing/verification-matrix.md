@@ -15,4 +15,4 @@
 | Redis rebuild | 로컬 실행 검증 | DB 집계와 Redis 결과 비교 |
 | k6 | 로컬 서버 실행 후 k6 결과 | stress, spike 분리 |
 
-검증 결과는 `docs/testing/verification-log.md`에 기록합니다.
+검증 결과는 `docs/testing/evidence/issue-{number}/verification.md`에 기록합니다. 전역 뷰가 필요하면 [Evidence Guide](evidence-guide.md)의 재현 명령을 사용하며 생성 파일은 커밋하지 않습니다.
