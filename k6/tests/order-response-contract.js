@@ -63,9 +63,9 @@ function runCreateOrder(response) {
 export default function () {
   const valid = classifyOrderResponse(validResponse);
   const malformed = classifyOrderResponse(malformedJsonResponse);
-  const missingField = classifyOrderResponse(missingFieldResponse);
   const validMetrics = runCreateOrder(validResponse);
   const malformedMetrics = runCreateOrder(malformedJsonResponse);
+  const missingFieldMetrics = runCreateOrder(missingFieldResponse);
   const badStatusMetrics = runCreateOrder({ ...validResponse, status: 500 });
   const nonJsonMetrics = runCreateOrder({
     ...validResponse,
@@ -76,14 +76,15 @@ export default function () {
     'valid order response succeeds': () => valid.succeeded,
     'malformed JSON is classified as an error without escaping': () =>
       !malformed.succeeded && !malformed.bodyOk,
-    'missing required order fields are classified as an error': () =>
-      !missingField.succeeded && !missingField.bodyOk,
     'createOrder records valid JSON as success only': () =>
       validMetrics.success.length === 1 && validMetrics.success[0] === true &&
       validMetrics.error.length === 1 && validMetrics.error[0] === false,
     'createOrder records malformed JSON as error only': () =>
       malformedMetrics.success.length === 1 && malformedMetrics.success[0] === false &&
       malformedMetrics.error.length === 1 && malformedMetrics.error[0] === true,
+    'createOrder records missing required fields as error only': () =>
+      missingFieldMetrics.success.length === 1 && missingFieldMetrics.success[0] === false &&
+      missingFieldMetrics.error.length === 1 && missingFieldMetrics.error[0] === true,
     'createOrder records bad status as error only': () =>
       badStatusMetrics.success.length === 1 && badStatusMetrics.success[0] === false &&
       badStatusMetrics.error.length === 1 && badStatusMetrics.error[0] === true,

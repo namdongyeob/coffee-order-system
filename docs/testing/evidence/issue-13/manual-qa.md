@@ -39,6 +39,7 @@
 ## Adversarial QA와 한계
 
 - actual k6 contract는 `createOrder()`를 직접 실행해 valid 응답은 success `true`/error `false`, malformed JSON·HTTP 500·non-JSON은 success `false`/error `true`를 각각 한 번 기록함을 확인했습니다.
+- 마지막 test-only remediation에서 필수 필드 누락 응답도 actual `createOrder()`를 거쳐 success `[false]`, error `[true]`, 각 recorder length 1임을 확인했습니다.
 - 알 수 없는 profile은 fail-closed하도록 구현했고 contract test는 safe 기본 최대 VU, 필수 threshold와 세 profile 이름을 검사합니다. P2인 실제 unknown profile failure 실행은 이번 remediation에서 변경하지 않았습니다.
 - heavy profile은 실제 실행하지 않았습니다. safe 실행은 최대 처리량·병목·운영 SLO를 확정하지 않습니다.
 - Kafka lag와 Redis latency는 script가 직접 수집하지 않았습니다.

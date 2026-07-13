@@ -71,6 +71,36 @@ Branch: codex/issue-13-k6-scenarios
 
 - 없음.
 
+## Attempt 4 — 사람이 승인한 마지막 test-only remediation
+
+### Generate
+
+- 시작: 2026-07-13T09:24:12.9815154+09:00.
+- Review가 missing-field 응답만 classifier 직접 호출에 남아 actual `createOrder()`와 Rate recorder 연결을 검증하지 않는 동일 P1을 확인했고, 이 Review evidence를 RED 재현 근거로 사용했습니다.
+- 사용자가 승인한 정확한 test-only 범위에서 missing-field case를 기존 `runCreateOrder(missingFieldResponse)` 경로로 교체했습니다.
+
+### Evaluate
+
+- GREEN: actual k6 contract는 missing-field 응답에서 success recorder `[false]`, error recorder `[true]`, 각 length 1을 확인했습니다.
+- Contract threshold `contract_assertions`는 7/7, actual k6 contract와 focused Python suite 3건이 PASS했습니다. Invalid 응답의 내부 check 실패 5건은 기대한 분류 관찰이며 contract threshold 실패가 아닙니다.
+
+### Failure Cause
+
+- 이전 contract의 missing-field case만 classifier 직접 호출에 남아 actual metric recording 연결을 증명하지 못했습니다.
+
+### Change Scope
+
+- `k6/tests/order-response-contract.js`의 missing-field case와 이 사실을 기록하는 허용 evidence·PR body만 변경했습니다. Runtime 동작은 변경하지 않았습니다.
+
+### Reverification
+
+- 종료: 2026-07-13T09:25:48.1342944+09:00.
+- Actual k6 contract, focused Python suite 3건, 세 `k6 inspect`, repository gate, diff check와 PR body preflight가 PASS했습니다.
+
+### Next Attempt
+
+- 없음.
+
 ## Attempt 3 — 사람이 승인한 별도 제한 P1 remediation
 
 ### Generate

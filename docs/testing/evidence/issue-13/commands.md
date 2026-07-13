@@ -9,6 +9,7 @@
 | `k6 inspect k6/order-load.js` | Load options·threshold parse | PASS, safe 최대 2 VU |
 | `k6 inspect k6/order-stress.js` | Stress options·threshold parse | PASS, safe 최대 6 VU |
 | `k6 inspect k6/order-spike.js` | Spike options·threshold parse | PASS, safe 최대 8 VU |
+| `k6 run --no-color k6/tests/order-response-contract.js` | 마지막 test-only missing-field actual Rate 연결 | PASS, contract assertions 7/7; invalid 응답 내부 checks 5건은 기대 실패 |
 
 ## Level 5~7 실제 실행
 
@@ -37,3 +38,5 @@
 - Spike: `spike-output.txt`, `spike-summary.json`.
 
 초기 Dev 실행은 51·196·269 주문 iterations와 p95 57.52·62.06·68.96ms, 첫 P1 재검증은 47·185·271건과 p95 179.33·117.95·69.35ms였습니다. 위 원문 파일은 별도 제한 P1의 current-code 결과이며 세 실행은 `attempt-log.md`와 성능 결과 문서에 구분했습니다.
+
+마지막 test-only remediation은 runtime 경로를 변경하지 않아 Level 7을 반복하지 않았습니다. 직전 current-head Level 7 결과와 cleanup evidence를 승계하고 actual contract만 재실행했습니다.
