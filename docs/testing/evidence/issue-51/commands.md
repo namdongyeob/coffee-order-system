@@ -11,3 +11,7 @@
 | `python scripts/harness_gate.py ... --pr-body-file $env:TEMP\issue-51-pr-body.md` | 같은 UTF-8 no-BOM 임시 PR 본문 preflight | PASS. draft PR 생성에 같은 파일을 사용합니다. |
 | `git push -u origin codex/issue-51-verification-log-per-issue` | 검증된 commit 원격 게시 | PASS. head `e2ec4cb6314d8530e7bea1fdc835cd74f31a62c7`을 게시했습니다. |
 | `gh pr create --draft --body-file $env:TEMP\issue-51-pr-body.md` | preflight한 동일 본문으로 draft PR 생성 | PASS. [PR #81](https://github.com/namdongyeob/coffee-order-system/pull/81)를 생성했습니다. |
+| QA focused verification | 독립 QA의 Level 0 정적 계약·원문 보존 확인 | 21건 PASS. 원문 명령과 수행 시각은 QA 보고에 보존되지 않아 `미측정`입니다. head `b98b02e9c89b2d5f6a213de285338fcd7332e1f1`. |
+| QA harness gate | 독립 QA의 Issue evidence·형식·변경 범위 확인 | PASS. 수행 시각은 `미측정`입니다. head `b98b02e9c89b2d5f6a213de285338fcd7332e1f1`. |
+| QA 원본/재현 행 Counter 비교 및 rebuild | 독립 QA의 전역 뷰 원문 보존 재확인 | `base_rows=89`, `rebuilt_rows=90`, `missing=0`, rebuild PASS. 수행 시각은 `미측정`입니다. |
+| QA `git diff --check` | 독립 QA의 공백 오류 확인 | PASS. 수행 시각은 `미측정`입니다. |
