@@ -808,6 +808,56 @@ def changed_paths(repository_root: Path, base_ref: str) -> list[str]:
     ]
 
 
+def issue_evidence_allowlist(issue: int) -> set[str]:
+    """Return the only post-verification files allowed to advance an execution head."""
+    directory = f"docs/testing/evidence/issue-{issue}"
+    return {
+        f"{directory}/acceptance-criteria.md",
+        f"{directory}/attempt-log.md",
+        f"{directory}/commands.md",
+        f"{directory}/manual-qa.md",
+        f"{directory}/metrics.md",
+        f"{directory}/verification.md",
+    }
+
+
+def validate_execution_head_delta(
+    execution_head: str, is_ancestor: bool, changed_since_execution_head: list[str], issue: int
+) -> list[str]:
+    """Allow only current-Issue evidence commits after the verified execution head."""
+    if not is_ancestor:
+        return ["evidence reconciliation: execution head must be an ancestor of current Git HEAD."]
+    disallowed = sorted(set(changed_since_execution_head) - issue_evidence_allowlist(issue))
+    if not disallowed:
+        return []
+    return [
+        "evidence reconciliation: changes after execution head must be limited to "
+        f"Issue #{issue} evidence files: {', '.join(disallowed)}"
+    ]
+
+
+def validate_execution_head(repository_root: Path, execution_head: str, issue: int) -> list[str]:
+    """Compare evidence execution head with current Git history without accepting stale code changes."""
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", execution_head, "HEAD"],
+        cwd=repository_root,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if ancestor.returncode == 1:
+        return validate_execution_head_delta(execution_head, False, [], issue)
+    if ancestor.returncode != 0:
+        detail = ancestor.stderr.strip() or "git merge-base failed"
+        return [f"evidence reconciliation: cannot validate execution head: {detail}"]
+    try:
+        changed = _git_output(repository_root, "diff", "--name-only", f"{execution_head}..HEAD")
+    except RuntimeError as error:
+        return [f"evidence reconciliation: cannot read execution head delta: {error}"]
+    return validate_execution_head_delta(execution_head, True, changed.splitlines(), issue)
+
+
 def validate_changed_path_mode(paths: list[str], mode: str | None) -> list[str]:
     """Reject execution modes that do not cover changed production or gate paths."""
     if mode is None:
@@ -878,6 +928,16 @@ def main(argv: list[str] | None = None) -> int:
             evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
             acceptance_path = evidence_dir / "acceptance-criteria.md"
             metrics_path = evidence_dir / "metrics.md"
+            attempt_path = evidence_dir / "attempt-log.md"
+            if attempt_path.is_file():
+                attempt_state, attempt_errors = attempt_reconciliation_state(
+                    attempt_path.read_text(encoding="utf-8")
+                )
+                errors.extend(attempt_errors)
+                if attempt_state is not None:
+                    errors.extend(
+                        validate_execution_head(repository_root, attempt_state["head"], issue)
+                    )
             if pr_body is not None:
                 if acceptance_path.is_file() and metrics_path.is_file():
                     errors.extend(
