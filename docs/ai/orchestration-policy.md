@@ -86,9 +86,7 @@ Review APPROVED 뒤 independent QA를 실행합니다. QA head부터 현재 head
 
 ### 검증 소유권과 범위 밖 flaky
 
-- Dev는 변경 범위 focused 테스트를 실행합니다. DB migration, 공통 transaction, event payload, Kafka 공통 consumer 설정, security, build/test infrastructure처럼 영향 범위가 넓은 변경만 Dev 로컬 전체 회귀를 유지합니다.
-- QA는 Dev 명령을 반복하지 않고 실제 DB·Kafka·Redis·HTTP·운영 실패 경로처럼 독립적인 미검증 위험만 실행합니다.
-- GitHub Actions `quality-gates`는 전체 Level 1 회귀의 최종·단독 정본입니다.
+- Dev focused 실행, QA 독립 검증, GitHub Actions `quality-gates`의 전체 Level 1 회귀 판정 등 테스트 실행 소유권의 단일 정본은 [테스트 전략](../testing/test-strategy.md)입니다. 이 문서는 그 규칙을 복제하지 않고 참조만 합니다.
 - 전체 회귀 실패가 current diff와 관련될 수 있으면 flaky 경로에 넣지 않고 현재 Issue 결함으로 처리합니다. 명확히 범위 밖인 기존 테스트만 clean process에서 1회 격리 실행합니다.
 - 격리 PASS와 current head CI PASS가 함께 있으면 flaky 후보를 기록하고 진행합니다. 격리 FAIL은 중복 검색 뒤 별도 blocker Issue와 test-only 원인 진단·조건 기반 동기화 1회까지만 허용하며 자동 merge하지 않습니다.
 - blocker에서 production 변경 필요, 원인 불명 또는 안정화 실패이면 안전 정지합니다. `BLOCKED` 상태는 외부 상태 변화나 사용자 승인 전에는 Agent dispatch, Review·QA 재실행 또는 wake-up 반복을 만들지 않습니다.
