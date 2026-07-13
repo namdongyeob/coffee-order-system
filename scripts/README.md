@@ -29,4 +29,14 @@ python scripts/harness_gate.py --links-only --base-ref origin/main
 powershell -ExecutionPolicy Bypass -File scripts/start_codex_workspace.ps1
 ```
 
+## DLT 선택 재발행
+
+`replay_dlt_message.ps1`는 `order.completed.DLT`의 단일 partition/offset만 재조회합니다. 승인자와 사유가 비어 있거나 형식이 맞지 않으면 PowerShell parameter validation에서 중단합니다.
+
+```powershell
+.\scripts\replay_dlt_message.ps1 -Partition 0 -Offset 12 -ApprovedBy operator-a -Reason "Redis recovered"
+```
+
+스크립트는 원본 topic·partition·offset header를 fail-closed로 확인하고, 같은 `eventId`가 `processed_event`에 있으면 `SKIPPED_ALREADY_PROCESSED`로 종료합니다. payload와 key는 보존하지만 DLT·예외·stacktrace header는 복사하지 않습니다. 기존 consumer 역직렬화를 위해 JSON type header만 새로 추가합니다.
+
 이 래퍼는 sandbox, approval, config profile, 작업 디렉터리, 추가 쓰기 디렉터리를 바꾸는 인자를 거부하고 `on-request / workspace-write`를 CLI 옵션으로 요청합니다. 현재 환경에서는 `workspace-write`만 적용되고 approval은 전역 `never`가 유지됐으므로 세션 시작 로그를 확인합니다. 이름은 sandbox 범위만 설명하며 완전한 보안 경계를 뜻하지 않습니다.
