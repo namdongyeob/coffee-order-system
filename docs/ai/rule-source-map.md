@@ -17,6 +17,7 @@
 | 검증 실행 결과 | `docs/testing/evidence/issue-{number}/verification.md` | Issue별 evidence와 on-demand 전역 뷰 |
 | 반복 실수와 재발 방지 | `docs/ai/agent-mistakes.md` | 다음 Issue의 Plan 단계 |
 | 프로젝트 Codex 권한 | `.codex/config.toml` | `docs/onboarding/codex-safety.md` |
+| 문서 lifecycle 분류(active/conditional/archive/obsolete 후보) | `docs/ai/doc-lifecycle.md` | 없음(스냅샷 감사 결과, 후속 감사 시 재작성) |
 
 ## 변경 규칙
 
