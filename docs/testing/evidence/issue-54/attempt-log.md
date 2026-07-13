@@ -5,8 +5,8 @@ Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/54
 Branch: claude/issue-54-os-encoding-compat
 
 Current disposition: PASS
-Current Attempt: 1
-Current head: d21654e
+Current Attempt: 2
+Current head: 136d29e
 
 ## Attempt 1
 
@@ -44,3 +44,35 @@ Current head: d21654e
 ### Next Attempt
 
 - fresh 독립 Review 결과를 반영합니다.
+
+## Attempt 2
+
+### Generate
+
+- fresh 독립 Review가 head `1edd4c1`에서 `REVISE`를 반환했습니다. P1 두 건: (1) `ConsoleEncodingHardeningTest`가 `harden_console_encoding()`을 실제로 호출하지 않고 stdlib `TextIOWrapper.reconfigure`만 직접 검증해, 실제 함수가 삭제·오작동해도 테스트가 계속 PASS하는 상태였습니다. (2) 정본 문서 5곳의 Gradle 명령이 PowerShell에서 실행 불가능했습니다 — 본문에 보인 `gradlew test`는 PowerShell이 cwd를 자동 탐색하지 않아 `CommandNotFoundException`으로 실패하고, "Windows:" 라벨이 붙은 `gradlew.bat test`도 `.\` 접두어가 빠져 동일하게 실패합니다.
+- `136d29e`: `ConsoleEncodingHardeningTest`를 `sys.stdout`/`sys.stderr`를 실제로 교체하고 `harness_gate.harden_console_encoding()`을 호출하도록 재작성했습니다. `.reconfigure`가 없는 대체 스트림에서도 무크래시임을 확인하는 `test_does_not_raise_when_stream_lacks_reconfigure`를 추가했습니다(`sys` import 누락도 함께 수정). 정본 문서 5곳의 Gradle 명령을 PowerShell에서 그대로 복사 실행 가능한 `.\gradlew.bat ...` 형태로 정정하고 macOS·Linux 대응 명령을 별도 주석/문장으로 명시했습니다. `.\gradlew.bat ...`을 실제 PowerShell에서 실행해 `CommandNotFoundException`(접두어 없을 때)과 정상 인식(접두어 있을 때)을 재현·확인했습니다.
+
+### Evaluate
+
+- PASS. Review가 반환한 P1 2건을 원래 Dev 범위에서 한 번에 정정했습니다. 안전 불변조건 약화(P0)는 없었습니다.
+
+### Failure Cause
+
+- RED: Attempt 1에서 테스트를 실제 대상 함수 대신 stdlib 동작을 재구현해 검증했고, 문서 명령에서 PowerShell의 `.\` 실행 파일 탐색 규칙을 반영하지 않았습니다.
+
+### Change Scope
+
+- `scripts/tests/test_harness_gate.py`: `sys` import 추가, `ConsoleEncodingHardeningTest` 3건으로 재작성(실제 함수 호출, `.reconfigure` 없는 스트림 방어 테스트 추가).
+- `docs/testing/test-strategy.md`, `docs/operations/local-runbook.md`, `docs/operations/kafka-redis-runbook.md`, `docs/onboarding/project-setup.md`, `docs/product/github-issues.md`: Gradle 명령을 PowerShell에서 실행 가능한 형태로 정정.
+
+### Reverification
+
+- `python -m pytest scripts/tests/test_harness_gate.py`는 head `136d29e`에서 107건(110 subtests) PASS입니다.
+- PowerShell에서 `gradlew test`(접두어 없음)는 `CommandNotFoundException`으로 실패, `.\gradlew.bat --version`(접두어 있음)은 Gradle 9.5.1 버전 배너를 정상 출력해 명령이 인식·실행됨을 확인했습니다(exit code는 255였으나 command-not-found가 아닌 정상 인식·실행 결과입니다. 원인은 harness 범위 밖이라 조사하지 않았습니다).
+- `python scripts/harness_gate.py --issue 54 --branch claude/issue-54-os-encoding-compat --base-ref a6bd08e --check-links --include-worktree`는 head `136d29e`에서 PASS입니다.
+- Level 5/6은 NO입니다. 문서·harness 스크립트·테스트 변경만 있어 runtime/API 테스트는 실행하지 않았습니다.
+- 종료 시각은 기록하지 못해 `미측정`입니다.
+
+### Next Attempt
+
+- 없음. evidence를 확정하고 push 뒤 fresh 독립 Review 재검토와 GitHub 새 head의 CI 결과를 확인합니다.
