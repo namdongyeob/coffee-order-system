@@ -22,3 +22,12 @@
 - 보상 재조회 실패를 주입한 경로는 성공이나 완전 rollback을 주장하지 않고 운영자 확인이 필요한 불확실 상태로 종료했습니다.
 - lock lease renewal, token ownership, 두 번째 runner 차단과 위험 변경 전 lock 상실 중단을 확인했습니다.
 - 변경 후 Level 5를 다시 실행해 local health 200, charge 200, order 201, rebuild score `1`, normal offset `1`·lag `0`, temp/backup 0개를 확인했습니다. 종료 뒤 project services 0개와 port 8080 free였습니다.
+
+## Independent QA 재검증
+
+- Testcontainers Kafka·MySQL·Redis에서 focused Level 4 통합 7건과 단위 3건, 총 10건을 1분 41초에 통과했습니다.
+- 2-partition partial offset update와 timeout 보상·broker 재조회, Redis rollback, 보상 실패의 불확실 fail-closed를 다시 확인했습니다.
+- Redis token lease 갱신·상실, 소유자 release, 두 번째 runner 차단과 비자정 snapshot 8개 날짜 경계를 다시 확인했습니다.
+- clean Compose Level 5에서 health 200, charge 200, order 201 뒤 live score `1`, normal offset `1`, log-end `1`, lag `0`을 확인했습니다.
+- Maintenance success는 삭제한 live key의 score `1` 복구와 temp/backup 0개를, DB mismatch는 non-zero 종료와 live score `1`, offset `1`, lag `0`, temp/backup 0개 보존을 확인했습니다.
+- QA가 시작한 앱과 project Compose·volume·network를 정리했고 port 8080은 free였습니다. 기존 `rag-pgvector`는 건드리지 않았습니다.

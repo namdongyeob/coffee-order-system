@@ -63,6 +63,13 @@ Branch: codex/issue-14-ranking-rebuild
 - Related ranking suite PASS, `BUILD SUCCESSFUL in 3m 43s`.
 - 전체 61 tests, failures/errors 0, Level 5 local maintenance success와 cleanup이 PASS했습니다.
 
+### Role verification history
+
+- 첫 Fresh Review는 offset 부분 성공·timeout 보상 누락과 lock lease 만료의 P1 두 건, 비자정 snapshot 8개 날짜 경계 테스트 누락의 P2 한 건을 보고하고 `REVISE`로 판정했습니다.
+- 같은 Dev가 허용된 한 번의 remediation에서 두 P1을 수정하고 P2 경계 테스트를 함께 추가했습니다.
+- remediation 뒤 fresh read-only Review는 신규 P0/P1/P2 없이 승인된 정책과 보상·lock·날짜 경계 계약을 충족한다고 `APPROVED`로 판정했습니다.
+- independent QA는 focused Level 4 10건을 1분 41초에 PASS했고, Level 5 성공 rebuild·DB mismatch fail-closed·cleanup을 독립 재검증해 `PASS`로 판정했습니다.
+
 ### Next Attempt
 
 - 없음.

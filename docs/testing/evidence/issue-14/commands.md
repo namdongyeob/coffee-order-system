@@ -27,3 +27,11 @@
 - non-midnight snapshot의 8개 날짜 key와 rollback 뒤 sentinel live key 보존을 확인했습니다.
 - Full final: `.\gradlew.bat cleanTest test --no-daemon --max-workers=1` → 61 tests, failures 0, errors 0, `BUILD SUCCESSFUL in 3m 32s`.
 - Level 5 final: clean Compose에서 health 200, charge 200, order 201 뒤 maintenance rebuild score `1`, normal offset `1`, lag `0`, rebuild key 0개를 확인하고 `down -v`와 port 8080 free를 확인했습니다.
+
+## Independent QA
+
+- Focused Level 4: `.\gradlew.bat cleanTest test --tests "*RankingRebuildServiceTest" --tests "*RankingRebuildServiceIntegrationTest" --no-daemon --max-workers=1` → 통합 7건과 단위 3건, 총 10 tests, failures/errors/skipped 0, `BUILD SUCCESSFUL in 1m 41s`.
+- Level 5 success: clean Compose의 MySQL·Redis·Kafka가 healthy였고, local 앱 health 200, charge 200, order 201 뒤 live score `1`, normal group offset `1`, log-end `1`, lag `0`을 확인했습니다. Maintenance rebuild 뒤 삭제한 live key가 score `1`로 복구되고 temp/backup key는 0개였습니다.
+- Level 5 mismatch: DB에만 PAID 주문을 추가한 실행은 예상된 집계 불일치로 non-zero 종료했고, live score `1`, normal offset `1`, lag `0`, temp/backup key 0개를 보존했습니다.
+- Cleanup: QA가 시작한 앱과 project Compose·volume·network를 정리했고 port 8080은 free였습니다. 기존 `rag-pgvector`는 건드리지 않았습니다.
+- 첫 background 기동 명령은 PowerShell 인수 분리로 애플리케이션 진입 전 Gradle CLI parse 오류가 났습니다. 환경변수 방식으로 명령을 교정한 뒤 위 성공·실패 시나리오를 완료했으며 구현 결함으로 집계하지 않았습니다.
