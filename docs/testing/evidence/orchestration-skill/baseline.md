@@ -1,5 +1,7 @@
 # Orchestration Skill Initial Baseline
 
+**Status: Archive.** 현재 정본이 아니며 참고용 역사 기록입니다.
+
 > 이 문서는 최초 설계 당시 관찰 기록입니다. Main 최종 검증 방식은 이후 병목으로 판단되어 폐기됐으며, 현재 계약은 `docs/ai/orchestration-policy.md`와 Skill을 따릅니다.
 
 ## 목적
