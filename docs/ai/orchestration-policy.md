@@ -70,7 +70,7 @@ Attempt·명령·metrics·verification의 evidence 정본 위치, PR 전 preflig
 ### 검증 소유권과 범위 밖 flaky
 
 - Dev focused 실행, QA 독립 검증, GitHub Actions `quality-gates`의 전체 Level 1 회귀 판정 등 테스트 실행 소유권의 단일 정본은 [테스트 전략](../testing/test-strategy.md)입니다. 이 문서는 그 규칙을 복제하지 않고 참조만 합니다.
-- 범위 밖 flaky의 격리·기록 절차는 [테스트 전략](../testing/test-strategy.md)을, 안전 정지 규칙은 [자율 큐 runbook](autonomous-queue-runbook.md)을 따릅니다. current diff와 관련될 수 있는 실패는 flaky로 분류하지 않고 현재 Issue 결함으로 처리합니다.
+- 범위 밖 flaky의 격리·후보 기록·격리 FAIL 처리와 안전 정지 절차의 정본은 [Issue 개발 흐름](agent-rules.md)입니다. current diff와 관련될 수 있는 실패는 flaky로 분류하지 않고 현재 Issue 결함으로 처리합니다.
 - 코드·정책·보안·데이터 P0/P1은 원래 Dev에게 한 번 반환하고 두 번째 P0/P1은 안전 정지합니다. 완료 기준을 위반하지 않는 P2는 비차단 권고 또는 후속 Issue로 남깁니다.
 
 ## Main Coordinator 금지 규칙
