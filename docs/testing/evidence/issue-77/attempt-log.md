@@ -39,4 +39,11 @@ Branch: codex/issue-77-dlt-flaky
 
 ### Next Attempt
 
-- 없음. fresh Review, independent QA, Docs와 CI는 STRICT 역할 순서에 따라 별도 수행합니다.
+- 없음. 저장소에는 이 Attempt의 불변 실행 결과만 유지하고 이후 역할 판정과 CI는 GitHub를 정본으로 확인합니다.
+
+## 독립 역할 검증 근거
+
+- 독립 QA가 같은 격리 테스트를 각각 새 Gradle 프로세스에서 95.913초, 78.913초, 78.979초에 실행해 모두 PASS했습니다.
+- 독립 QA의 관련 Kafka/DLT 3개 통합 테스트는 115.216초, 3 tests, failures 0, errors 0, skipped 0으로 PASS했습니다.
+- 독립 QA는 첫 상세 로그에서 main listener assignment가 producer 동작보다 먼저 완료되고, 이후 retry 2회와 DLT record 반환이 이어지는 순서를 관찰했습니다.
+- 역할 판정, 현재 head, CI와 merge 가능 상태는 GitHub PR comments와 checks에서 확인하며 저장소 evidence에 현재 상태 snapshot을 복제하지 않습니다.

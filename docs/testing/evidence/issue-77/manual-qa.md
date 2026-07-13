@@ -11,6 +11,8 @@
 - 격리 DLT 테스트는 새 Gradle 프로세스 3회 모두 PASS했습니다.
 - 관련 Kafka/DLT 통합 테스트와 전체 51 tests가 PASS했습니다.
 - 실제 DLT record의 key `6101`, partition `0`, eventId와 `menuId`를 포함한 value, `KafkaHeaders.DLT_ORIGINAL_TOPIC=order.completed` assertion을 유지했습니다.
+- 독립 QA가 별도 새 Gradle 프로세스 3회에서 95.913초, 78.913초, 78.979초에 동일 테스트를 재검증했고 모두 PASS했습니다.
+- 독립 QA의 관련 Kafka/DLT 3개 통합 테스트도 115.216초, 3 tests, failures 0, errors 0, skipped 0으로 PASS했습니다.
 
 ## Manual QA
 
@@ -22,10 +24,12 @@
 - listener assignment 전에 input을 보내는 기존 race만 제거했고 retry 횟수, 20초 bounded DLT poll과 10초 invocation verification은 늘리지 않았습니다.
 - assertion을 삭제하거나 약화하지 않았고 production DLT recoverer를 변경하지 않았습니다.
 - 현재 머신의 수정 전 exact 재실행 2회는 PASS였으므로 기존 live Issue RED와 단계별 로그를 함께 원인 근거로 사용합니다.
-- fresh Review, independent QA, Docs 최종 동기화와 최신 CI는 아직 pending입니다.
+- 독립 QA 범위에서는 flaky가 재발하지 않았습니다. 장시간 또는 다른 머신의 모든 timing 편차를 완전히 배제할 수는 없습니다.
+- 역할 판정, 최신 CI, 현재 head와 merge 가능 상태는 GitHub를 정본으로 확인하며 이 문서에 snapshot으로 기록하지 않습니다.
 
 ## Cleanup receipt
 
 - 모든 Gradle 실행이 종료된 뒤 현재 worktree 관련 Java/Gradle 프로세스는 0개였습니다.
 - `docker ps`에서 이번 테스트의 Kafka, MySQL, Redis와 Ryuk 잔존 컨테이너는 0개였습니다.
+- 독립 QA 종료 뒤에도 Java/Gradle 프로세스와 이번 테스트의 Testcontainers 잔존 컨테이너는 0개였습니다.
 - 다른 worktree, Issue #14, PR #76과 Issue #15 파일은 변경하지 않았습니다.
