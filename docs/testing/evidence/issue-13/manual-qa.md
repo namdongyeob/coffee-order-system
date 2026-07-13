@@ -51,3 +51,11 @@
 - 프로젝트 Compose를 `down -v`로 정리했습니다.
 - `docker compose ... ps`는 empty였고 health endpoint는 stopped였습니다.
 - 기존 MySQL 3306과 다른 프로젝트 컨테이너는 조작하지 않았습니다.
+
+## 최종 QA 인수
+
+- independent QA는 HEAD `a1fc5f9cfa9cf5740b9addaca2c9c1b99fa38cf8`에서 actual k6 contract 7/7, focused Python 3/3, 세 inspect, repository gate, diff checks와 live 한국어 PR body preflight를 PASS로 판정했습니다.
+- contract 실행의 invalid-response 내부 check 실패 5건은 의도된 거부 관찰이며 contract threshold는 PASS했습니다.
+- 마지막 test-only delta는 필수 필드 누락 응답의 actual `createOrder()` Rate 연결 계약만 보강했고 runtime script/helper는 바꾸지 않았습니다.
+- 따라서 Level 7은 마지막 변경 뒤 재실행하지 않았으며 직전 current-code safe Load·Stress·Spike raw 결과와 cleanup evidence를 유효한 근거로 인수했습니다.
+- fresh final Review는 P0/P1/P2 0건으로 `APPROVED`, independent QA verdict는 `PASS`입니다.

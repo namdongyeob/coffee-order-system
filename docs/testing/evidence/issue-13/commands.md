@@ -40,3 +40,14 @@
 초기 Dev 실행은 51·196·269 주문 iterations와 p95 57.52·62.06·68.96ms, 첫 P1 재검증은 47·185·271건과 p95 179.33·117.95·69.35ms였습니다. 위 원문 파일은 별도 제한 P1의 current-code 결과이며 세 실행은 `attempt-log.md`와 성능 결과 문서에 구분했습니다.
 
 마지막 test-only remediation은 runtime 경로를 변경하지 않아 Level 7을 반복하지 않았습니다. 직전 current-head Level 7 결과와 cleanup evidence를 승계하고 actual contract만 재실행했습니다.
+
+## 최종 승인 검증 요약
+
+| 검증 | 최종 결과 |
+| --- | --- |
+| `k6 run --no-color k6/tests/order-response-contract.js` | PASS, exit 0, contract assertions 7/7. invalid-response 내부 check 실패 5건은 의도된 거부 관찰 |
+| `python -m unittest k6.tests.test_scenarios` | PASS, 3/3 |
+| 세 `k6 inspect` | PASS |
+| Issue #13 repository gate, `git diff --check`, live 한국어 PR body preflight | PASS |
+| 마지막 test-only 변경 뒤 Level 7 | 미실행. runtime/helper 불변이므로 직전 current-code Level 7 및 cleanup evidence 유효 |
+| fresh final Review / independent QA | `APPROVED` / `PASS` |

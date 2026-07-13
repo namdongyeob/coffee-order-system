@@ -7,13 +7,14 @@ Measured at: 2026-07-13
 
 | 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| STRICT | 4 | 764 | 3 | 2 | 3 | 0 | 0 | 11 |
+| STRICT | 4 | 37 | 3 | 2 | 4 | 0 | 0 | 11 |
 
 ## 측정 근거
 
-- 최초 Generate 시작 2026-07-12T20:42:04.2408574+09:00부터 마지막 test-only Reverification 종료 2026-07-13T09:25:48.1342944+09:00까지 약 12시간 43분 44초이며 분 단위로 764분을 기록했습니다. 세션 간 대기 시간을 포함한 실제 경과 시간입니다.
+- 작업 시간은 각 Attempt에 기록된 시작·종료 구간 합계 2,044.012초와 최종 Docs 동기화의 실제 관찰 구간 2026-07-13T09:36:38.9820605+09:00~2026-07-13T09:39:06.0268351+09:00, 147.045초만 합산한 36.52분입니다. canonical 정수 열에는 저장소 형식에 따라 37분으로 반올림했습니다. 역할 사이 대기 시간은 포함하지 않았고 추정값을 사용하지 않았습니다.
 - STRICT Agent 수는 Dev, Review, QA, Docs 4개 역할이며 Main Coordinator와 CI를 제외합니다.
-- 재시도 3회는 `attempt-log.md`의 Attempt 2~4이고 Review P1 3건을 반영했습니다. Review `BLOCKED` 안전 정지 2회 뒤 각각 사용자가 범위를 제한해 별도 remediation을 승인했습니다. QA 결함·범위 밖 변경은 없습니다.
+- Attempt는 최초 1회와 remediation 3회로 총 4회이고 재시도 수는 Attempt 2~4의 3회입니다. Review `BLOCKED` 안전 정지 2회 뒤 각각 사용자가 범위를 제한해 별도 remediation을 승인했습니다.
+- Review 결함 수 4는 malformed JSON parse 누락 P1, actual `createOrder()`와 Rate recorder 연결 누락 P1, missing-field actual 경로 누락 P1, unknown profile 실행 계약 누락 P2입니다. P2는 비차단 권고이므로 수정하지 않고 남은 위험으로 유지합니다. QA는 최종 HEAD에서 결함 0건으로 `PASS`했고 범위 밖 변경 파일은 0개입니다.
 - 읽은 핵심 문서는 Issue 본문, k6 계획·결과·README, 테스트 전략·evidence 안내, 요구사항·범위·주문·포인트·API 계약 11개입니다.
 
 ## Evidence links
