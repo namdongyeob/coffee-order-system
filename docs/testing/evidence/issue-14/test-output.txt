@@ -17,3 +17,5 @@ Retention final full: 62 tests PASS, failures 0, errors 0, skipped 0, BUILD SUCC
 Retention Level 5 success: earliest 1, latest 2, retained recent offset 1 rebuilt member 1 score 1, normal offset 2, lag 0, rebuild keys 0.
 Retention Level 5 actual loss: earliest/latest 2/2, DB mismatch exit 1 in 31.8s, live member 1 score 1 and normal offset 2 retained, rebuild keys 0.
 Cleanup: project Compose services 0 and port 8080 free.
+Final independent QA: read-only evidence audit PASS at e58a90d544f5b86cdfe19af3550d9e0041d0a46e. The first focused run was discarded because an IntelliJ Gradle daemon was running concurrently, and the second focused run was stopped after the user approved lightweight verification. Neither run was counted as PASS evidence, and QA did not independently complete Level 4 or Level 5 on this head.
+QA cleanup receipt: immediately after QA-owned cleanup, Java/Gradle processes 0, Docker containers 0, and port 8080 free. Five docker-* containers started later by an external actor were not touched.

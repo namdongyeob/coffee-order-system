@@ -41,3 +41,11 @@
 - 실패 뒤 live member `1` score `1`, normal offset `2`, lag `0`, temp/backup key 0개와 lock 0개를 확인했습니다.
 - old raw event에는 Spring type header가 없어 일반 consumer가 역직렬화하지 못했지만, 성공 시나리오 전에 해당 old offset 자체를 삭제했습니다. rebuild runner는 String deserializer로 actual recent event를 replay했으며 이 QA 입력 오류를 기능 성공으로 계산하지 않았습니다.
 - 성공 관찰 뒤 non-web context가 자동 종료되지 않아 본 작업이 시작한 maintenance 프로세스만 종료했습니다. 마지막에는 Compose `down -v`, project service 0개와 port 8080 free를 확인했습니다.
+
+## 사용자 승인 경량 Independent QA
+
+- 첫 focused 실행은 IntelliJ Gradle daemon 병행으로 결과를 폐기했고, 두 번째 focused 실행은 사용자가 중복 Testcontainers 재실행 비용 경량화를 승인해 중단했습니다. 두 실행은 최종 PASS 근거에 포함하지 않았습니다.
+- QA는 실행 head `e58a90d544f5b86cdfe19af3550d9e0041d0a46e`의 Dev XML·명령 결과, 테스트 목록, Level 5 success/loss 원문과 cleanup receipt를 읽기 전용으로 대조했습니다.
+- Focused 11건, related 28건, full 62건과 Level 5 success의 earliest/latest `1/2`, score `1`, normal offset `2`, lag `0`, Level 5 loss의 earliest/latest `2/2`, exit `1`, live score `1`, normal offset `2`, temp/backup/lock 0개가 정본 간 일치해 evidence audit은 `PASS`였습니다.
+- 이 QA는 최종 head의 Level 4·5를 독립 완주하지 않았습니다. malformed payload와 완전 empty topic/DB 경계도 독립 테스트명으로 추가 검증하지 않았습니다.
+- QA가 시작한 리소스 cleanup 직후 Java/Gradle 프로세스 0개, Docker container 0개, port 8080 free를 확인했습니다. 이후 외부에서 시작된 `docker-*` container 5개는 QA 소유가 아니므로 건드리지 않았습니다.

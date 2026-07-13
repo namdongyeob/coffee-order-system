@@ -100,16 +100,20 @@ Branch: codex/issue-14-ranking-rebuild
 
 ### Reverification
 
-- 최신 main 기준 focused 11 tests PASS, `BUILD SUCCESSFUL in 2m 34s`.
-- related ranking/Kafka 28 tests PASS, `BUILD SUCCESSFUL in 4m 57s`.
-- 전체 62 tests PASS, `BUILD SUCCESSFUL in 4m 53s`.
+- 실행 head `e58a90d544f5b86cdfe19af3550d9e0041d0a46e`에서 `.\gradlew.bat cleanTest test --tests "*RankingRebuildServiceTest" --tests "*RankingRebuildServiceIntegrationTest" --no-daemon --max-workers=1`을 실행해 focused 11 tests PASS, `BUILD SUCCESSFUL in 2m 34s`를 확인했습니다.
+- 같은 head에서 `.\gradlew.bat cleanTest test --tests "*Ranking*" --tests "*PopularMenu*" --no-daemon --max-workers=1`을 실행해 related ranking/Kafka 28 tests PASS, `BUILD SUCCESSFUL in 4m 57s`를 확인했습니다.
+- 같은 head에서 `.\gradlew.bat cleanTest test --no-daemon --max-workers=1`을 실행해 전체 62 tests PASS, `BUILD SUCCESSFUL in 4m 53s`를 확인했습니다.
 - Level 5에서 earliest `1` recent 보존 success와 earliest/latest `2/2` actual recent loss의 DB mismatch fail-closed, live·normal offset 보존, temp/backup cleanup을 확인했습니다.
 
 ### Role verification history
 
 - 두 번째 Review P1 한 건을 사용자가 마지막 제한 remediation으로 승인했습니다.
 - 반복 DLT failure는 Issue #77 blocker로 분리했고 #77 merge·close 뒤 같은 PR에서 검증을 재개했습니다.
+- Fresh read-only Review는 P0/P1 없이 `APPROVED`로 판정했습니다. 비차단 P2 세 건은 PR metadata 최소화, `commands.md`의 최종 명령·실행 head 명시, malformed payload·완전 empty topic/DB의 독립 테스트명 보강 권고였습니다.
+- Independent QA의 첫 focused 실행은 IntelliJ Gradle daemon 병행으로 결과를 폐기했고, 두 번째 실행은 사용자가 중복 Testcontainers 비용 경량화를 승인해 중단했습니다. 두 실행은 PASS 근거와 테스트 수에 포함하지 않았습니다.
+- Independent QA는 실행 head의 Dev 명령·XML, Level 5 원문, 테스트 목록과 cleanup receipt를 읽기 전용으로 대조해 evidence audit `PASS`를 보고했습니다. 이 QA는 Level 4·5를 독립 완주하지 않았습니다.
+- QA가 시작한 리소스 cleanup 직후 Java/Gradle 프로세스 0개, Docker container 0개, port 8080 free를 확인했습니다. 이후 외부에서 시작된 `docker-*` container 5개는 QA 소유가 아니므로 건드리지 않았습니다.
 
 ### Next Attempt
 
-- Fresh read-only Review와 independent QA.
+- Docs final sync 뒤 fresh final Review.
