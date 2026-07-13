@@ -15,52 +15,52 @@
 
 
 running (01.0s), 0/8 VUs, 0 complete and 0 interrupted iterations
-order_spike   [   5% ] 0/8 VUs  00.8s/16.0s
+order_spike   [   4% ] 0/8 VUs  00.6s/16.0s
 
 running (02.0s), 0/8 VUs, 0 complete and 0 interrupted iterations
-order_spike   [  11% ] 0/8 VUs  01.8s/16.0s
+order_spike   [  10% ] 0/8 VUs  01.6s/16.0s
 
 running (03.0s), 0/8 VUs, 0 complete and 0 interrupted iterations
-order_spike   [  17% ] 0/8 VUs  02.8s/16.0s
+order_spike   [  16% ] 0/8 VUs  02.6s/16.0s
 
-running (04.0s), 3/8 VUs, 5 complete and 0 interrupted iterations
-order_spike   [  24% ] 3/8 VUs  03.8s/16.0s
+running (04.0s), 3/8 VUs, 3 complete and 0 interrupted iterations
+order_spike   [  23% ] 3/8 VUs  03.6s/16.0s
 
-running (05.0s), 7/8 VUs, 24 complete and 0 interrupted iterations
-order_spike   [  30% ] 7/8 VUs  04.8s/16.0s
+running (05.0s), 6/8 VUs, 16 complete and 0 interrupted iterations
+order_spike   [  29% ] 6/8 VUs  04.6s/16.0s
 
-running (06.0s), 8/8 VUs, 55 complete and 0 interrupted iterations
-order_spike   [  36% ] 8/8 VUs  05.8s/16.0s
+running (06.0s), 8/8 VUs, 44 complete and 0 interrupted iterations
+order_spike   [  35% ] 8/8 VUs  05.6s/16.0s
 
-running (07.0s), 8/8 VUs, 89 complete and 0 interrupted iterations
-order_spike   [  42% ] 8/8 VUs  06.8s/16.0s
+running (07.0s), 8/8 VUs, 71 complete and 0 interrupted iterations
+order_spike   [  41% ] 8/8 VUs  06.6s/16.0s
 
-running (08.0s), 8/8 VUs, 119 complete and 0 interrupted iterations
-order_spike   [  49% ] 8/8 VUs  07.8s/16.0s
+running (08.0s), 8/8 VUs, 96 complete and 0 interrupted iterations
+order_spike   [  48% ] 8/8 VUs  07.6s/16.0s
 
-running (09.0s), 8/8 VUs, 150 complete and 0 interrupted iterations
-order_spike   [  55% ] 8/8 VUs  08.8s/16.0s
+running (09.0s), 8/8 VUs, 120 complete and 0 interrupted iterations
+order_spike   [  54% ] 8/8 VUs  08.6s/16.0s
 
-running (10.0s), 8/8 VUs, 182 complete and 0 interrupted iterations
-order_spike   [  61% ] 8/8 VUs  09.8s/16.0s
+running (10.0s), 8/8 VUs, 150 complete and 0 interrupted iterations
+order_spike   [  60% ] 8/8 VUs  09.6s/16.0s
 
-running (11.0s), 7/8 VUs, 213 complete and 0 interrupted iterations
-order_spike   [  67% ] 7/8 VUs  10.8s/16.0s
+running (11.0s), 7/8 VUs, 177 complete and 0 interrupted iterations
+order_spike   [  66% ] 7/8 VUs  10.6s/16.0s
 
-running (12.0s), 4/8 VUs, 239 complete and 0 interrupted iterations
-order_spike   [  74% ] 4/8 VUs  11.8s/16.0s
+running (12.0s), 5/8 VUs, 203 complete and 0 interrupted iterations
+order_spike   [  73% ] 5/8 VUs  11.6s/16.0s
 
-running (13.0s), 2/8 VUs, 254 complete and 0 interrupted iterations
-order_spike   [  80% ] 2/8 VUs  12.8s/16.0s
+running (13.0s), 3/8 VUs, 219 complete and 0 interrupted iterations
+order_spike   [  79% ] 3/8 VUs  12.6s/16.0s
 
-running (14.0s), 1/8 VUs, 261 complete and 0 interrupted iterations
-order_spike   [  86% ] 1/8 VUs  13.8s/16.0s
+running (14.0s), 1/8 VUs, 227 complete and 0 interrupted iterations
+order_spike   [  85% ] 1/8 VUs  13.6s/16.0s
 
-running (15.0s), 1/8 VUs, 265 complete and 0 interrupted iterations
-order_spike   [  92% ] 1/8 VUs  14.8s/16.0s
+running (15.0s), 1/8 VUs, 231 complete and 0 interrupted iterations
+order_spike   [  91% ] 1/8 VUs  14.6s/16.0s
 
-running (16.0s), 1/8 VUs, 269 complete and 0 interrupted iterations
-order_spike   [  99% ] 1/8 VUs  15.8s/16.0s
+running (16.0s), 1/8 VUs, 235 complete and 0 interrupted iterations
+order_spike   [  98% ] 1/8 VUs  15.6s/16.0s
 
 
   █ THRESHOLDS
@@ -69,7 +69,7 @@ order_spike   [  99% ] 1/8 VUs  15.8s/16.0s
     ✓ 'rate>0.99' rate=100.00%
 
     http_req_duration
-    ✓ 'p(95)<2000' p(95)=69.35ms
+    ✓ 'p(95)<2000' p(95)=145.15ms
 
     http_req_failed
     ✓ 'rate<0.01' rate=0.00%
@@ -83,9 +83,9 @@ order_spike   [  99% ] 1/8 VUs  15.8s/16.0s
 
   █ TOTAL RESULTS
 
-    checks_total.......: 821     50.151996/s
-    checks_succeeded...: 100.00% 821 out of 821
-    checks_failed......: 0.00%   0 out of 821
+    checks_total.......: 719     43.903254/s
+    checks_succeeded...: 100.00% 719 out of 719
+    checks_failed......: 0.00%   0 out of 719
 
     ✓ synthetic user charged
     ✓ order returns 201
@@ -93,27 +93,27 @@ order_spike   [  99% ] 1/8 VUs  15.8s/16.0s
     ✓ order response JSON has required fields
 
     CUSTOM
-    order_error_rate...............: 0.00%   0 out of 271
-    order_success_rate.............: 100.00% 271 out of 271
+    order_error_rate...............: 0.00%   0 out of 237
+    order_success_rate.............: 100.00% 237 out of 237
 
     HTTP
-    http_req_duration..............: avg=45.27ms  min=20.35ms  med=42.64ms  max=109.96ms p(90)=63.62ms  p(95)=69.35ms  count=279
-      { expected_response:true }...: avg=45.27ms  min=20.35ms  med=42.64ms  max=109.96ms p(90)=63.62ms  p(95)=69.35ms  count=279
-    http_req_failed................: 0.00%   0 out of 279
-    http_reqs......................: 279     17.043126/s
+    http_req_duration..............: avg=81.81ms  min=25.00ms  med=75.76ms  max=170.36ms p(90)=124.46ms p(95)=145.15ms count=245
+      { expected_response:true }...: avg=81.81ms  min=25.00ms  med=75.76ms  max=170.36ms p(90)=124.46ms p(95)=145.15ms count=245
+    http_req_failed................: 0.00%   0 out of 245
+    http_reqs......................: 245     14.96008/s
 
     EXECUTION
-    iteration_duration.............: avg=246.68ms min=226.96ms med=243.65ms max=311.35ms p(90)=264.96ms p(95)=270.52ms count=271
-    iterations.....................: 271     16.554435/s
+    iteration_duration.............: avg=284.36ms min=239.21ms med=277.43ms max=371.38ms p(90)=327.46ms p(95)=350.23ms count=237
+    iterations.....................: 237     14.471587/s
     vus............................: 1       min=0          max=8
     vus_max........................: 8       min=8          max=8
 
     NETWORK
-    data_received..................: 75 kB   4.6 kB/s
-    data_sent......................: 45 kB   2.8 kB/s
+    data_received..................: 66 kB   4.0 kB/s
+    data_sent......................: 40 kB   2.4 kB/s
 
 
 
 
-running (16.4s), 0/8 VUs, 271 complete and 0 interrupted iterations
+running (16.4s), 0/8 VUs, 237 complete and 0 interrupted iterations
 order_spike ✓ [ 100% ] 0/8 VUs  16s

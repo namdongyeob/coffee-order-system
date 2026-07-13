@@ -21,6 +21,7 @@ class K6ScenarioContractTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("malformed JSON is classified as an error without escaping", result.stdout)
+        self.assertIn("createOrder records malformed JSON as error only", result.stdout)
 
     def test_all_scenarios_are_inspectable_and_bounded_by_default(self):
         for scenario in SCENARIOS:

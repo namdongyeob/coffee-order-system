@@ -15,52 +15,52 @@
 
 
 running (01.0s), 0/6 VUs, 0 complete and 0 interrupted iterations
-order_stress   [   5% ] 0/6 VUs  00.8s/16.0s
+order_stress   [   4% ] 0/6 VUs  00.6s/16.0s
 
-running (02.0s), 1/6 VUs, 1 complete and 0 interrupted iterations
-order_stress   [  11% ] 1/6 VUs  01.8s/16.0s
+running (02.0s), 1/6 VUs, 0 complete and 0 interrupted iterations
+order_stress   [  10% ] 1/6 VUs  01.6s/16.0s
 
-running (03.0s), 1/6 VUs, 4 complete and 0 interrupted iterations
-order_stress   [  17% ] 1/6 VUs  02.8s/16.0s
+running (03.0s), 1/6 VUs, 3 complete and 0 interrupted iterations
+order_stress   [  16% ] 1/6 VUs  02.6s/16.0s
 
-running (04.0s), 2/6 VUs, 10 complete and 0 interrupted iterations
-order_stress   [  24% ] 2/6 VUs  03.8s/16.0s
+running (04.0s), 2/6 VUs, 7 complete and 0 interrupted iterations
+order_stress   [  23% ] 2/6 VUs  03.6s/16.0s
 
-running (05.0s), 2/6 VUs, 18 complete and 0 interrupted iterations
-order_stress   [  30% ] 2/6 VUs  04.8s/16.0s
+running (05.0s), 2/6 VUs, 9 complete and 0 interrupted iterations
+order_stress   [  29% ] 2/6 VUs  04.6s/16.0s
 
-running (06.0s), 3/6 VUs, 26 complete and 0 interrupted iterations
-order_stress   [  36% ] 3/6 VUs  05.8s/16.0s
+running (06.0s), 3/6 VUs, 14 complete and 0 interrupted iterations
+order_stress   [  35% ] 3/6 VUs  05.6s/16.0s
 
-running (07.0s), 3/6 VUs, 38 complete and 0 interrupted iterations
-order_stress   [  42% ] 3/6 VUs  06.8s/16.0s
+running (07.0s), 3/6 VUs, 19 complete and 0 interrupted iterations
+order_stress   [  41% ] 3/6 VUs  06.6s/16.0s
 
-running (08.0s), 3/6 VUs, 51 complete and 0 interrupted iterations
-order_stress   [  49% ] 3/6 VUs  07.8s/16.0s
+running (08.0s), 3/6 VUs, 24 complete and 0 interrupted iterations
+order_stress   [  48% ] 3/6 VUs  07.6s/16.0s
 
-running (09.0s), 4/6 VUs, 66 complete and 0 interrupted iterations
-order_stress   [  55% ] 4/6 VUs  08.8s/16.0s
+running (09.0s), 4/6 VUs, 27 complete and 0 interrupted iterations
+order_stress   [  54% ] 4/6 VUs  08.6s/16.0s
 
-running (10.0s), 4/6 VUs, 82 complete and 0 interrupted iterations
-order_stress   [  61% ] 4/6 VUs  09.8s/16.0s
+running (10.0s), 4/6 VUs, 35 complete and 0 interrupted iterations
+order_stress   [  60% ] 4/6 VUs  09.6s/16.0s
 
-running (11.0s), 5/6 VUs, 99 complete and 0 interrupted iterations
-order_stress   [  67% ] 5/6 VUs  10.8s/16.0s
+running (11.0s), 5/6 VUs, 43 complete and 0 interrupted iterations
+order_stress   [  66% ] 5/6 VUs  10.6s/16.0s
 
-running (12.0s), 5/6 VUs, 119 complete and 0 interrupted iterations
-order_stress   [  74% ] 5/6 VUs  11.8s/16.0s
+running (12.0s), 5/6 VUs, 60 complete and 0 interrupted iterations
+order_stress   [  73% ] 5/6 VUs  11.6s/16.0s
 
-running (13.0s), 5/6 VUs, 138 complete and 0 interrupted iterations
-order_stress   [  80% ] 5/6 VUs  12.8s/16.0s
+running (13.0s), 5/6 VUs, 76 complete and 0 interrupted iterations
+order_stress   [  79% ] 5/6 VUs  12.6s/16.0s
 
-running (14.0s), 5/6 VUs, 159 complete and 0 interrupted iterations
-order_stress   [  86% ] 5/6 VUs  13.8s/16.0s
+running (14.0s), 6/6 VUs, 90 complete and 0 interrupted iterations
+order_stress   [  85% ] 6/6 VUs  13.6s/16.0s
 
-running (15.0s), 3/6 VUs, 173 complete and 0 interrupted iterations
-order_stress   [  92% ] 3/6 VUs  14.8s/16.0s
+running (15.0s), 4/6 VUs, 101 complete and 0 interrupted iterations
+order_stress   [  91% ] 4/6 VUs  14.6s/16.0s
 
-running (16.0s), 1/6 VUs, 183 complete and 0 interrupted iterations
-order_stress   [  99% ] 1/6 VUs  15.8s/16.0s
+running (16.0s), 1/6 VUs, 109 complete and 0 interrupted iterations
+order_stress   [  98% ] 1/6 VUs  15.6s/16.0s
 
 
   █ THRESHOLDS
@@ -69,7 +69,7 @@ order_stress   [  99% ] 1/6 VUs  15.8s/16.0s
     ✓ 'rate>0.99' rate=100.00%
 
     http_req_duration
-    ✓ 'p(95)<1500' p(95)=117.95ms
+    ✓ 'p(95)<1500' p(95)=628.41ms
 
     http_req_failed
     ✓ 'rate<0.01' rate=0.00%
@@ -83,9 +83,9 @@ order_stress   [  99% ] 1/6 VUs  15.8s/16.0s
 
   █ TOTAL RESULTS
 
-    checks_total.......: 561     34.552177/s
-    checks_succeeded...: 100.00% 561 out of 561
-    checks_failed......: 0.00%   0 out of 561
+    checks_total.......: 339     20.487207/s
+    checks_succeeded...: 100.00% 339 out of 339
+    checks_failed......: 0.00%   0 out of 339
 
     ✓ synthetic user charged
     ✓ order returns 201
@@ -93,27 +93,27 @@ order_stress   [  99% ] 1/6 VUs  15.8s/16.0s
     ✓ order response JSON has required fields
 
     CUSTOM
-    order_error_rate...............: 0.00%   0 out of 185
-    order_success_rate.............: 100.00% 185 out of 185
+    order_error_rate...............: 0.00%   0 out of 111
+    order_success_rate.............: 100.00% 111 out of 111
 
     HTTP
-    http_req_duration..............: avg=55.10ms  min=27.83ms  med=47.65ms  max=200.81ms p(90)=73.78ms  p(95)=117.95ms count=191
-      { expected_response:true }...: avg=55.10ms  min=27.83ms  med=47.65ms  max=200.81ms p(90)=73.78ms  p(95)=117.95ms count=191
-    http_req_failed................: 0.00%   0 out of 191
-    http_reqs......................: 191     11.763754/s
+    http_req_duration..............: avg=222.72ms min=54.46ms  med=186.11ms max=823.42ms  p(90)=426.25ms p(95)=628.41ms count=117
+      { expected_response:true }...: avg=222.72ms min=54.46ms  med=186.11ms max=823.42ms  p(90)=426.25ms p(95)=628.41ms count=117
+    http_req_failed................: 0.00%   0 out of 117
+    http_reqs......................: 117     7.070806/s
 
     EXECUTION
-    iteration_duration.............: avg=256.45ms min=228.48ms med=249.22ms max=401.18ms p(90)=274.69ms p(95)=320.70ms count=185
-    iterations.....................: 185     11.394212/s
-    vus............................: 1       min=0          max=5
+    iteration_duration.............: avg=432.67ms min=254.71ms med=393.94ms max=1024.13ms p(90)=628.61ms p(95)=860.97ms count=111
+    iterations.....................: 111     6.708201/s
+    vus............................: 1       min=0          max=6
     vus_max........................: 6       min=6          max=6
 
     NETWORK
-    data_received..................: 51 kB   3.2 kB/s
-    data_sent......................: 31 kB   1.9 kB/s
+    data_received..................: 31 kB   1.9 kB/s
+    data_sent......................: 19 kB   1.1 kB/s
 
 
 
 
-running (16.2s), 0/6 VUs, 185 complete and 0 interrupted iterations
+running (16.5s), 0/6 VUs, 111 complete and 0 interrupted iterations
 order_stress ✓ [ 100% ] 0/6 VUs  16s

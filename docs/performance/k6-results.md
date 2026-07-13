@@ -14,6 +14,9 @@ k6 실행 결과를 기록합니다. 수치는 실행 환경과 safe/heavy profi
 | 2026-07-12 | safe P1 재검증 | `order-load.js` | 2 | 14s | 47 | 179.33ms | 0.00% | 2.88 | PASS | JSON parse·필수 필드 분류, setup 포함 HTTP 49건 |
 | 2026-07-12 | safe P1 재검증 | `order-stress.js` | 6 | 16s | 185 | 117.95ms | 0.00% | 11.76 | PASS | JSON parse·필수 필드 분류, setup 포함 HTTP 191건 |
 | 2026-07-12 | safe P1 재검증 | `order-spike.js` | 8 | 16s | 271 | 69.35ms | 0.00% | 17.04 | PASS | JSON parse·필수 필드 분류, setup 포함 HTTP 279건 |
+| 2026-07-13 | safe P1 연결 재검증 | `order-load.js` | 2 | 14s | 41 | 293.96ms | 0.00% | 2.82 | PASS | actual `createOrder` Rate 경로, setup 포함 HTTP 43건 |
+| 2026-07-13 | safe P1 연결 재검증 | `order-stress.js` | 6 | 16s | 111 | 628.41ms | 0.00% | 7.07 | PASS | actual `createOrder` Rate 경로, setup 포함 HTTP 117건 |
+| 2026-07-13 | safe P1 연결 재검증 | `order-spike.js` | 8 | 16s | 237 | 145.15ms | 0.00% | 14.96 | PASS | actual `createOrder` Rate 경로, setup 포함 HTTP 245건 |
 
 원문은 `docs/testing/evidence/issue-13/*-output.txt`, machine-readable summary는 `*-summary.json`에 있습니다. 이 짧은 safe 실행은 기준선 재현 확인이며 최대 처리량이나 병목 지점을 확정하지 않습니다.
 

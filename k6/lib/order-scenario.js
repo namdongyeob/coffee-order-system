@@ -76,9 +76,13 @@ export function classifyOrderResponse(response) {
   };
 }
 
-export function createOrder(data, scenarioName) {
+export function createOrder(data, scenarioName, dependencies = {}) {
+  const post = dependencies.post || ((url, body, params) => http.post(url, body, params));
+  const successRate = dependencies.successRate || orderSuccessRate;
+  const errorRate = dependencies.errorRate || orderErrorRate;
+  const wait = dependencies.sleep || sleep;
   const userId = data.userBase + __VU;
-  const response = http.post(
+  const response = post(
     `${BASE_URL}/api/orders`,
     JSON.stringify({ userId, menuId: data.menuId }),
     {
@@ -93,9 +97,9 @@ export function createOrder(data, scenarioName) {
     'order response content type is JSON': (result) => result.contentTypeOk,
     'order response JSON has required fields': (result) => result.bodyOk,
   });
-  orderSuccessRate.add(classification.succeeded);
-  orderErrorRate.add(!classification.succeeded);
-  sleep(THINK_TIME_SECONDS);
+  successRate.add(classification.succeeded);
+  errorRate.add(!classification.succeeded);
+  wait(THINK_TIME_SECONDS);
 }
 
 export function thresholds(p95Milliseconds) {

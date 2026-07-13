@@ -70,3 +70,34 @@ Branch: codex/issue-13-k6-scenarios
 ### Next Attempt
 
 - 없음.
+
+## Attempt 3 — 사람이 승인한 별도 제한 P1 remediation
+
+### Generate
+
+- 시작: 2026-07-13T09:03:34.2731185+09:00.
+- 두 번째 Review P1 안전 정지 뒤 사용자가 actual `createOrder()`와 Rate 기록 연결만 검증하는 별도 제한 remediation을 승인했습니다. 일반 retry 정책이나 범위를 변경한 것이 아닙니다.
+- production app이 아닌 k6 helper에 HTTP post, 성공·오류 Rate recorder와 sleep을 주입하는 최소 dependency seam을 추가했습니다. 기본 실행은 기존 실제 HTTP·Rate·sleep을 그대로 사용합니다.
+
+### Evaluate
+
+- RED: contract가 주입값을 무시한 기존 `createOrder()`를 실행해 localhost 실제 호출 4건, recorder 호출 0건이 되었고 19 checks 중 16건이 실패했습니다.
+- GREEN: valid JSON은 success `true`/error `false`, malformed JSON·HTTP 500·non-JSON은 success `false`/error `true`를 각각 한 번 기록함을 actual k6 runtime에서 확인했습니다.
+- current-code safe Load, Stress, Spike는 41·111·237 주문 iterations, p95 293.96·628.41·145.15ms, 오류율 0%와 전체 threshold PASS였습니다.
+
+### Failure Cause
+
+- 첫 P1 contract는 classifier 반환만 검증해 actual `createOrder()`와 Rate 기록 사이 연결이 끊겨도 통과할 수 있었습니다.
+
+### Change Scope
+
+- `k6/lib/order-scenario.js`, `k6/tests/order-response-contract.js`, focused Python assertion과 확정 결과를 담는 Issue #13 문서·evidence만 변경했습니다.
+
+### Reverification
+
+- 종료: 2026-07-13T09:09:48.2659447+09:00.
+- actual k6 contract와 focused Python suite 3건, 세 `k6 inspect`, current-code safe Level 7, cleanup, repository gate, diff check와 PR body preflight를 재실행해 PASS했습니다.
+
+### Next Attempt
+
+- 없음.
