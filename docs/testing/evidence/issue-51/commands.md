@@ -18,3 +18,9 @@
 | `rg -n "docs/testing/verification-log\\.md" docs/operations/kafka-redis-runbook.md docs/product/github-issues.md` | P1 대상 문서의 삭제된 전역 로그 참조 검사 | 결과 0건. 두 문서는 Issue별 `verification.md` 정본과 Evidence Guide의 on-demand 전역 뷰 재현을 안내합니다. |
 | `python scripts/harness_gate.py --issue 51 --branch codex/issue-51-verification-log-per-issue --base-ref 4b5fe36a0e875c6f0c9f2a3725de1ddeef2f0613 --check-links --include-worktree` | P1 수정 뒤 Issue evidence·모드·변경 Markdown 링크 검사 | PASS. |
 | `git diff --check` | P1 수정 뒤 공백 오류 검사 | PASS. |
+| `git show --stat f3979b0f1d595ed6ed6cc3bef1f0113ec7247126` | 사용자 승인 delta의 변경 범위 확인 | `README.md`만 2행 수정한 README-only commit임을 확인했습니다. |
+| fresh Review at `f3979b0f1d595ed6ed6cc3bef1f0113ec7247126` | README-only delta의 독립 검토 | `APPROVED`. 수행 시각은 보존되지 않아 `미측정`입니다. |
+| independent QA at `f3979b0f1d595ed6ed6cc3bef1f0113ec7247126` | README-only delta·정적 gate·링크의 독립 확인 | `PASS`. README-only delta verified, Issue harness gate PASS, `git diff --check` PASS, README Markdown 링크 존재를 확인했습니다. 수행 시각은 `미측정`입니다. |
+| `python scripts/harness_gate.py --issue 51 --branch codex/issue-51-verification-log-per-issue --base-ref 4b5fe36a0e875c6f0c9f2a3725de1ddeef2f0613 --check-links --include-worktree` | Docs 동기화 전 Issue evidence·모드·변경 Markdown 링크 정적 검사 | PASS. Program/Gradle/runtime/API 테스트는 실행하지 않았습니다. |
+| `git diff --check 4b5fe36a0e875c6f0c9f2a3725de1ddeef2f0613..HEAD` | Docs 동기화 전 base..head 공백 오류 검사 | PASS. |
+| README Markdown 링크 확인 | 사용자 승인 README-only delta의 링크 대상 존재 확인 | `docs/testing/evidence-guide.md` 링크와 대상 파일이 존재합니다. |

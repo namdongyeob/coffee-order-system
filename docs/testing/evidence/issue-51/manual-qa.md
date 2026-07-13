@@ -4,3 +4,5 @@
 - 생성 전역 뷰는 저장소에 기록하거나 커밋하지 않습니다.
 - Level 5/6은 Issue 본문 결정대로 NO이며 runtime 또는 HTTP 검증을 완료로 표현하지 않습니다.
 - 독립 QA는 head `b98b02e9c89b2d5f6a213de285338fcd7332e1f1`에서 focused 21건 PASS, harness gate PASS, `base_rows=89`, `rebuilt_rows=90`, `missing=0`, rebuild PASS, `git diff --check` PASS를 확인했습니다. 수행 시각과 focused 원문 명령은 보존되지 않아 `미측정`입니다.
+- 독립 QA는 사용자 승인 README-only head `f3979b0f1d595ed6ed6cc3bef1f0113ec7247126`에서 README-only delta, Issue harness gate, `git diff --check`, README Markdown 링크 존재를 확인해 PASS로 판정했습니다. 수행 시각은 보존되지 않아 `미측정`입니다.
+- README-only delta이므로 Program/Gradle/runtime/API 테스트는 의도적으로 실행하지 않았습니다. Level 5/6은 NO입니다.

@@ -15,7 +15,7 @@ Branch: codex/issue-51-verification-log-per-issue
 
 ### Evaluate
 
-- 진행 중입니다. P1 문서 경로 정정 뒤 focused 문서·링크 검사와 Issue gate를 다시 실행합니다.
+- PASS. 사용자 승인 README-only delta와 그 직전 head의 fresh Review·독립 QA 결과를 정본 evidence에 동기화했습니다.
 
 ### Failure Cause
 
@@ -36,7 +36,12 @@ Branch: codex/issue-51-verification-log-per-issue
 - 종료 시각은 2026-07-13 16:14:04 +09:00입니다.
 - 독립 QA는 focused 21건 PASS, harness gate PASS, `base_rows=89`, `rebuilt_rows=90`, `missing=0`, rebuild PASS, `git diff --check` PASS를 같은 head에서 확인했습니다.
 - P1 대상 두 문서의 `docs/testing/verification-log.md` 참조는 0건이며 Issue gate와 `git diff --check`를 통과했습니다.
+- 사용자 승인 README-only commit `f3979b0f1d595ed6ed6cc3bef1f0113ec7247126`은 `README.md`만 2행 수정했습니다.
+- fresh Review는 `f3979b0f1d595ed6ed6cc3bef1f0113ec7247126`에서 `APPROVED`입니다. 수행 시각은 기록되지 않아 `미측정`입니다.
+- 독립 QA는 같은 head에서 README-only delta, Issue harness gate, `git diff --check`, README Markdown 링크 존재를 확인해 `PASS`로 판정했습니다. 수행 시각은 기록되지 않아 `미측정`입니다.
+- Docs 정적 확인은 `python scripts/harness_gate.py --issue 51 --branch codex/issue-51-verification-log-per-issue --base-ref 4b5fe36a0e875c6f0c9f2a3725de1ddeef2f0613 --check-links --include-worktree`와 `git diff --check 4b5fe36a0e875c6f0c9f2a3725de1ddeef2f0613..HEAD`에서 PASS했습니다.
+- README-only delta이므로 Program/Gradle/runtime/API 테스트는 의도적으로 실행하지 않았습니다. Level 5/6은 NO입니다.
 
 ### Next Attempt
 
-- P1 수정의 검증을 기록했습니다. commit, push한 뒤 fresh Review와 stale QA를 다시 요청합니다.
+- Docs-only commit과 push 뒤 GitHub의 새 head CI 결과를 확인합니다. 이 문서 commit으로 CI가 재실행될 수 있으므로 이전 head의 CI 성공을 현재 head의 고정 결과로 복제하지 않습니다.
