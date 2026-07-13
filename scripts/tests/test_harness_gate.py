@@ -1273,9 +1273,10 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertIn("기본 merge 거버넌스는 사람 도메인 오너의 최종 merge 승인", policy)
 		self.assertIn("AI는 1차 결함 탐지와 독립 검증을 담당", policy)
 		self.assertIn("`STRICT-lite` 등 새 실행 등급은 추가하지 않습니다", policy)
-		# 12,288바이트(12 KiB) 최종 목표까지는 evidence-guide 참조 정리 단계가 남아 있어
-		# 현재는 회귀 방지용 ratchet만 강제한다. 목표 도달 시 이 상한을 12288로 낮춘다.
-		self.assertLessEqual(len(policy.encode("utf-8")), 19456)
+		# 조건부 문서 분리와 evidence-guide 단일 정본 참조로 도달한 실측 safe floor.
+		# 남은 본문은 모드·역할·동시성·거버넌스·동결 등 더 줄일 수 없는 핵심 안전 규칙이다.
+		# 회귀 방지용 상한이며, 안전 규칙을 밀어내지 않는 추가 감축이 생기면 더 낮춘다.
+		self.assertLessEqual(len(policy.encode("utf-8")), 15360)
 		self.assertIn("`namdongyeob/coffee-order-system`만 적용합니다.", runbook)
 
 	def test_execution_modes_keep_sources_separated(self):

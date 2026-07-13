@@ -35,14 +35,7 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 
 ## 한 작업의 오케스트레이션 소유자
 
-하나의 Issue에는 오케스트레이션 소유자를 하나만 둡니다.
-
-- Codex 일반 모드가 조정하면 외부 LazyCodex 루프를 중첩하지 않습니다.
-- `ultra`가 서브에이전트를 조정하면 별도의 병렬 Dev 그룹을 다시 만들지 않습니다.
-- LazyCodex 런타임을 사용할 때는 설치된 명령과 상태 저장 위치를 먼저 확인합니다.
-- 중첩 사용이 필요하다는 근거가 없으면 가장 단순한 실행 방식 하나를 선택합니다.
-
-이 규칙은 제품 제한이 아니라 중복 탐색, 동일 파일 충돌, 테스트 중복 실행을 막기 위한 프로젝트 운영 정책입니다.
+하나의 Issue에는 오케스트레이션 소유자를 하나만 둡니다. 외부 반복 루프나 상위 오케스트레이터를 중첩하지 않으며, 중첩이 필요하다는 근거가 없으면 가장 단순한 실행 방식 하나를 선택합니다. 이 규칙은 중복 탐색, 동일 파일 충돌, 테스트 중복 실행을 막기 위한 프로젝트 운영 정책입니다.
 
 ## 역할과 쓰기 권한
 
@@ -68,32 +61,17 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 - 모든 실패를 임의로 자동 수정하는 오케스트레이터는 사용하지 않습니다. 실패를 환경, 테스트 계약, 구현 결함, 정책 미결정으로 분류한 뒤 승인된 수정 범위만 다음 Attempt에 전달합니다.
 - 자동 재시도는 같은 명령의 일시적 환경 실패처럼 원인과 수정 범위가 명확할 때만 허용합니다. 정책 변경, migration, 외부 인프라 설정은 사람 확인 없이 자동 수정하지 않습니다.
 
-### 경량 자율 큐 흐름
+### 최소 packet과 evidence 정본
 
-고정 자율 Issue 큐는 새 자동화 엔진이나 별도 metadata recovery budget을 두지 않습니다. fresh Review·QA와 metadata 불일치가 있을 때만 호출하는 Docs는 전체 Dev 대화 대신 Issue URL, worktree 경로, base/head SHA, Acceptance Criteria, 필수 정본 문서 3~5개 경로, diff 범위와 직전 P0/P1 finding만 담은 경로 기반 최소 역할 packet을 받습니다. packet key는 이 allowlist만 허용하며, 문서 경로는 서로 다른 실제 `AGENTS.md`, `docs/ai/*.md`, `docs/testing/*.md`, `.codex/skills/*/SKILL.md`의 canonical repository-relative 경로만 사용합니다. source 본문, 전체 conversation, `tasks/**/sources` 복사본은 packet과 저장소에 만들지 않으며 역할은 필요할 때 worktree와 GitHub 정본을 직접 읽습니다.
+역할에는 전체 Dev 대화 대신 Issue URL, worktree, base/head SHA, Acceptance Criteria, 필수 정본 문서 3~5개 경로, diff 범위와 직전 P0/P1만 담은 경로 기반 최소 packet을 전달합니다. packet allowlist, 문서 경로 규칙, source 본문 비저장 규칙과 STRICT 진행 순서(`Dev·focused 검증과 evidence·preflight -> fresh Review -> independent QA -> 최신 CI -> merge·close`)의 정본은 [Issue 개발 흐름](agent-rules.md)입니다.
 
-`Dev 구현·focused 검증과 evidence·PR body preflight -> fresh Review -> independent QA -> 최신 CI -> merge·close` 순서로 진행합니다. QA 뒤 repository HEAD가 바뀌지 않으면 post-QA Docs commit과 두 번째 전체 Review를 요구하지 않습니다. Review·QA·CI·현재 head·mergeable 같은 가변 상태는 GitHub comments/checks만 정본으로 사용하며 GitHub-only 갱신은 repository commit을 만들지 않습니다. QA 뒤 production, test, build, runtime, workflow, API·도메인 정책 문서가 바뀌면 Review와 필요한 QA는 stale입니다.
-
-정본은 다음처럼 한 곳씩만 둡니다.
-
-- `attempt-log.md`: Attempt, 역할, 당시 기록한 시작·종료 시각, 기준 head, 원인, 허용 범위, 결과와 Next Attempt.
-- `commands.md`: 실제로 실행한 명령, 실행 head, 결과와 원문 위치.
-- GitHub: 현재 PR head, Review·QA 댓글과 verdict, CI, mergeable, PR·Issue 상태와 merge commit.
-- `metrics.md`: 위 정본에서 계산한 파생 요약. STRICT 기본 Agent 수는 Dev, Review, QA의 고유 역할 3이며 Main Coordinator와 CI 및 동일 역할 재시도는 제외합니다. metadata 불일치로 Docs Agent를 실제 호출한 경우에만 4를 기록합니다.
-- `docs/testing/evidence/issue-{number}/verification.md`: Issue별 최종 repository 검증 결과 한 행 정본. Review·QA·CI·head·merge 상태를 복제하지 않으며 전역 뷰는 커밋하지 않습니다.
-
-PR 생성 전 경량 preflight는 기본 evidence, Execution mode와 reason, Level 5/6 결정과 reason, 실제 command 결과, metrics 9열, 존재하지 않는 파일·실행하지 않은 명령 주장, 한국어 UTF-8 no-BOM body, 범위 밖 변경과 비밀값을 검사합니다. 또한 `attempt-log.md`의 Current disposition·Attempt·head를 `verification.md`, acceptance checkbox, metrics 재시도 수와 fail-closed로 대조합니다. 이 불일치는 fresh Review 전에 자동 발견하며 Docs Agent가 확정된 정본 값만 한 번 동기화합니다. PR 본문에는 현재 head, CI·Review·QA·Gate 상태, Agent·retry 수, diff 통계, 파일 목록 또는 테스트 수를 복제하지 않습니다.
-
-Review APPROVED 뒤 independent QA를 실행합니다. QA head부터 현재 head까지의 변경이 해당 Issue evidence의 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`, `verification.md`뿐이면 QA 판정은 유지합니다. screenshot, binary, raw output, 임의 파일과 다른 Issue evidence를 포함해 이 고정 Markdown allowlist 밖 변경이 하나라도 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
+Attempt·명령·metrics·verification의 evidence 정본 위치, PR 전 preflight 검사 항목, QA-stale 판정 allowlist는 이 정책이 복제하지 않고 [Evidence Guide](../testing/evidence-guide.md)를 따릅니다. Review·QA·CI·현재 head·mergeable 같은 가변 상태는 GitHub만 정본으로 사용하며, QA 뒤 production·test·build·runtime·workflow·API·도메인 정책 문서가 바뀌면 Review와 필요한 QA는 stale입니다.
 
 ### 검증 소유권과 범위 밖 flaky
 
 - Dev focused 실행, QA 독립 검증, GitHub Actions `quality-gates`의 전체 Level 1 회귀 판정 등 테스트 실행 소유권의 단일 정본은 [테스트 전략](../testing/test-strategy.md)입니다. 이 문서는 그 규칙을 복제하지 않고 참조만 합니다.
-- 전체 회귀 실패가 current diff와 관련될 수 있으면 flaky 경로에 넣지 않고 현재 Issue 결함으로 처리합니다. 명확히 범위 밖인 기존 테스트만 clean process에서 1회 격리 실행합니다.
-- 격리 PASS와 current head CI PASS가 함께 있으면 flaky 후보를 기록하고 진행합니다. 격리 FAIL은 중복 검색 뒤 별도 blocker Issue와 test-only 원인 진단·조건 기반 동기화 1회까지만 허용하며 자동 merge하지 않습니다.
-- blocker에서 production 변경 필요, 원인 불명 또는 안정화 실패이면 안전 정지합니다. `BLOCKED` 상태는 외부 상태 변화나 사용자 승인 전에는 Agent dispatch, Review·QA 재실행 또는 wake-up 반복을 만들지 않습니다.
-
-Dev가 PR 전 evidence와 preflight를 완성한 뒤 metadata 불일치가 확인될 때만 final Review 전에 Docs Agent가 테스트 수, Agent 수, evidence 링크, verification-log 행, 존재하지 않는 PR 파일 참조와 metrics 계산을 정본에 따라 한 번 정리합니다. 불일치가 없으면 Docs Agent를 dispatch하지 않습니다. 별도 budget이나 상태 머신은 없으며, 정본이 충돌하거나 계산할 수 없을 때만 안전 정지합니다. 코드·정책·보안·데이터 P0/P1은 원래 Dev에게 한 번 반환하고 두 번째 P0/P1은 안전 정지합니다. 완료 기준을 위반하지 않는 P2는 비차단 권고 또는 후속 Issue로 남깁니다.
+- 범위 밖 flaky의 격리·기록 절차는 [테스트 전략](../testing/test-strategy.md)을, 안전 정지 규칙은 [자율 큐 runbook](autonomous-queue-runbook.md)을 따릅니다. current diff와 관련될 수 있는 실패는 flaky로 분류하지 않고 현재 Issue 결함으로 처리합니다.
+- 코드·정책·보안·데이터 P0/P1은 원래 Dev에게 한 번 반환하고 두 번째 P0/P1은 안전 정지합니다. 완료 기준을 위반하지 않는 P2는 비차단 권고 또는 후속 Issue로 남깁니다.
 
 ## Main Coordinator 금지 규칙
 
