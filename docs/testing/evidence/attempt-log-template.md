@@ -3,6 +3,9 @@
 Issue: #
 Issue URL:
 Branch:
+Current disposition: PASS|BLOCKED
+Current Attempt: 1
+Current head: 7자리 이상 Git commit SHA
 
 ## Attempt 1
 

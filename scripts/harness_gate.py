@@ -345,6 +345,45 @@ def validate_attempt_log(markdown: str, path: Path | None = None) -> list[str]:
     return errors
 
 
+def _single_metadata_value(markdown: str, field: str) -> str | None:
+    matches = re.findall(rf"^{re.escape(field)}:[ \t]*(\S[^\r\n]*)$", markdown, re.MULTILINE)
+    return matches[0].strip() if len(matches) == 1 else None
+
+
+def attempt_reconciliation_state(markdown: str) -> tuple[dict[str, str] | None, list[str]]:
+    """Read the machine-readable terminal state that gates Issue completion evidence."""
+    errors: list[str] = []
+    disposition = _single_metadata_value(markdown, "Current disposition")
+    attempt = _single_metadata_value(markdown, "Current Attempt")
+    head = _single_metadata_value(markdown, "Current head")
+    if disposition not in {"PASS", "BLOCKED"}:
+        errors.append("attempt-log.md Current disposition must be PASS or BLOCKED.")
+    if attempt is None or re.fullmatch(r"[1-9]\d*", attempt) is None:
+        errors.append("attempt-log.md Current Attempt must be a positive integer.")
+    if head is None or re.fullmatch(r"[0-9a-fA-F]{7,40}", head) is None:
+        errors.append("attempt-log.md Current head must be a Git commit SHA.")
+    attempts = [int(value) for value in re.findall(r"^## Attempt ([1-9]\d*)\s*$", markdown, re.MULTILINE)]
+    if attempt is not None and attempts and int(attempt) != max(attempts):
+        errors.append("attempt-log.md Current Attempt must match the latest Attempt heading.")
+    if errors:
+        return None, errors
+    return {"disposition": disposition, "attempt": attempt, "head": head.lower()}, errors
+
+
+def verification_reconciliation_state(markdown: str) -> tuple[dict[str, str] | None, list[str]]:
+    """Read the verification metadata paired with the current Attempt state."""
+    errors: list[str] = []
+    attempt = _single_metadata_value(markdown, "Attempt")
+    head = _single_metadata_value(markdown, "Head")
+    if attempt is None or re.fullmatch(r"[1-9]\d*", attempt) is None:
+        errors.append("verification.md Attempt must be a positive integer.")
+    if head is None or re.fullmatch(r"[0-9a-fA-F]{7,40}", head) is None:
+        errors.append("verification.md Head must be a Git commit SHA.")
+    if errors:
+        return None, errors
+    return {"attempt": attempt, "head": head.lower()}, errors
+
+
 def _split_markdown_table_row(line: str) -> list[str]:
     """Split a Markdown table row while preserving pipes inside inline code."""
     stripped = line.strip()
@@ -421,6 +460,51 @@ def validate_metrics(markdown: str, path: Path | None = None) -> list[str]:
                 errors.append(f"{location}metrics.md {column}은 0 이상의 정수 또는 미측정이어야 합니다.")
         elif re.fullmatch(r"0|[1-9]\d*", value) is None:
             errors.append(f"{location}metrics.md {column}은 0 이상의 정수여야 합니다.")
+    return errors
+
+
+def metrics_row(markdown: str) -> list[str] | None:
+    header = "| " + " | ".join(METRICS_COLUMNS) + " |"
+    lines = markdown.splitlines()
+    try:
+        header_index = next(index for index, line in enumerate(lines) if line.strip() == header)
+    except StopIteration:
+        return None
+    return _split_markdown_table_row(lines[header_index + 2]) if header_index + 2 < len(lines) else None
+
+
+def validate_evidence_reconciliation(
+    acceptance: str, attempt_log: str, metrics: str, verification: str, issue: int
+) -> list[str]:
+    """Fail closed when current Issue evidence sources describe different completion states."""
+    attempt_state, errors = attempt_reconciliation_state(attempt_log)
+    verification_state, verification_errors = verification_reconciliation_state(verification)
+    errors.extend(verification_errors)
+    row = metrics_row(metrics)
+    if attempt_state is None or verification_state is None or row is None:
+        return errors
+
+    if attempt_state["attempt"] != verification_state["attempt"]:
+        errors.append("evidence reconciliation: Current Attempt and verification.md Attempt must match.")
+    if attempt_state["head"] != verification_state["head"]:
+        errors.append("evidence reconciliation: Current head and verification.md Head must match.")
+    if int(row[3]) != int(attempt_state["attempt"]) - 1:
+        errors.append("evidence reconciliation: metrics retry count must equal Current Attempt minus one.")
+
+    rows, row_errors = _verification_rows(verification)
+    errors.extend(row_errors)
+    issue_pattern = re.compile(rf"\bIssue\s*#\s*{issue}\b", re.IGNORECASE)
+    has_pass = any(issue_pattern.search(row["Issue"]) and row["결과"] == "PASS" for row in rows)
+    unchecked = re.findall(r"^- \[ \] .+", acceptance, re.MULTILINE)
+    checked = re.findall(r"^- \[[xX]\] .+", acceptance, re.MULTILINE)
+    if attempt_state["disposition"] == "BLOCKED" and has_pass:
+        errors.append("evidence reconciliation: BLOCKED Current disposition cannot include PASS verification.")
+    if attempt_state["disposition"] == "PASS" and not has_pass:
+        errors.append("evidence reconciliation: PASS Current disposition requires PASS verification.")
+    if attempt_state["disposition"] == "PASS" and (unchecked or not checked):
+        errors.append("evidence reconciliation: PASS Current disposition requires every acceptance check to be checked.")
+    if attempt_state["disposition"] == "BLOCKED" and checked and not unchecked:
+        errors.append("evidence reconciliation: BLOCKED Current disposition requires an unchecked acceptance check.")
     return errors
 
 
@@ -597,18 +681,17 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
     if attempt_log_path.is_file():
         attempt_log = attempt_log_path.read_text(encoding="utf-8")
         errors.extend(validate_attempt_log(attempt_log, attempt_log_path))
+    else:
+        attempt_log = ""
 
     verification_log = repository_root / verification_file_path(issue)
     if not verification_log.is_file():
         errors.append(f"ERROR: missing Issue verification source: {verification_log}")
     else:
-        errors.extend(
-            validate_verification_log(
-                verification_log.read_text(encoding="utf-8"),
-                issue,
-                required_verification_levels(acceptance),
-            )
-        )
+        verification = verification_log.read_text(encoding="utf-8")
+        errors.extend(validate_verification_log(verification, issue, required_verification_levels(acceptance)))
+        if acceptance and metrics and attempt_log:
+            errors.extend(validate_evidence_reconciliation(acceptance, attempt_log, metrics, verification, issue))
 
     return errors
 
