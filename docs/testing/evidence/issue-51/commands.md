@@ -15,3 +15,6 @@
 | QA harness gate | 독립 QA의 Issue evidence·형식·변경 범위 확인 | PASS. 수행 시각은 `미측정`입니다. head `b98b02e9c89b2d5f6a213de285338fcd7332e1f1`. |
 | QA 원본/재현 행 Counter 비교 및 rebuild | 독립 QA의 전역 뷰 원문 보존 재확인 | `base_rows=89`, `rebuilt_rows=90`, `missing=0`, rebuild PASS. 수행 시각은 `미측정`입니다. |
 | QA `git diff --check` | 독립 QA의 공백 오류 확인 | PASS. 수행 시각은 `미측정`입니다. |
+| `rg -n "docs/testing/verification-log\\.md" docs/operations/kafka-redis-runbook.md docs/product/github-issues.md` | P1 대상 문서의 삭제된 전역 로그 참조 검사 | 결과 0건. 두 문서는 Issue별 `verification.md` 정본과 Evidence Guide의 on-demand 전역 뷰 재현을 안내합니다. |
+| `python scripts/harness_gate.py --issue 51 --branch codex/issue-51-verification-log-per-issue --base-ref 4b5fe36a0e875c6f0c9f2a3725de1ddeef2f0613 --check-links --include-worktree` | P1 수정 뒤 Issue evidence·모드·변경 Markdown 링크 검사 | PASS. |
+| `git diff --check` | P1 수정 뒤 공백 오류 검사 | PASS. |
