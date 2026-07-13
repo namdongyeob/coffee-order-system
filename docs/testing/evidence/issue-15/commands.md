@@ -2,13 +2,11 @@
 
 | 명령 | 목적 | 결과 |
 | --- | --- | --- |
-| `git status -sb; git branch --show-current; git rev-parse HEAD` | worktree와 기준 head 확인 | PASS. `codex/issue-15-dlt-replay`, `d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8`, 시작 시 미커밋 변경 없음. |
-| `gh issue view 15 --repo namdongyeob/coffee-order-system --json number,title,body,url,labels,comments` | GitHub Issue 정본 확인 | PASS. STRICT, Level 4 YES, Level 5 YES, Level 6 NO와 DLT 조회·선택 재발행·processed_event 확인 범위를 확인했습니다. |
-| `Get-Content -Raw -Encoding UTF8 docs/architecture/recovery-strategy.md` | DLT 복구 계약 확인 | PASS. 승인된 메시지만 원본 topic으로 재발행하는 script라는 방향만 있고 선택·승인·header·경쟁 정책은 없습니다. |
-| `Get-Content -Raw -Encoding UTF8 docs/operations/kafka-redis-runbook.md` | 운영 DLT runbook 확인 | PASS. Kafka UI/CLI 조회, 원인 표, processed_event 확인은 있으나 script 계약은 없습니다. |
-| `docker version` | Level 4·5 Docker runtime 가용성 확인 | PARTIAL. Docker CLI `29.4.2`는 확인됐으나 Docker Desktop Linux daemon npipe가 없어 연결 실패했습니다. |
-| `docker compose version` | Compose CLI 확인 | PASS. `v5.1.3`. daemon 연결 실패와 별개입니다. |
-| `git diff --check` | 현재 diff 공백 오류 확인 | PASS. evidence 작성 전 exit code `0`. |
-| `python scripts/harness_gate.py --issue 15 --branch codex/issue-15-dlt-replay --base-ref origin/main --check-links --include-worktree` | Issue evidence와 repository 계약 확인 | FAIL. `Issue #15 required Level 5 PASS is missing`. 실제 Level 5가 필수지만 Docker daemon 부재로 실행하지 못한 현재 BLOCKED 상태를 정확히 반영합니다. |
+| `git fetch origin; git rebase origin/main` | 최신 `origin/main` 기준으로 Issue #15 branch 정렬 | PASS. `287594549cbd6b66eb85a3dd74285125ed36906b`로 충돌 없이 리베이스했습니다. |
+| `./gradlew.bat test --tests "*DltReplayServiceIntegrationTest" --no-daemon --max-workers=1` | original offset 단독 누락 fail-closed와 기존 DLT replay 계약의 Level 4 통합 검증 | PASS. Testcontainers Kafka·Redis·MySQL에서 tests 4, failures 0, errors 0이었습니다. |
+| `./scripts/replay_dlt_message.ps1 -Partition 0 -Offset 0 -ApprovedBy operator-a -Reason 'Offset header validation'` | local Compose runtime에서 DLT 단건 선택의 Level 5 fail-closed 확인 | PASS. MySQL·Redis·Kafka 연결 뒤 존재하지 않는 DLT offset을 10초 제한으로 차단했고 `DltReplayException` 및 exit code `1`로 재발행 없이 종료했습니다. |
+| `git diff --check origin/main...HEAD` | execution head의 공백 오류 확인 | PASS. exit code `0`이었습니다. |
+| `python scripts/harness_gate.py --issue 15 --branch codex/issue-15-dlt-replay --base-ref origin/main --check-links --include-worktree` | Issue evidence와 execution head 정합성 확인 | PASS. exit code `0`이었습니다. |
+| `python scripts/harness_gate.py --issue 15 --branch codex/issue-15-dlt-replay --base-ref origin/main --check-links --include-worktree --pr-body-file C:\Users\user\AppData\Local\Temp\issue-15-pr-body.md` | PR body와 Issue evidence의 execution mode·Attempt·head·Level PASS preflight 확인 | PASS. exit code `0`이었습니다. |
 
-실행하지 않은 명령은 결과로 기록하지 않습니다. 정책 미결정과 Docker daemon 부재 때문에 TDD RED/GREEN, Gradle focused/full regression, Kafka·Redis·MySQL Level 4, local runtime Level 5는 시작하지 않았습니다.
+실행하지 않은 명령은 결과로 기록하지 않습니다. full Gradle 회귀는 이번 current diff가 DLT 통합 테스트와 Issue evidence만 변경하므로 Dev focused 검증 범위를 넘겨 실행하지 않았고, STRICT의 최종 전체 회귀는 GitHub Actions `quality-gates` 소유입니다.

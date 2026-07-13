@@ -5,10 +5,10 @@ Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/15
 
 Execution mode: STRICT
 Execution mode reason: DLT 메시지 조회·선택 재발행·processed_event 확인은 Kafka 복구와 운영 계약을 변경하거나 검증하는 범위입니다.
-Level 5 required: YES
-Level 5 reason: 운영 스크립트가 로컬 애플리케이션 구성에서 안전하게 동작하는지 확인해야 합니다.
 Level 4 required: YES
 Level 4 reason: Kafka DLT 단건 재조회, header 검증, processed_event skip과 consumer 처리를 실제 인프라에서 검증합니다.
+Level 5 required: YES
+Level 5 reason: 운영 스크립트가 로컬 애플리케이션 구성에서 안전하게 동작하는지 확인해야 합니다.
 Level 6 required: NO
 Level 6 reason: 공개 HTTP API를 추가하거나 변경하지 않습니다.
 
@@ -29,4 +29,4 @@ Level 6 reason: 공개 HTTP API를 추가하거나 변경하지 않습니다.
 
 ## 현재 판정
 
-- PASS. 상세 검증 결과는 `verification.md`를 정본으로 확인합니다.
+- PASS. execution head `a49e0103d938f8f078601afb4502e04a5f7ded73`의 상세 검증 결과는 `verification.md`를 정본으로 확인합니다.

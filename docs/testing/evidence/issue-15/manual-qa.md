@@ -2,17 +2,17 @@
 
 ## 계약 확인
 
-- GitHub Issue #15와 `docs/architecture/recovery-strategy.md`는 운영자 승인 메시지의 선택 재발행을 요구합니다.
-- `docs/operations/kafka-redis-runbook.md`는 DLT의 원본 topic, partition, offset, exception header를 확인하라고 하지만 재발행 script가 그 header를 검증하거나 어떻게 전달할지 규정하지 않습니다.
-- 현재 consumer의 `RankingEventProcessor`는 `processed_event` 존재 시 반환해 중복 소비를 막습니다. 그러나 script의 사전 조회와 consumer 처리 사이의 경쟁을 성공, skip 또는 error 중 무엇으로 보고할지 정본에 없습니다.
+- GitHub Issue #15 safety contract는 승인된 topic·partition·offset 한 건만 재처리하고, original topic·partition·offset header가 없으면 fail-closed하도록 요구합니다.
+- `DltReplayService`는 original partition이 존재하고 original offset만 없는 record에 `DLT 원본 offset header가 없습니다.`를 발생시켜 재발행 전 종료합니다.
+- `processed_event` 사전 조회와 consumer 처리의 경쟁 위험은 result에 기록하고 최종 중복 방어는 기존 consumer 멱등성에 맡깁니다.
 
 ## Runtime 확인
 
-- Docker CLI와 Compose CLI는 설치되어 있습니다.
-- Docker Desktop Linux daemon이 실행되지 않아 실제 Kafka, Redis, MySQL 컨테이너를 시작하거나 기존 컨테이너 상태를 관찰하지 못했습니다.
-- 따라서 Level 4와 Level 5는 미검증이며 PASS로 주장하지 않습니다.
+- `docker ps`에서 `docker-mysql-1`, `docker-redis-1`, `docker-kafka-1`이 healthy 상태임을 확인했습니다.
+- local script는 MySQL·Redis·Kafka에 연결한 뒤 존재하지 않는 `order.completed.DLT` partition 0 offset 0을 10초 내 발견하지 못해 `DltReplayException`으로 종료했습니다.
+- exit code `1`은 의도된 fail-closed 결과이며, original topic에 재발행했다는 로그나 결과는 관찰되지 않았습니다.
 
-## 안전 정지
+## 제외 범위 확인
 
-- 운영자 승인 방식, 선택 단위, header 처리, processed_event 경쟁 결과를 추측해 재발행 script를 만들지 않았습니다.
-- 공개 API와 자동 전체 재처리는 만들지 않았습니다.
+- 공개 HTTP API와 자동 전체 재처리는 추가하지 않았습니다.
+- 원본 offset 검증 production 코드는 변경하지 않았고, offset 단독 누락을 재현하는 통합 테스트만 추가했습니다.

@@ -1,8 +1,11 @@
 # 검증 로그
 
+Attempt: 2
+Head: a49e0103d938f8f078601afb4502e04a5f7ded73
+
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-13 | Issue #15 DLT 선택 재발행 사전 계약·환경 검증 | Level 0 | PARTIAL | Issue와 Kafka·복구·운영 정본의 선택·승인·멱등성·header 계약 및 Level 4·5 실행 환경 | `docs/testing/evidence/issue-15/commands.md`, `attempt-log.md`, `manual-qa.md` | 정책 정본은 선택 재발행을 지시하지만 script의 선택 식별자, 승인 증적, DLT header 정책, processed_event 경쟁 결과를 정하지 않아 구현을 안전 정지했습니다. Docker Desktop Linux daemon도 연결되지 않아 Level 4 Kafka·Redis·MySQL과 Level 5 local runtime은 미검증입니다. Level 6은 공개 HTTP API 범위가 아니므로 NO입니다. repository gate도 필수 Level 5 PASS가 없어서 FAIL했으며 이를 우회하지 않았습니다. |
-| 2026-07-13 | Issue #15 DLT 선택 재발행 runtime fail-closed | Level 5 | PASS | Compose MySQL·Redis·Kafka healthy 상태의 local profile script 진입과 존재하지 않는 DLT topic/offset 차단 | `scripts/replay_dlt_message.ps1 -Partition 0 -Offset 0 -ApprovedBy operator-a -Reason 'Redis recovered'` | Spring local runtime, Flyway, MySQL, Redis, Kafka 연결 후 `order.completed.DLT` offset 0 부재를 10초 제한 내 감지해 `DltReplayException`으로 exit 1 했습니다. 재발행하지 않은 안전한 fail-closed 결과입니다. Level 6은 공개 HTTP API 변경이 없어 NO입니다. |
-| 2026-07-13 | Issue #15 Kafka test isolation regression | Level 4 | PASS | DLT 재발행 consumer 처리와 기존 order event producer Kafka 테스트의 shared-topic 격리 | `./gradlew.bat cleanTest test --tests "*DltReplayServiceIntegrationTest" --tests "*OrderEventKafkaIntegrationTest" --no-daemon --max-workers=1` | 새 DLT 테스트 3건과 기존 Kafka producer 테스트 1건이 failures 0, errors 0으로 PASS했습니다. DLT test에만 AFTER_CLASS context 종료를 적용해 `order.completed` 잔여 record가 기존 earliest consumer에 섞이지 않게 했습니다. |
-| 2026-07-13 | Issue #15 전체 Gradle 회귀 | Level 1 | PASS | production, script, test 변경 뒤 전체 repository test suite | `./gradlew.bat test --no-daemon --max-workers=1` | 23개 XML test suite가 생성됐고 모든 suite의 failures/errors가 0이었습니다. |
+| 2026-07-13 | Issue #15 DLT original offset fail-closed | Level 4 | PASS | Kafka DLT record에 original topic·partition은 두고 original offset만 생략한 재발행 차단 | `./gradlew.bat test --tests "*DltReplayServiceIntegrationTest" --no-daemon --max-workers=1` | Testcontainers Kafka·Redis·MySQL에서 tests 4, failures 0, errors 0이었습니다. offset 검증 구현은 이미 존재했고 새 회귀 테스트가 offset 단독 누락 시 `DltReplayException`을 확인합니다. |
+| 2026-07-13 | Issue #15 local script fail-closed | Level 5 | PASS | Compose MySQL·Redis·Kafka healthy 상태의 local profile script 진입과 존재하지 않는 DLT topic/offset 차단 | `./scripts/replay_dlt_message.ps1 -Partition 0 -Offset 0 -ApprovedBy operator-a -Reason 'Offset header validation'` | application은 local 인프라 연결 후 지정 offset을 찾지 못해 10초 제한 뒤 `DltReplayException`과 exit code 1로 종료했습니다. 재발행 없는 fail-closed 결과입니다. |
+
+Level 6은 Issue #15에서 required NO입니다. 공개 HTTP API를 추가하거나 변경하지 않았으므로 실행하지 않았습니다.
