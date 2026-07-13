@@ -627,6 +627,166 @@ class MarkdownLinkTest(unittest.TestCase):
 
 
 class OrchestrationContractTest(unittest.TestCase):
+	def test_minimal_role_packet_with_required_references_passes(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "12개 계약 테스트를 반영합니다.",
+			"required_documents": [
+				"AGENTS.md",
+				"docs/ai/orchestration-policy.md",
+				"docs/testing/test-strategy.md",
+			],
+			"diff_scope": "scripts/harness_gate.py와 직접 harness 단위 테스트",
+			"previous_p0_p1_finding": "없음",
+		}
+
+		self.assertEqual([], harness_gate.validate_role_packet(packet))
+
+	def test_role_packet_rejects_any_non_allowlisted_inline_payload_key(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "본문",
+			"required_documents": [
+				"AGENTS.md",
+				"docs/ai/orchestration-policy.md",
+				"docs/testing/test-strategy.md",
+			],
+			"diff_scope": "scripts/",
+			"source_body": "def copied_source(): pass",
+			"conversation_history": "전체 대화 로그",
+			"prompt": "복사한 source snapshot",
+		}
+
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(3, len(errors))
+		self.assertIn("source_body", errors[0])
+		self.assertIn("conversation_history", errors[1])
+		self.assertIn("prompt", errors[2])
+
+	def test_role_packet_requires_three_to_five_canonical_document_paths(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "본문",
+			"required_documents": ["AGENTS.md", "docs/ai/orchestration-policy.md"],
+			"diff_scope": "scripts/",
+		}
+
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("3~5", errors[0])
+
+		packet["required_documents"] = [
+			"AGENTS.md",
+			"docs/ai/orchestration-policy.md",
+			"docs/testing/test-strategy.md",
+			"docs/testing/evidence-guide.md",
+			"../not-canonical.md",
+		]
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("canonical", errors[0])
+
+	def test_role_packet_rejects_duplicate_or_missing_canonical_documents(self):
+		packet = {
+			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
+			"worktree_path": "C:/worktrees/issue-78",
+			"base_sha": "base",
+			"head_sha": "head",
+			"acceptance_criteria": "본문",
+			"required_documents": [
+				"AGENTS.md",
+				"docs/ai/orchestration-policy.md",
+				"docs/ai/orchestration-policy.md",
+			],
+			"diff_scope": "scripts/",
+		}
+
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("distinct", errors[0])
+
+		packet["required_documents"] = [
+			"AGENTS.md",
+			"docs/ai/orchestration-policy.md",
+			"docs/ai/not-a-real-policy.md",
+		]
+		errors = harness_gate.validate_role_packet(packet)
+
+		self.assertEqual(1, len(errors))
+		self.assertIn("existing", errors[0])
+
+	def test_unchanged_repository_after_qa_needs_no_docs_commit_or_second_review(self):
+		self.assertEqual(
+			{"docs_commit_required": False, "full_review_required": False, "qa_stale": False},
+			harness_gate.post_qa_requirements(repository_changed=False, changed_paths=[]),
+		)
+
+	def test_runtime_or_policy_change_after_qa_stales_review_and_qa(self):
+		for path in ("src/main/java/App.java", "build.gradle", "docs/ai/orchestration-policy.md"):
+			with self.subTest(path=path):
+				self.assertEqual(
+					{"docs_commit_required": False, "full_review_required": True, "qa_stale": True},
+					harness_gate.post_qa_requirements(repository_changed=True, changed_paths=[path]),
+				)
+
+	def test_github_only_state_update_does_not_require_repository_commit(self):
+		self.assertFalse(harness_gate.github_state_requires_repository_commit())
+
+	def test_verification_owners_are_separated(self):
+		self.assertEqual("Dev", harness_gate.verification_owner("focused", broad_risk=False))
+		self.assertEqual("QA", harness_gate.verification_owner("independent-risk", broad_risk=False))
+		self.assertEqual("CI", harness_gate.verification_owner("full-regression", broad_risk=False))
+
+	def test_broad_risk_change_keeps_dev_full_regression(self):
+		self.assertEqual("Dev", harness_gate.verification_owner("full-regression", broad_risk=True))
+
+	def test_current_diff_related_failure_cannot_enter_flaky_path(self):
+		self.assertEqual(
+			"current-issue-defect",
+			harness_gate.flaky_next_action(diff_related=True, isolated_result=None, ci_passed=None, blocker_state=None),
+		)
+
+	def test_out_of_scope_isolation_pass_and_ci_pass_continue_issue(self):
+		self.assertEqual(
+			"continue-with-flaky-candidate",
+			harness_gate.flaky_next_action(diff_related=False, isolated_result="PASS", ci_passed=True, blocker_state=None),
+		)
+
+	def test_out_of_scope_isolation_failure_creates_test_only_blocker(self):
+		self.assertEqual(
+			"create-test-only-blocker",
+			harness_gate.flaky_next_action(diff_related=False, isolated_result="FAIL", ci_passed=None, blocker_state=None),
+		)
+
+	def test_unresolved_or_production_blocker_safely_stops(self):
+		for blocker_state in ("production-change-required", "cause-unknown", "stabilization-failed"):
+			with self.subTest(blocker_state=blocker_state):
+				self.assertEqual(
+					"blocked-safe-stop",
+					harness_gate.flaky_next_action(
+						diff_related=False,
+						isolated_result="FAIL",
+						ci_passed=None,
+						blocker_state=blocker_state,
+					),
+				)
+
+	def test_blocked_without_external_change_does_not_repeat_dispatch_or_verification(self):
+		self.assertFalse(harness_gate.blocked_wakeup_requires_work(external_state_changed=False))
+
 	def test_new_pr_can_reach_review_without_future_role_links(self):
 		self.assertTrue(
 			harness_gate.pre_review_ready(
@@ -650,6 +810,7 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_strict_agent_count_uses_unique_roles_only(self):
 		roles = ["Dev", "Review", "QA", "Docs", "Main Coordinator", "CI", "Review"]
 		self.assertEqual(4, harness_gate.strict_agent_role_count(roles))
+		self.assertEqual(3, harness_gate.strict_agent_role_count(["Dev", "Review", "QA", "CI"]))
 
 	def test_missing_evidence_file_fails_lightweight_preflight(self):
 		self.assertFalse(harness_gate.required_evidence_exists(["commands.md"]))
@@ -831,7 +992,7 @@ class OrchestrationContractTest(unittest.TestCase):
 			"필수 Dev verification이 PASS입니다.",
 			"fresh Reviewer 최종 판정이 `APPROVED`입니다.",
 			"독립 QA가 필요한 검증 Level을 `PASS`로 판정했습니다.",
-			"Docs evidence와 실제 역할 보고·명령·수치가 일치합니다.",
+			"evidence와 실제 역할 보고·명령·수치가 일치하며, Docs Agent를 호출했다면 그 반영도 일치합니다.",
 			"required CI checks가 최신 head SHA에서 모두 PASS입니다.",
 			"Review가 확인한 head SHA와 merge 직전 head SHA가 같습니다.",
 			"PR base가 `main`이고 최신 `origin/main` 기준 merge 가능하며 conflict가 없습니다.",
@@ -892,9 +1053,13 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertRegex(policy, r"`SOLO`.*문서 전용.*Solo Agent 한 명")
 		self.assertRegex(policy, r"`STANDARD`.*Dev Agent.*Combined Verifier.*CI")
 		self.assertNotRegex(policy, r"`STANDARD`[^\n]*Docs Agent")
-		self.assertRegex(
-			policy, r"`STRICT`.*Dev Agent.*Review Agent.*QA Agent.*Docs Agent.*CI"
+		self.assertRegex(policy, r"`STRICT`.*Dev Agent.*Review Agent.*QA Agent.*CI")
+		self.assertNotRegex(policy, r"`STRICT`.*Docs Agent.*CI")
+		self.assertIn(
+			"Dev가 PR 전 evidence를 완성한 STRICT 흐름에서는 Docs Agent를 기본 dispatch하지 않습니다.",
+			policy,
 		)
+		self.assertIn("metadata 불일치가 있을 때만", policy)
 		self.assertIn("실행 모드별 역할 구성은 `docs/ai/orchestration-policy.md`", agent_rules)
 		self.assertNotIn("Combined Verifier", agent_rules)
 
