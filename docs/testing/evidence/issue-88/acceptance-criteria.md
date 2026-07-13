@@ -16,4 +16,4 @@ Level 6 reason: HTTP API 계약과 요청 흐름을 변경하지 않습니다.
 - [x] archive 문서 2건에 discoverability 링크 또는 archive 표기가 추가됩니다. `k6-results.md`는 `test-strategy.md`의 "k6 우선순위" 절에서 링크했고, `orchestration-skill/baseline.md`는 상단에 "Status: Archive" 배지를 추가했습니다.
 - [x] 애플리케이션 코드와 런타임 설정은 변경하지 않습니다. 이 PR은 `docs/` 하위 5개 파일만 변경했습니다.
 
-검증 실행 head는 `d68f45c`입니다.
+검증 실행 head는 `d68f45c`입니다. fresh 독립 Combined Verifier는 head `215a1e3`(base~head 전체 diff 기준)에서 `APPROVED`입니다. 사용자 지시에 따라 merge는 하지 않습니다.
