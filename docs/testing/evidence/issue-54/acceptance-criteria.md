@@ -16,4 +16,4 @@ Level 6 reason: HTTP 계약 변경이 없습니다.
 - [x] 하네스 suite 회귀 없음. `python -m pytest scripts/tests/test_harness_gate.py`가 head `136d29e`에서 107건(110 subtests) PASS입니다.
 - [x] 기본 evidence 파일과 `verification.md`를 작성했습니다.
 
-검증 실행 head는 `136d29e`입니다. fresh 독립 Review는 head `1edd4c1`에서 `REVISE`(P1 2건, `136d29e`에서 정정)를 반환했고, 최종 재검토는 `136d29e`에서 진행합니다. 독립 QA는 test 파일 변경으로 stale이라 `136d29e`에서 재실행합니다.
+검증 실행 head는 `136d29e`입니다. fresh 독립 Review는 head `1edd4c1`에서 `REVISE`(P1 2건, `136d29e`에서 정정)를 반환한 뒤 최종 재검토에서 `APPROVED`이며, 독립 QA는 test 파일 변경으로 이전 QA가 stale이 돼 재실행한 결과 `PASS`입니다.

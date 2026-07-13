@@ -76,3 +76,10 @@ Current head: 136d29e
 ### Next Attempt
 
 - 없음. evidence를 확정하고 push 뒤 fresh 독립 Review 재검토와 GitHub 새 head의 CI 결과를 확인합니다.
+
+## Attempt 2 최종 결과
+
+- fresh 독립 Review는 head `3252c41`(base~head 전체 diff 기준)에서 `APPROVED`입니다. 이전 REVISE의 P1 2건이 실제로 해소됐는지(테스트가 실제 `harden_console_encoding()`을 호출하는지, `.\` 접두어가 5개 문서 모두에 있는지) 독립적으로 재확인했고, 새 결함은 없습니다.
+- 독립 QA는 head `3252c41`에서 `PASS`입니다. pytest 107건 재실행, cp949 크래시·수정·한글 원문 보존 재현, 5개 문서의 `.\gradlew.bat` 접두어 확인(PowerShell `.\gradlew.bat --version` 직접 실행으로 인식 확인), harness gate PASS, `git diff --stat`로 runtime/API 파일 미변경(Level 5/6 NO 근거)을 독립 확인했습니다. QA는 이전 head `1edd4c1`에서의 초기 QA가 test 파일 변경으로 stale이 됐다는 점을 스스로 명시하고 `3252c41`에서 재실행했습니다.
+- 두 역할의 수행 시각은 기록되지 않아 `미측정`입니다.
+- 남은 절차: push된 head `3252c41`의 GitHub Actions `quality-gates` CI 결과를 확인합니다.

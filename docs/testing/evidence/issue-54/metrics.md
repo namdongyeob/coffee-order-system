@@ -15,6 +15,6 @@ Measured at: 2026-07-14
 - Dev, Review, QA의 고유 역할 수 3을 기록했습니다. metadata 불일치가 없어 Docs Agent는 호출하지 않았습니다. Main Coordinator와 CI는 제외합니다.
 - 재시도 1은 fresh Review의 `REVISE` 뒤 Attempt 2(head `136d29e`)의 P1 2건 정정 1회입니다.
 - Review 결함 2는 fresh Review가 반환한 P1 2건(테스트가 실제 대상 함수를 호출하지 않음, 정본 문서 Gradle 명령이 PowerShell에서 실행 불가)입니다. 같은 정정 1회로 모두 해소했습니다.
-- QA 결함 0입니다. 독립 QA는 head `1edd4c1`에서 `PASS`이며 추가 결함을 지적하지 않았습니다.
+- QA 결함 0입니다. 독립 QA는 test 파일 변경으로 head `1edd4c1`의 이전 QA가 stale이 돼 head `3252c41`에서 재실행했고 `PASS`이며 추가 결함을 지적하지 않았습니다.
 - 읽은 핵심 문서는 `AGENTS.md`, `.codex/skills/coffee-order-issue-loop/SKILL.md`, `docs/ai/context-router.md`, `docs/ai/orchestration-policy.md`, `docs/ai/agent-rules.md`, `docs/ai/autonomous-queue-runbook.md`, `docs/testing/test-strategy.md`, `docs/testing/evidence-guide.md` 8개입니다.
 - CI는 push 뒤 GitHub 새 head에서 확인합니다.
