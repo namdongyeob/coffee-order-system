@@ -105,6 +105,17 @@ class DltReplayServiceIntegrationTest {
 				.hasMessageContaining("original topic");
 	}
 
+	@Test
+	void failsClosedWhenOriginalIdentificationHeaderIsMissing() throws Exception {
+		RecordMetadata dlt = publishDlt("6101", payload(UUID.randomUUID().toString()),
+				OrderEventPublisher.ORDER_COMPLETED_TOPIC, false);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.replay(new DltReplayRequest(
+				DLT_TOPIC, dlt.partition(), dlt.offset(), "operator-a", "header validation")))
+				.isInstanceOf(DltReplayException.class)
+				.hasMessageContaining("원본 partition");
+	}
+
 	private RecordMetadata publishDlt(String key, String value, String originalTopic, boolean includeIdentifiers)
 			throws Exception {
 		ProducerRecord<String, String> record = new ProducerRecord<>(DLT_TOPIC, key, value);
