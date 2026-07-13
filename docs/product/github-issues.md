@@ -61,4 +61,4 @@
 완료 기준입니다.
 
 - `docs/onboarding/dependency-check.md`가 최신 상태입니다.
-- Gradle test 결과가 `docs/testing/verification-log.md`에 기록되어 있습니다.
+- Gradle test 결과가 해당 Issue의 `docs/testing/evidence/issue-{number}/verification.md`에 기록되어 있습니다. 전역 뷰가 필요하면 [Evidence Guide](../testing/evidence-guide.md)의 재현 명령을 사용하며 생성 파일은 커밋하지 않습니다.

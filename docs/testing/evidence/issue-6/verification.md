@@ -1,0 +1,10 @@
+# 검증 로그
+
+| 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-07-09 | Issue #6 order payment API | Level 2 | PASS | Controller/API 계약 | `./gradlew.bat clean test --tests com.example.coffeeordersystem.order.controller.OrderControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon` | 주문 생성 Controller 계약과 동시 주문 비관적 쓰기 락 검증을 포함한 Testcontainers MySQL 기반 주문 결제 트랜잭션 테스트가 1분 38초 만에 통과했습니다. |
+| 2026-07-09 | Issue #6 order payment API | Level 3 | PASS | DB·트랜잭션·락 통합 | `./gradlew.bat clean test --tests com.example.coffeeordersystem.order.controller.OrderControllerTest --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon` | 주문 생성 Controller 계약과 동시 주문 비관적 쓰기 락 검증을 포함한 Testcontainers MySQL 기반 주문 결제 트랜잭션 테스트가 1분 38초 만에 통과했습니다. |
+| 2026-07-09 | Issue #6 order payment concurrency fix | Level 3 | PASS | DB·트랜잭션·락 통합 | `./gradlew.bat test --tests com.example.coffeeordersystem.OrderPaymentIntegrationTest --no-daemon` | 같은 userId 동시 주문 focused integration test를 포함한 `OrderPaymentIntegrationTest` 5건이 1분 36초 만에 통과했습니다. Gradle HTML report는 `build/reports/tests/test/index.html`입니다. |
+| 2026-07-09 | Issue #6 related point regression | Level 2 | PASS | Controller/API 계약 | `./gradlew.bat test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon` | ErrorCode 메시지 정리와 UserPoint 결제 메서드 추가 후 포인트 focused regression이 1분 46초 만에 통과했습니다. |
+| 2026-07-09 | Issue #6 related point regression | Level 3 | PASS | DB·트랜잭션·락 통합 | `./gradlew.bat test --tests com.example.coffeeordersystem.point.controller.PointControllerTest --tests com.example.coffeeordersystem.PointChargeIntegrationTest --no-daemon` | ErrorCode 메시지 정리와 UserPoint 결제 메서드 추가 후 포인트 focused regression이 1분 46초 만에 통과했습니다. |
+| 2026-07-09 | Issue #6 order payment API | Level 1 | PASS | 빌드·Unit·전체 회귀 smoke | `./gradlew.bat test --no-daemon` | 전체 Gradle 테스트가 1분 17초 만에 통과했습니다. |

@@ -78,11 +78,11 @@ Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 I
 - `commands.md`: 실제로 실행한 명령, 실행 head, 결과와 원문 위치.
 - GitHub: 현재 PR head, Review·QA 댓글과 verdict, CI, mergeable, PR·Issue 상태와 merge commit.
 - `metrics.md`: 위 정본에서 계산한 파생 요약. STRICT 기본 Agent 수는 Dev, Review, QA의 고유 역할 3이며 Main Coordinator와 CI 및 동일 역할 재시도는 제외합니다. metadata 불일치로 Docs Agent를 실제 호출한 경우에만 4를 기록합니다.
-- `verification-log.md`: Issue별 최종 repository 검증 결과 한 행. Review·QA·CI·head·merge 상태를 복제하지 않습니다.
+- `docs/testing/evidence/issue-{number}/verification.md`: Issue별 최종 repository 검증 결과 한 행 정본. Review·QA·CI·head·merge 상태를 복제하지 않으며 전역 뷰는 커밋하지 않습니다.
 
 PR 생성 전 경량 preflight는 기본 evidence, Execution mode와 reason, Level 5/6 결정과 reason, 실제 command 결과, metrics 9열, 존재하지 않는 파일·실행하지 않은 명령 주장, 한국어 UTF-8 no-BOM body, 범위 밖 변경과 비밀값을 검사합니다. PR 본문에는 현재 head, CI·Review·QA·Gate 상태, Agent·retry 수, diff 통계, 파일 목록 또는 테스트 수를 복제하지 않습니다.
 
-Review APPROVED 뒤 independent QA를 실행합니다. QA head부터 현재 head까지의 변경이 해당 Issue evidence의 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`와 `docs/testing/verification-log.md`뿐이면 QA 판정은 유지합니다. screenshot, binary, raw output, 임의 파일과 다른 Issue evidence를 포함해 이 고정 Markdown allowlist 밖 변경이 하나라도 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
+Review APPROVED 뒤 independent QA를 실행합니다. QA head부터 현재 head까지의 변경이 해당 Issue evidence의 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`, `verification.md`뿐이면 QA 판정은 유지합니다. screenshot, binary, raw output, 임의 파일과 다른 Issue evidence를 포함해 이 고정 Markdown allowlist 밖 변경이 하나라도 있으면 QA는 stale이며 현재 head에서 다시 실행합니다. Docs 동기화 뒤 역할 결과와 CI는 GitHub에만 기록합니다.
 
 ### 검증 소유권과 범위 밖 flaky
 

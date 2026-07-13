@@ -23,7 +23,26 @@ docs/testing/evidence/issue-{number}/
 | `commands.md` | 실행한 명령, 목적, 결과 요약. |
 | `manual-qa.md` | 사람이 확인한 API 응답, DB query, CLI output, 스크린샷 위치. |
 | `metrics.md` | Issue별 실행·품질 지표의 고정 형식 기록. |
+| `verification.md` | 이 Issue의 최종 repository 검증 결과 행 정본. |
 | `test-output.txt` | 필요한 경우 테스트 출력 원문 또는 핵심 발췌. |
+
+## Issue별 verification 정본과 전역 뷰
+
+검증 결과 행은 `docs/testing/evidence/issue-{number}/verification.md`에만 기록합니다. 기존 전역 `docs/testing/verification-log.md`는 커밋하지 않는 생성 뷰이며, 일반 Issue PR은 이를 만들거나 수정하지 않습니다. Issue에 속하지 않는 과거 행은 `docs/testing/evidence/legacy/verification.md`에 원문 그대로 보관합니다.
+
+전역 뷰가 필요하면 저장소 루트에서 다음 명령으로 재현합니다.
+
+```powershell
+python scripts/rebuild_verification_log.py
+```
+
+파일로 확인해야 하면 저장소 밖의 임시 경로를 지정합니다.
+
+```powershell
+python scripts/rebuild_verification_log.py --output $env:TEMP\verification-log.md
+```
+
+초기 이관은 `python scripts/migrate_verification_log.py --delete-source`로 수행했으며, 각 행의 날짜·Issue·Level·결과·검증 범위·명령/Evidence·비고 원문을 변경하지 않습니다.
 
 ## 작업별 Evidence
 

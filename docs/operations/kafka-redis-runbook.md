@@ -75,4 +75,4 @@ docker compose -f docker/compose.yaml --profile tools down -v
 - rebuild 대상 key 목록을 기록합니다.
 - 일반 Consumer가 같은 key를 동시에 갱신하지 않는지 확인합니다.
 - rebuild 완료 후 Redis Top 3와 DB 주문 집계 Top 3를 비교합니다.
-- 결과와 명령을 `docs/testing/verification-log.md`에 남깁니다.
+- 결과와 명령을 `docs/testing/evidence/issue-{number}/verification.md`에 남깁니다. 전역 뷰가 필요하면 [Evidence Guide](../testing/evidence-guide.md)의 재현 명령을 사용하며 생성 파일은 커밋하지 않습니다.

@@ -44,8 +44,8 @@ Spring Boot 기반 커피 주문 시스템 개인과제입니다.
 2. `docs/product/github-issues.md`의 순서대로 GitHub Issue를 만듭니다.
 3. 한 번에 하나의 Issue만 구현합니다.
 4. 구현 중 API, DB, 복구 정책이 바뀌면 연결 문서를 함께 수정합니다.
-5. 완료 전 `docs/testing/verification-log.md`에 실제 검증 결과를 남깁니다.
+5. 완료 전 `docs/testing/evidence/issue-{number}/verification.md`에 실제 검증 결과를 남기고, 전역 뷰는 [Evidence Guide](docs/testing/evidence-guide.md)의 on-demand 명령으로만 재현합니다.
 
 ## 검증 규칙
 
-완료 주장은 반드시 검증 레벨과 실제 명령 결과를 `docs/testing/verification-log.md`에 남긴 뒤에만 합니다.
+완료 주장은 반드시 검증 레벨과 실제 명령 결과를 `docs/testing/evidence/issue-{number}/verification.md`에 남긴 뒤에만 합니다. 전역 뷰는 [Evidence Guide](docs/testing/evidence-guide.md)의 on-demand 명령으로 재현하고 생성 파일은 커밋하지 않습니다.

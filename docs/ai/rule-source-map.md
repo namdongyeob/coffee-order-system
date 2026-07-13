@@ -14,7 +14,7 @@
 | QA 판정 기준 | `docs/ai/qa-gate.md` | `test-strategy.md`, Context Router |
 | evidence 파일, Execution mode, Attempt 형식 | `docs/testing/evidence-guide.md` | Issue/PR 템플릿, harness gate |
 | 완료 전 검사 목록 | `docs/ai/issue-completion-checklist.md` | PR 템플릿 |
-| 검증 실행 결과 | `docs/testing/verification-log.md` | Issue별 evidence |
+| 검증 실행 결과 | `docs/testing/evidence/issue-{number}/verification.md` | Issue별 evidence와 on-demand 전역 뷰 |
 | 반복 실수와 재발 방지 | `docs/ai/agent-mistakes.md` | 다음 Issue의 Plan 단계 |
 | 프로젝트 Codex 권한 | `.codex/config.toml` | `docs/onboarding/codex-safety.md` |
 

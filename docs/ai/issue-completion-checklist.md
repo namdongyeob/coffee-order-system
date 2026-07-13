@@ -17,7 +17,7 @@
 - [ ] `STANDARD` 또는 `STRICT`에서 Main Coordinator가 파일 수정, 코드리뷰, 테스트, commit, push를 수행하지 않았습니다.
 - [ ] GitHub Actions의 컴파일과 전체 테스트 결과를 확인했습니다.
 - [ ] 작업 종류에 맞는 evidence 파일 또는 산출물을 남겼습니다.
-- [ ] `docs/testing/verification-log.md`에 검증 결과를 기록했습니다.
+- [ ] `docs/testing/evidence/issue-{number}/verification.md`에 검증 결과를 기록했습니다.
 - [ ] 새로 발견한 반복 실수나 주의점이 있으면 `docs/ai/agent-mistakes.md`에 기록했습니다.
 - [ ] API, DB, 정책, 복구 방식이 바뀌면 관련 문서를 함께 갱신했습니다.
 - [ ] PR 본문에 검증 결과와 남은 위험을 적었습니다.
