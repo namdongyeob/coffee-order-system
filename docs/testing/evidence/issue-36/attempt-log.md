@@ -5,8 +5,8 @@ Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/36
 Branch: claude/issue-36-doc-lifecycle-audit
 
 Current disposition: PASS
-Current Attempt: 1
-Current head: 7ee1180
+Current Attempt: 2
+Current head: f8756fb
 
 ## Attempt 1
 
@@ -43,3 +43,34 @@ Current head: 7ee1180
 ### Next Attempt
 
 - fresh 독립 Combined Verifier 결과를 반영합니다. 사용자 요청에 따라 Combined Verifier가 PASS/APPROVED를 반환할 때까지 이 절차를 반복하되, **merge는 하지 않고** 승인된 상태에서 PR만 남깁니다.
+
+## Attempt 2
+
+### Generate
+
+- fresh 독립 Combined Verifier가 head `1fe372e`에서 `REVISE`를 반환했습니다. 지적 사항: `docs/adr/README.md`가 non-evidence 54개 인벤토리 중 유일하게 분류표에서 빠져 있었습니다(완료 기준 1번 "docs 전체 인벤토리와 분류 결과가 있습니다"를 53/54로 불완전하게 충족). Verifier는 12개 이상의 다른 분류 근거를 직접 grep·읽기로 재검증했고 모두 정확하다고 확인했습니다.
+- `f8756fb`: `docs/ai/doc-lifecycle.md`의 conditional 표에 `docs/adr/README.md` 행을 추가했습니다. `docs/adr/README.md`는 ADR 상태 표기·Superseded 절차를 정의하는 운영 규칙 문서이지만 Router·정본 지도 어디서도 참조되지 않고, 과거 evidence(issue-28)에서만 언급됨을 확인해 conditional + 도달성 문제로 분류했습니다. "Router·정본 지도 도달성 문제 요약"과 "후속 조치 후보" 절에도 반영했습니다.
+
+### Evaluate
+
+- PASS. Combined Verifier가 반환한 유일한 REVISE 지적을 원래 Dev 범위에서 한 번에 정정했습니다. 안전 불변조건 약화(P0)는 없었습니다.
+
+### Failure Cause
+
+- RED: Attempt 1에서 `docs/adr/README.md`를 `commands.md`의 검증 명령(`grep -n "ADR-001\|ADR-006" docs/adr/README.md`)에 사용했지만 그 결과를 분류표 행으로 옮기지 않고 누락했습니다.
+
+### Change Scope
+
+- `docs/ai/doc-lifecycle.md`: `docs/adr/README.md` 분류 행 1개와 관련 요약 2곳만 추가했습니다. 다른 분류 결과는 변경하지 않았습니다.
+
+### Reverification
+
+- `python -m pytest scripts/tests/test_harness_gate.py`는 head `f8756fb`에서 107건(110 subtests) PASS입니다.
+- 인벤토리 완전성 재확인: `find docs -type f -name "*.md" ! -path "docs/testing/evidence/*"`로 수집한 54개 원본 파일이 모두 `doc-lifecycle.md`에 언급되는지 프로그램으로 대조해 누락 0건을 확인했습니다.
+- `python scripts/harness_gate.py --issue 36 --branch claude/issue-36-doc-lifecycle-audit --base-ref 7d32e2d --check-links --include-worktree`는 head `f8756fb`에서 PASS입니다.
+- Level 5/6은 NO입니다. 문서 변경만 있어 runtime/API 테스트는 실행하지 않았습니다.
+- 종료 시각은 기록하지 못해 `미측정`입니다.
+
+### Next Attempt
+
+- 없음. evidence를 확정하고 push 뒤 fresh 독립 Combined Verifier 재검토를 받습니다. 사용자 지시대로 APPROVED/PASS를 받으면 거기서 멈추고 **merge하지 않습니다.**
