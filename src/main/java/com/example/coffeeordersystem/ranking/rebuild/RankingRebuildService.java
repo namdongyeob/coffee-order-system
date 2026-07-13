@@ -49,18 +49,18 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(name = "ranking.rebuild.maintenance", havingValue = "true")
 public class RankingRebuildService {
 
-	static final String LOCK_KEY = "ranking:rebuild:lock";
 	private static final String TOPIC = "order.completed";
 	private static final String NORMAL_GROUP = "ranking-consumer-group";
 	private static final String REBUILD_GROUP = "ranking-rebuild-group";
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-	private static final Duration LOCK_TTL = Duration.ofMinutes(30);
 	private static final Duration POLL_TIMEOUT = Duration.ofSeconds(30);
 	private static final String TEMP_PREFIX = "rebuild:popular:menus:";
 	private static final String LIVE_PREFIX = "popular:menus:";
 
 	private final StringRedisTemplate redis;
 	private final JdbcTemplate jdbc;
+	private final RankingRebuildLock lock;
+	private final RankingRebuildOffsetManager offsetManager;
 	private final ObjectMapper objectMapper;
 	private final String bootstrapServers;
 	private final boolean maintenance;
@@ -69,11 +69,15 @@ public class RankingRebuildService {
 	public RankingRebuildService(
 			StringRedisTemplate redis,
 			JdbcTemplate jdbc,
+			RankingRebuildLock lock,
+			RankingRebuildOffsetManager offsetManager,
 			@Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
 			@Value("${ranking.rebuild.maintenance:false}") boolean maintenance,
 			@Value("${ranking.rebuild.snapshot:}") String snapshot) {
 		this.redis = redis;
 		this.jdbc = jdbc;
+		this.lock = lock;
+		this.offsetManager = offsetManager;
 		this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 		this.bootstrapServers = bootstrapServers;
 		this.maintenance = maintenance;
@@ -85,7 +89,7 @@ public class RankingRebuildService {
 			throw new RankingRebuildException("maintenance mode에서만 rebuild를 실행할 수 있습니다");
 		}
 		String token = UUID.randomUUID().toString();
-		if (!Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(LOCK_KEY, token, LOCK_TTL))) {
+		if (!lock.acquire(token)) {
 			throw new RankingRebuildException("다른 rebuild가 이미 실행 중입니다");
 		}
 
@@ -96,20 +100,32 @@ public class RankingRebuildService {
 		Set<String> dates = datesIntersecting(lower, upper);
 		List<String> tempKeys = dates.stream().map(date -> tempKey(namespace, date)).toList();
 		boolean swapped = false;
+		RankingRebuildOffsetManager.OffsetSnapshot previousOffsets = null;
 
 		try (AdminClient admin = adminClient()) {
 			assertNormalConsumerStopped(admin);
 			Map<TopicPartition, Long> capturedEnds = captureEndOffsets(admin);
+			previousOffsets = offsetManager.capture(admin, capturedEnds.keySet());
 			Map<RankingRebuildCount, Long> replay = replay(capturedEnds, lower, upper, namespace);
 			Map<RankingRebuildCount, Long> database = databaseCounts(lower, upper);
 			if (!database.equals(replay)) {
 				throw new RankingRebuildException("Kafka replay와 DB 집계가 일치하지 않습니다");
 			}
+			requireLease(token);
 			atomicSwap(namespace, dates);
 			swapped = true;
 			Map<TopicPartition, OffsetAndMetadata> offsets = capturedEnds.entrySet().stream()
 					.collect(Collectors.toMap(Map.Entry::getKey, entry -> new OffsetAndMetadata(entry.getValue())));
-			admin.alterConsumerGroupOffsets(NORMAL_GROUP, offsets).all().get(10, TimeUnit.SECONDS);
+			requireLease(token);
+			try {
+				offsetManager.move(admin, offsets);
+				offsetManager.verify(admin, offsets);
+			} catch (Exception offsetFailure) {
+				RankingRebuildException compensated = compensateOffsetFailure(
+						admin, previousOffsets, namespace, dates, offsetFailure);
+				swapped = false;
+				throw compensated;
+			}
 			deleteBackupsAfterSuccess(namespace, dates);
 			return new RankingRebuildResult(Map.copyOf(replay), Map.copyOf(offsets));
 		} catch (RankingRebuildException exception) {
@@ -125,8 +141,46 @@ public class RankingRebuildService {
 			delete(tempKeys);
 			throw new RankingRebuildException("rebuild를 안전하게 완료하지 못했습니다", exception);
 		} finally {
-			unlock(token);
+			lock.release(token);
 		}
+	}
+
+	private void requireLease(String token) {
+		if (!lock.renew(token)) {
+			throw new RankingRebuildException("rebuild lock 소유권을 잃어 위험 변경 전에 중단했습니다");
+		}
+	}
+
+	private RankingRebuildException compensateOffsetFailure(
+			AdminClient admin,
+			RankingRebuildOffsetManager.OffsetSnapshot previousOffsets,
+			String namespace,
+			Set<String> dates,
+			Exception offsetFailure) {
+		Exception offsetRestoreFailure = null;
+		Exception redisRestoreFailure = null;
+		try {
+			offsetManager.restoreAndVerify(admin, previousOffsets);
+		} catch (Exception exception) {
+			offsetRestoreFailure = exception;
+		}
+		try {
+			rollbackSwap(namespace, dates);
+		} catch (Exception exception) {
+			redisRestoreFailure = exception;
+		}
+		if (offsetRestoreFailure != null || redisRestoreFailure != null) {
+			RankingRebuildException incomplete = new RankingRebuildException(
+					"offset 이동 실패 뒤 완전한 복원을 확인할 수 없습니다; 운영자 확인이 필요합니다", offsetFailure);
+			if (offsetRestoreFailure != null) {
+				incomplete.addSuppressed(offsetRestoreFailure);
+			}
+			if (redisRestoreFailure != null) {
+				incomplete.addSuppressed(redisRestoreFailure);
+			}
+			return incomplete;
+		}
+		return new RankingRebuildException("offset 이동 실패 뒤 normal offset과 live Redis를 복원했습니다", offsetFailure);
 	}
 
 	private AdminClient adminClient() {
@@ -280,9 +334,4 @@ public class RankingRebuildService {
 		}
 	}
 
-	private void unlock(String token) {
-		redis.execute(new DefaultRedisScript<>(
-				"if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end",
-				Long.class), List.of(LOCK_KEY), token);
-	}
 }

@@ -34,4 +34,35 @@ Branch: codex/issue-14-ranking-rebuild
 
 ### Next Attempt
 
+- Fresh Review의 P1 remediation.
+
+## Attempt 2
+
+### Generate
+
+- Fresh Review의 offset 부분 성공·timeout 보상과 lock lease 만료 P1 두 건을 현재 head와 대조했습니다.
+- pre-swap offset snapshot, 보상·broker 재조회, 위험 단계 lock renewal을 추가했습니다.
+
+### Evaluate
+
+- PASS. 실제 2-partition Kafka에서 부분 offset 변경 뒤 timeout, 정상 offset 복원, Redis rollback을 검증했습니다.
+- offset 보상 자체 실패는 완전 rollback을 주장하지 않는 명시적 fail-closed exception으로 검증했습니다.
+
+### Failure Cause
+
+- 기존 구현은 Redis만 rollback했고 offset의 부분 성공·불확실 completion을 보상하지 않았습니다.
+- lock은 token unlock만 있었고 긴 replay 뒤 위험 변경 직전 lease 소유권을 재확인하지 않았습니다.
+
+### Change Scope
+
+- Issue #14 ranking rebuild service, 최소 lock·offset component, 관련 test와 Issue #14 evidence만 변경했습니다.
+
+### Reverification
+
+- Focused 10 tests PASS, `BUILD SUCCESSFUL in 1m 29s`.
+- Related ranking suite PASS, `BUILD SUCCESSFUL in 3m 43s`.
+- 전체 61 tests, failures/errors 0, Level 5 local maintenance success와 cleanup이 PASS했습니다.
+
+### Next Attempt
+
 - 없음.

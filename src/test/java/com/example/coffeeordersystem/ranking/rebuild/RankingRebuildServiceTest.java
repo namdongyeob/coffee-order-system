@@ -22,10 +22,22 @@ class RankingRebuildServiceTest {
 	}
 
 	@Test
+	void nonMidnightSnapshotIntersectsEightDateKeys() {
+		assertThat(RankingRebuildService.datesIntersecting(
+				LocalDateTime.of(2026, 7, 6, 12, 0),
+				LocalDateTime.of(2026, 7, 13, 12, 0)))
+				.hasSize(8)
+				.containsExactly("2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09",
+						"2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13");
+	}
+
+	@Test
 	void rejectsExecutionOutsideMaintenanceModeBeforeInfrastructureAccess() {
 		RankingRebuildService service = new RankingRebuildService(
 				mock(StringRedisTemplate.class),
 				mock(JdbcTemplate.class),
+				mock(RankingRebuildLock.class),
+				mock(RankingRebuildOffsetManager.class),
 				"localhost:9092",
 				false,
 				"");

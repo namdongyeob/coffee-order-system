@@ -12,15 +12,20 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -76,7 +81,29 @@ class RankingRebuildServiceIntegrationTest {
 	@Autowired KafkaTemplate<String, OrderCompletedEvent> kafkaTemplate;
 	@Autowired StringRedisTemplate redis;
 	@Autowired JdbcTemplate jdbc;
+	@Autowired RankingRebuildLock rebuildLock;
+	@Autowired RankingRebuildOffsetManager offsetManager;
 	@Autowired ProducerFactory<String, OrderCompletedEvent> producerFactory;
+
+	@BeforeAll
+	static void createTwoPartitionTopic() throws Exception {
+		try (AdminClient admin = AdminClient.create(Map.of(
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+			try {
+				admin.createTopics(List.of(new NewTopic("order.completed", 2, (short) 1))).all().get(10, TimeUnit.SECONDS);
+			} catch (java.util.concurrent.ExecutionException exception) {
+				if (!(exception.getCause() instanceof org.apache.kafka.common.errors.TopicExistsException)) {
+					throw exception;
+				}
+				int partitions = admin.describeTopics(List.of("order.completed")).allTopicNames()
+						.get(10, TimeUnit.SECONDS).get("order.completed").partitions().size();
+				if (partitions < 2) {
+					admin.createPartitions(Map.of("order.completed", NewPartitions.increaseTo(2)))
+							.all().get(10, TimeUnit.SECONDS);
+				}
+			}
+		}
+	}
 
 	@BeforeEach
 	void clean() {
@@ -86,7 +113,7 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(4)
+	@Order(5)
 	void rebuildsThroughActualKafkaMysqlAndRedisThenMovesNormalGroupOffset() throws Exception {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
@@ -138,7 +165,11 @@ class RankingRebuildServiceIntegrationTest {
 	@Test
 	@Order(2)
 	void distributedLockRejectsConcurrentRunner() {
-		redis.opsForValue().set(RankingRebuildService.LOCK_KEY, "other");
+		redis.opsForValue().set(RankingRebuildLock.KEY, "other", Duration.ofMillis(100));
+		assertThat(rebuildLock.renew("other")).isTrue();
+		assertThat(redis.getExpire(RankingRebuildLock.KEY, TimeUnit.MINUTES)).isGreaterThan(20);
+		rebuildLock.release("not-owner");
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isEqualTo("other");
 
 		assertThatThrownBy(service::rebuild)
 				.isInstanceOf(RankingRebuildException.class)
@@ -147,6 +178,24 @@ class RankingRebuildServiceIntegrationTest {
 
 	@Test
 	@Order(3)
+	void lostLeaseStopsBeforeSwapAndOffsetMutation() throws Exception {
+		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		RankingRebuildLock lostLock = new RankingRebuildLock(redis) {
+			@Override boolean acquire(String token) { return true; }
+			@Override boolean renew(String token) { return false; }
+			@Override void release(String token) { }
+		};
+		RankingRebuildService lostLeaseService = service(lostLock, offsetManager);
+
+		assertThatThrownBy(lostLeaseService::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("lock 소유권");
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+	}
+
+	@Test
+	@Order(4)
 	void activeNormalConsumerMemberBlocksRebuild() throws Exception {
 		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
 		Map<String, Object> properties = new HashMap<>();
@@ -165,6 +214,72 @@ class RankingRebuildServiceIntegrationTest {
 			assertThatThrownBy(service::rebuild)
 					.isInstanceOf(RankingRebuildException.class)
 					.hasMessageContaining("활성 consumer");
+		}
+	}
+
+	@Test
+	@Order(6)
+	void partialOffsetMoveTimeoutRestoresAllOffsetsAndLiveRedis() throws Exception {
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
+		RankingRebuildOffsetManager partialTimeout = new RankingRebuildOffsetManager() {
+			@Override
+			void move(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> target)
+					throws Exception {
+				Map.Entry<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> first = target.entrySet().iterator().next();
+				super.move(admin, Map.of(first.getKey(), first.getValue()));
+				throw new TimeoutException("injected after partial broker update");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, partialTimeout).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("복원했습니다");
+		assertThat(normalOffsets()).isEqualTo(before);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+		assertThat(redis.keys("rebuild:*" )).isEmpty();
+	}
+
+	@Test
+	@Order(7)
+	void compensationFailureReportsUncertainOffsetStateWithoutClaimingRollback() throws Exception {
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 30));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 30));
+		RankingRebuildOffsetManager failedCompensation = new RankingRebuildOffsetManager() {
+			@Override
+			void move(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> target)
+					throws Exception {
+				super.move(admin, target);
+				throw new TimeoutException("injected uncertain completion");
+			}
+
+			@Override
+			void restoreAndVerify(AdminClient admin, OffsetSnapshot snapshot) {
+				throw new RankingRebuildException("injected compensation failure");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, failedCompensation).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("완전한 복원을 확인할 수 없습니다");
+	}
+
+	private RankingRebuildService service(RankingRebuildLock lock, RankingRebuildOffsetManager manager) {
+		return new RankingRebuildService(redis, jdbc, lock, manager, KAFKA.getBootstrapServers(), true, SNAPSHOT.toString());
+	}
+
+	private Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> normalOffsets() throws Exception {
+		try (AdminClient admin = AdminClient.create(Map.of(
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+			return admin.listConsumerGroupOffsets("ranking-consumer-group")
+					.partitionsToOffsetAndMetadata().get(10, TimeUnit.SECONDS);
 		}
 	}
 

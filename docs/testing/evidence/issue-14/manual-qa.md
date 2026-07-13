@@ -14,3 +14,11 @@
 - DB에만 PAID 주문을 추가한 mismatch 실행은 명시적 exception과 process failure로 끝났고 live score `1`, normal offset `1`, temp/backup key 0개를 유지했습니다.
 - 성공·실패 모두 일반 `processed_event`를 rebuild가 기록하지 않는 계약은 Level 4에서 확인했습니다.
 - 종료 시 project Compose와 volume을 `down -v`로 정리했고 service 0개와 port 8080 free를 확인했습니다.
+
+## Review remediation Level 4
+
+- Kafka topic을 2 partition으로 구성해 한 partition만 target offset으로 이동한 뒤 timeout을 주입했습니다.
+- service는 pre-swap snapshot으로 모든 partition offset을 복원하고 broker 재조회로 일치를 확인한 뒤 live Redis backup을 복원했습니다.
+- 보상 재조회 실패를 주입한 경로는 성공이나 완전 rollback을 주장하지 않고 운영자 확인이 필요한 불확실 상태로 종료했습니다.
+- lock lease renewal, token ownership, 두 번째 runner 차단과 위험 변경 전 lock 상실 중단을 확인했습니다.
+- 변경 후 Level 5를 다시 실행해 local health 200, charge 200, order 201, rebuild score `1`, normal offset `1`·lag `0`, temp/backup 0개를 확인했습니다. 종료 뒤 project services 0개와 port 8080 free였습니다.

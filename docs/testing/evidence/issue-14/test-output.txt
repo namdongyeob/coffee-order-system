@@ -6,3 +6,7 @@ Full regression: 57 tests, failures 0, errors 0, BUILD SUCCESSFUL in 5m 40s.
 Level 5 success: health 200, charge 200, order 201, rebuilt member 1 score 1, ranking-consumer-group offset 1 and lag 0, no rebuild temp or backup keys.
 Level 5 mismatch: explicit DB aggregate mismatch failure, live member 1 score 1 retained, normal offset 1 retained, no rebuild temp or backup keys.
 Cleanup: project Compose services 0, port 8080 free.
+Review remediation focused: 10 tests PASS, BUILD SUCCESSFUL in 1m 29s.
+Review remediation related ranking suite: PASS, BUILD SUCCESSFUL in 3m 43s.
+Review remediation full: 61 tests, failures 0, errors 0, BUILD SUCCESSFUL in 3m 32s.
+Review remediation Level 5: health 200, charge 200, order 201, score 1, normal offset 1, lag 0, cleanup PASS.
