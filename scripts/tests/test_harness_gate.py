@@ -367,6 +367,28 @@ class EvidenceValidationTest(unittest.TestCase):
 
 			self.assertTrue(any("retry" in error.lower() or "head" in error.lower() for error in errors))
 
+	def test_current_attempt_must_match_verification_attempt(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				),
+			)
+			attempt = root / "docs" / "testing" / "evidence" / "issue-23" / "attempt-log.md"
+			attempt.write_text(
+				VALID_ATTEMPT.replace("Current Attempt: 1", "Current Attempt: 2").replace(
+					"## Attempt 1", "## Attempt 2"
+				),
+				encoding="utf-8",
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("Current Attempt and verification.md Attempt" in error for error in errors))
+
 	def test_metrics_is_required_and_isolated_to_the_current_issue(self):
 		with tempfile.TemporaryDirectory() as temp_dir:
 			root = Path(temp_dir)
