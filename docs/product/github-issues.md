@@ -50,7 +50,7 @@
 - Redisson 의존성 추가 여부 확정.
 - Testcontainers 이미지 tag 고정.
 - QueryDSL을 즉시 추가할지 후반 Issue로 둘지 결정.
-- `./gradlew.bat test` 통과 확인.
+- Gradle 테스트 통과 확인(Windows: `.\gradlew.bat test`, macOS·Linux: `./gradlew test`).
 
 제외 범위입니다.
 

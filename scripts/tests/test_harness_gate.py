@@ -1,6 +1,7 @@
 # 하네스 품질 게이트의 성공과 실패 조건을 검증하는 테스트
 import io
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -1433,6 +1434,57 @@ class OrchestrationContractTest(unittest.TestCase):
 
 			self.assertEqual(1, len(errors))
 			self.assertIn("missing.md", errors[0])
+
+
+class ConsoleEncodingHardeningTest(unittest.TestCase):
+	def test_unencodable_character_does_not_raise_after_hardening(self):
+		# cp949 콘솔을 흉내내는 스트림에서 인코딩 불가 문자를 그대로 쓰면 실전에서 재현되는 크래시입니다.
+		with self.assertRaises(UnicodeEncodeError):
+			io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict").write("harness ✗ failed")
+
+		stdout_stream = io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict")
+		stderr_stream = io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict")
+		original_stdout, original_stderr = sys.stdout, sys.stderr
+		sys.stdout, sys.stderr = stdout_stream, stderr_stream
+		try:
+			harness_gate.harden_console_encoding()
+		finally:
+			sys.stdout, sys.stderr = original_stdout, original_stderr
+
+		stdout_stream.write("harness ✗ failed")
+		stdout_stream.flush()
+		stdout_stream.buffer.seek(0)
+		self.assertEqual(b"harness \\u2717 failed", stdout_stream.buffer.read())
+
+	def test_korean_error_message_displays_unchanged_under_cp949(self):
+		stream = io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict")
+		original_stdout = sys.stdout
+		sys.stdout = stream
+		try:
+			harness_gate.harden_console_encoding()
+		finally:
+			sys.stdout = original_stdout
+
+		stream.write("verification.md에 Issue #54 기록이 없습니다.")
+		stream.flush()
+		stream.buffer.seek(0)
+		self.assertEqual(
+			"verification.md에 Issue #54 기록이 없습니다.",
+			stream.buffer.read().decode("cp949"),
+		)
+
+	def test_does_not_raise_when_stream_lacks_reconfigure(self):
+		# capsys 등 .reconfigure가 없는 대체 스트림에서도 harden_console_encoding은 죽지 않아야 합니다.
+		class StreamWithoutReconfigure:
+			def write(self, text):
+				return len(text)
+
+		original_stdout, original_stderr = sys.stdout, sys.stderr
+		sys.stdout, sys.stderr = StreamWithoutReconfigure(), StreamWithoutReconfigure()
+		try:
+			harness_gate.harden_console_encoding()
+		finally:
+			sys.stdout, sys.stderr = original_stdout, original_stderr
 
 
 if __name__ == "__main__":

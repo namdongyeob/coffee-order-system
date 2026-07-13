@@ -9,6 +9,8 @@
 .\gradlew.bat bootRun --args="--spring.profiles.active=local --ranking.consumer.enabled=false --ranking.rebuild.maintenance=true --ranking.rebuild.enabled=true"
 ```
 
+Windows(PowerShell) 기준입니다. macOS·Linux는 `./gradlew bootRun --args="..."`로 실행합니다.
+
 3. runner는 snapshot과 partition별 end offset을 고정하고 earliest부터 exclusive end까지 replay합니다.
 4. `[snapshot-7일, snapshot)`의 `PAID` 주문 DB 집계와 replay가 날짜·menuId별로 같을 때만 Lua로 대상 날짜 key를 원자 교체합니다.
 5. 성공 뒤 maintenance 앱을 종료하고 일반 앱을 다시 시작합니다. 이후 event는 이동된 `ranking-consumer-group` offset부터 처리됩니다.

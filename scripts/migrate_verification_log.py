@@ -9,9 +9,17 @@ from collections import defaultdict
 from pathlib import Path
 
 try:
-    from scripts.harness_gate import VERIFICATION_LOG_COLUMNS, VERIFICATION_LOG_HEADER
+    from scripts.harness_gate import (
+        VERIFICATION_LOG_COLUMNS,
+        VERIFICATION_LOG_HEADER,
+        harden_console_encoding,
+    )
 except ModuleNotFoundError:
-    from harness_gate import VERIFICATION_LOG_COLUMNS, VERIFICATION_LOG_HEADER
+    from harness_gate import (
+        VERIFICATION_LOG_COLUMNS,
+        VERIFICATION_LOG_HEADER,
+        harden_console_encoding,
+    )
 
 
 ISSUE_PATTERN = re.compile(r"\bIssue\s*#\s*(\d+)\b", re.IGNORECASE)
@@ -62,4 +70,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    harden_console_encoding()
     sys.exit(main())
