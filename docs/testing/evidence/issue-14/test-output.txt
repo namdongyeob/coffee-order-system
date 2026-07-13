@@ -1,0 +1,21 @@
+Issue #14 verification summary
+
+Focused Level 4: 6 tests PASS.
+Related ranking suite: PASS after one Gradle result-writer infrastructure retry.
+Full regression: 57 tests, failures 0, errors 0, BUILD SUCCESSFUL in 5m 40s.
+Level 5 success: health 200, charge 200, order 201, rebuilt member 1 score 1, ranking-consumer-group offset 1 and lag 0, no rebuild temp or backup keys.
+Level 5 mismatch: explicit DB aggregate mismatch failure, live member 1 score 1 retained, normal offset 1 retained, no rebuild temp or backup keys.
+Cleanup: project Compose services 0, port 8080 free.
+Review remediation focused: 10 tests PASS, BUILD SUCCESSFUL in 1m 29s.
+Review remediation related ranking suite: PASS, BUILD SUCCESSFUL in 3m 43s.
+Review remediation full: 61 tests, failures 0, errors 0, BUILD SUCCESSFUL in 3m 32s.
+Review remediation Level 5: health 200, charge 200, order 201, score 1, normal offset 1, lag 0, cleanup PASS.
+Retention RED: earliest greater than zero was rejected by the previous implementation, BUILD FAILED in 1m 53s.
+Retention GREEN focused: 11 tests PASS, failures 0, errors 0, skipped 0, BUILD SUCCESSFUL in 2m 34s on merged Issue #77 main.
+Retention related ranking/Kafka: 28 tests PASS, failures 0, errors 0, skipped 0, BUILD SUCCESSFUL in 4m 57s.
+Retention final full: 62 tests PASS, failures 0, errors 0, skipped 0, BUILD SUCCESSFUL in 4m 53s, including the Issue #77 stabilized DLT test.
+Retention Level 5 success: earliest 1, latest 2, retained recent offset 1 rebuilt member 1 score 1, normal offset 2, lag 0, rebuild keys 0.
+Retention Level 5 actual loss: earliest/latest 2/2, DB mismatch exit 1 in 31.8s, live member 1 score 1 and normal offset 2 retained, rebuild keys 0.
+Cleanup: project Compose services 0 and port 8080 free.
+Final independent QA: read-only evidence audit PASS at e58a90d544f5b86cdfe19af3550d9e0041d0a46e. The first focused run was discarded because an IntelliJ Gradle daemon was running concurrently, and the second focused run was stopped after the user approved lightweight verification. Neither run was counted as PASS evidence, and QA did not independently complete Level 4 or Level 5 on this head.
+QA cleanup receipt: immediately after QA-owned cleanup, Java/Gradle processes 0, Docker containers 0, and port 8080 free. Five docker-* containers started later by an external actor were not touched.

@@ -13,7 +13,10 @@ public class RankingEventConsumer {
 
 	private final RankingEventProcessor processor;
 
-	@KafkaListener(topics = OrderEventPublisher.ORDER_COMPLETED_TOPIC, groupId = "ranking-consumer-group")
+	@KafkaListener(
+			topics = OrderEventPublisher.ORDER_COMPLETED_TOPIC,
+			groupId = "ranking-consumer-group",
+			autoStartup = "${ranking.consumer.enabled:true}")
 	public void consume(OrderCompletedEvent event) {
 		processor.process(event);
 	}

@@ -1,5 +1,21 @@
 # Kafka Redis Runbook
 
+## Maintenance ranking rebuild
+
+1. 일반 애플리케이션을 모두 중지하고 `ranking-consumer-group`의 active member가 없는 상태를 만듭니다.
+2. MySQL·Redis·Kafka만 실행한 뒤 다음 명령으로 maintenance runner를 시작합니다.
+
+```powershell
+.\gradlew.bat bootRun --args="--spring.profiles.active=local --ranking.consumer.enabled=false --ranking.rebuild.maintenance=true --ranking.rebuild.enabled=true"
+```
+
+3. runner는 snapshot과 partition별 end offset을 고정하고 earliest부터 exclusive end까지 replay합니다.
+4. `[snapshot-7일, snapshot)`의 `PAID` 주문 DB 집계와 replay가 날짜·menuId별로 같을 때만 Lua로 대상 날짜 key를 원자 교체합니다.
+5. 성공 뒤 maintenance 앱을 종료하고 일반 앱을 다시 시작합니다. 이후 event는 이동된 `ranking-consumer-group` offset부터 처리됩니다.
+6. active consumer, lock, retention, malformed event, timeout, DB mismatch가 발생하면 일반 앱 재개 전에 원인을 해결합니다. 실패 시 기존 live key와 정상 group offset은 유지되고 temp key는 삭제됩니다.
+
+무중단 online rebuild, Redis Cluster/Sentinel, DB 재집계와 동시 실행은 범위가 아닙니다.
+
 ## DLT 확인
 
 Consumer는 한 메시지의 최초 처리가 실패하면 1초 간격으로 2회 재시도합니다. 세 번째 처리까지 실패하면 원본 partition을 유지해 `order.completed.DLT`로 이동합니다.
