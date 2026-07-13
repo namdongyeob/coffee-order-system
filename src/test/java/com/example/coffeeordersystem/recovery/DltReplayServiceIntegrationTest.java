@@ -62,7 +62,7 @@ class DltReplayServiceIntegrationTest {
 	void republishesOneApprovedDltRecordWithOriginalKeyAndPayloadButWithoutDltHeaders() throws Exception {
 		String eventId = UUID.randomUUID().toString();
 		String payload = payload(eventId);
-		RecordMetadata dlt = publishDlt("6101", payload, OrderEventPublisher.ORDER_COMPLETED_TOPIC, true);
+		RecordMetadata dlt = publishDlt("6101", payload, OrderEventPublisher.ORDER_COMPLETED_TOPIC, true, true);
 
 		DltReplayResult result = service.replay(new DltReplayRequest(
 				DLT_TOPIC, dlt.partition(), dlt.offset(), "operator-a", "Redis recovered"));
@@ -86,7 +86,7 @@ class DltReplayServiceIntegrationTest {
 		String eventId = UUID.randomUUID().toString();
 		processedEvents.saveAndFlush(new ProcessedEvent(
 				eventId, "order.completed", "ranking-consumer-group", LocalDateTime.now()));
-		RecordMetadata dlt = publishDlt("6101", payload(eventId), OrderEventPublisher.ORDER_COMPLETED_TOPIC, true);
+		RecordMetadata dlt = publishDlt("6101", payload(eventId), OrderEventPublisher.ORDER_COMPLETED_TOPIC, true, true);
 
 		DltReplayResult result = service.replay(new DltReplayRequest(
 				DLT_TOPIC, dlt.partition(), dlt.offset(), "operator-a", "already checked"));
@@ -97,7 +97,7 @@ class DltReplayServiceIntegrationTest {
 
 	@Test
 	void failsClosedWhenOriginalTopicHeaderDoesNotMatchOrderCompleted() throws Exception {
-		RecordMetadata dlt = publishDlt("6101", payload(UUID.randomUUID().toString()), "other.topic", true);
+		RecordMetadata dlt = publishDlt("6101", payload(UUID.randomUUID().toString()), "other.topic", true, true);
 
 		org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.replay(new DltReplayRequest(
 				DLT_TOPIC, dlt.partition(), dlt.offset(), "operator-a", "header validation")))
@@ -106,22 +106,25 @@ class DltReplayServiceIntegrationTest {
 	}
 
 	@Test
-	void failsClosedWhenOriginalIdentificationHeaderIsMissing() throws Exception {
+	void failsClosedWhenOriginalOffsetHeaderIsMissing() throws Exception {
 		RecordMetadata dlt = publishDlt("6101", payload(UUID.randomUUID().toString()),
-				OrderEventPublisher.ORDER_COMPLETED_TOPIC, false);
+				OrderEventPublisher.ORDER_COMPLETED_TOPIC, true, false);
 
 		org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.replay(new DltReplayRequest(
 				DLT_TOPIC, dlt.partition(), dlt.offset(), "operator-a", "header validation")))
 				.isInstanceOf(DltReplayException.class)
-				.hasMessageContaining("원본 partition");
+				.hasMessageContaining("원본 offset");
 	}
 
-	private RecordMetadata publishDlt(String key, String value, String originalTopic, boolean includeIdentifiers)
+	private RecordMetadata publishDlt(
+			String key, String value, String originalTopic, boolean includeOriginalPartition, boolean includeOriginalOffset)
 			throws Exception {
 		ProducerRecord<String, String> record = new ProducerRecord<>(DLT_TOPIC, key, value);
 		record.headers().add(KafkaHeaders.DLT_ORIGINAL_TOPIC, originalTopic.getBytes(StandardCharsets.UTF_8));
-		if (includeIdentifiers) {
+		if (includeOriginalPartition) {
 			record.headers().add(KafkaHeaders.DLT_ORIGINAL_PARTITION, ByteBuffer.allocate(4).putInt(0).array());
+		}
+		if (includeOriginalOffset) {
 			record.headers().add(KafkaHeaders.DLT_ORIGINAL_OFFSET, ByteBuffer.allocate(8).putLong(0L).array());
 		}
 		record.headers().add(KafkaHeaders.DLT_EXCEPTION_FQCN,
