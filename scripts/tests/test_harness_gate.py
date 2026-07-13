@@ -11,6 +11,8 @@ from scripts import harness_gate
 
 VALID_ACCEPTANCE = """# Issue #23 Acceptance Criteria
 
+- [x] harness evidence reconciliation fixture
+
 Execution mode: STRICT
 Execution mode reason: 하네스와 워크플로 정책을 변경하는 작업이므로 독립 Review와 QA가 필요합니다.
 Level 5 required: NO
@@ -37,6 +39,9 @@ VALID_ATTEMPT = """# Attempt Log
 Issue: #23
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/23
 Branch: codex/issue-23-harness-quality-gates
+Current disposition: PASS
+Current Attempt: 1
+Current head: d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8
 
 ## Attempt 1
 ### Generate
@@ -54,6 +59,9 @@ Branch: codex/issue-23-harness-quality-gates
 """
 
 VERIFICATION_HEADER = """# 검증 로그
+
+Attempt: 1
+Head: d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -299,6 +307,164 @@ class EvidenceValidationTest(unittest.TestCase):
 			)
 
 			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_blocked_current_disposition_rejects_pass_verification(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				),
+			)
+			attempt = root / "docs" / "testing" / "evidence" / "issue-23" / "attempt-log.md"
+			attempt.write_text(
+				VALID_ATTEMPT.replace("Current disposition: PASS", "Current disposition: BLOCKED"),
+				encoding="utf-8",
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("BLOCKED" in error and "PASS" in error for error in errors))
+
+	def test_matching_pass_attempt_verification_and_metrics_pass(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				),
+			)
+
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_retry_count_or_current_attempt_or_head_mismatch_fails(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				),
+			)
+			evidence = root / "docs" / "testing" / "evidence" / "issue-23"
+			(evidence / "metrics.md").write_text(
+				VALID_METRICS.replace("| STRICT | 4 | 12 | 0 |", "| STRICT | 4 | 12 | 1 |"),
+				encoding="utf-8",
+			)
+			(evidence / "verification.md").write_text(
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				).replace("Head: d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8", "Head: 1111111111111111111111111111111111111111"),
+				encoding="utf-8",
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("retry" in error.lower() or "head" in error.lower() for error in errors))
+
+	def test_retry_count_mismatch_fails_without_other_metadata_mismatch(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				),
+			)
+			evidence = root / "docs" / "testing" / "evidence" / "issue-23"
+			(evidence / "metrics.md").write_text(
+				VALID_METRICS.replace("| STRICT | 4 | 12 | 0 |", "| STRICT | 4 | 12 | 1 |"),
+				encoding="utf-8",
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertEqual(
+				["evidence reconciliation: metrics retry count must equal Current Attempt minus one."],
+				errors,
+			)
+
+	def test_current_attempt_must_match_verification_attempt(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				),
+			)
+			attempt = root / "docs" / "testing" / "evidence" / "issue-23" / "attempt-log.md"
+			attempt.write_text(
+				VALID_ATTEMPT.replace("Current Attempt: 1", "Current Attempt: 2").replace(
+					"## Attempt 1", "## Attempt 2"
+				),
+				encoding="utf-8",
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("Current Attempt and verification.md Attempt" in error for error in errors))
+
+	def test_verification_execution_head_mismatch_fails_without_other_metadata_mismatch(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(
+				root,
+				VALID_ACCEPTANCE,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PASS | harness | `python -m unittest` | completed |"
+				).replace("Head: d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8", "Head: 1111111111111111111111111111111111111111"),
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertEqual(
+				["evidence reconciliation: Current head and verification.md Head must match."],
+				errors,
+			)
+
+	def test_unknown_execution_head_ancestor_fails(self):
+		errors = harness_gate.validate_execution_head_delta(
+			"1111111111111111111111111111111111111111", False, [], 23
+		)
+
+		self.assertEqual(
+			["evidence reconciliation: execution head must be an ancestor of current Git HEAD."],
+			errors,
+		)
+
+	def test_code_or_test_change_after_execution_head_fails(self):
+		errors = harness_gate.validate_execution_head_delta(
+			"d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8",
+			True,
+			["scripts/harness_gate.py"],
+			23,
+		)
+
+		self.assertEqual(
+			["evidence reconciliation: changes after execution head must be limited to Issue #23 evidence files: scripts/harness_gate.py"],
+			errors,
+		)
+
+	def test_evidence_only_delta_after_execution_head_passes(self):
+		errors = harness_gate.validate_execution_head_delta(
+			"d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8",
+			True,
+			[
+				"docs/testing/evidence/issue-23/attempt-log.md",
+				"docs/testing/evidence/issue-23/verification.md",
+			],
+			23,
+		)
+
+		self.assertEqual([], errors)
 
 	def test_metrics_is_required_and_isolated_to_the_current_issue(self):
 		with tempfile.TemporaryDirectory() as temp_dir:

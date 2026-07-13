@@ -56,7 +56,7 @@ python scripts/rebuild_verification_log.py --output $env:TEMP\verification-log.m
 
 ## Attempt 연결 규칙
 
-`docs/testing/evidence/attempt-log-template.md`를 복사해 Issue별 디렉터리에 둡니다. Evaluate가 FAIL이면 실패 원인과 허용된 수정 범위를 적고, 다음 Agent에는 마지막 `Next Attempt` 절만 전달합니다. PASS인 경우에도 재검증 명령과 결과를 남기고 `Next Attempt`를 `없음`으로 닫습니다.
+`docs/testing/evidence/attempt-log-template.md`를 복사해 Issue별 디렉터리에 둡니다. `Current disposition`은 `PASS` 또는 `BLOCKED`, `Current Attempt`는 최신 Attempt 번호, `Current head`는 그 Attempt가 검증한 Git SHA를 기계 판독 형식으로 기록합니다. `verification.md`의 `Attempt`·`Head`도 같은 값이어야 하며 `metrics.md`의 재시도 수는 `Current Attempt - 1`이어야 합니다. `PASS`면 모든 acceptance checkbox와 Issue verification PASS 행이 필요하고, `BLOCKED`면 PASS verification 또는 모두 완료된 checkbox를 함께 기록할 수 없습니다. Evaluate가 FAIL이면 실패 원인과 허용된 수정 범위를 적고, 다음 Agent에는 마지막 `Next Attempt` 절만 전달합니다. PASS인 경우에도 재검증 명령과 결과를 남기고 `Next Attempt`를 `없음`으로 닫습니다.
 
 `metrics.md`는 [Issue metrics template](evidence/issue-metrics-template.md)를 복사해 작성합니다. 이 파일의 표 제목·열 순서·값 형식은 바꾸지 않으며, 측정 근거는 `commands.md`, `attempt-log.md`, Review/QA 보고 또는 PR 링크로 연결합니다.
 
@@ -87,7 +87,7 @@ Record the Generate start timestamp when the Attempt starts and the Reverificati
 
 ### PR body preflight and publishing
 
-Before creating or editing a PR body, create a temporary Markdown file outside the repository and run `python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>`. Use that same passing file with `gh pr create --body-file <temporary file>` or `gh pr edit <PR number> --body-file <temporary file>`. Do not use an inline shell body. These rules apply to PRs created or edited after Issue #55.
+Before creating or editing a PR body, create a temporary Markdown file outside the repository and run `python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>`. The preflight fails closed when current disposition, Attempt, head, acceptance checkbox, metrics retry count, and verification PASS evidence disagree. Use that same passing file with `gh pr create --body-file <temporary file>` or `gh pr edit <PR number> --body-file <temporary file>`. Do not use an inline shell body. These rules apply to PRs created or edited after Issue #55.
 
 고정 자율 큐의 PR 본문은 한국어로 작성하고 저장소 밖 UTF-8 no-BOM 임시 파일을 preflight한 뒤 같은 파일만 `--body-file`로 게시합니다. 아직 실행되지 않은 Review·QA 링크나 가변 head·CI·Gate 상태, Agent·retry 수, diff 통계, 파일 목록과 테스트 수를 본문에 복제하지 않습니다.
 
