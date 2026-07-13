@@ -1435,5 +1435,36 @@ class OrchestrationContractTest(unittest.TestCase):
 			self.assertIn("missing.md", errors[0])
 
 
+class ConsoleEncodingHardeningTest(unittest.TestCase):
+	def test_unencodable_character_does_not_raise_after_hardening(self):
+		# cp949 콘솔을 흉내내는 스트림에서 인코딩 불가 문자를 그대로 쓰면 실전에서 재현되는 크래시입니다.
+		stream = io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict")
+		with self.assertRaises(UnicodeEncodeError):
+			stream.write("harness ✗ failed")
+
+		hardened_stream = io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict")
+		hardened_stream.reconfigure(errors="backslashreplace")
+
+		hardened_stream.write("harness ✗ failed")
+		hardened_stream.flush()
+		hardened_stream.buffer.seek(0)
+		self.assertEqual(
+			b"harness \\u2717 failed",
+			hardened_stream.buffer.read(),
+		)
+
+	def test_korean_error_message_displays_unchanged_under_cp949(self):
+		hardened_stream = io.TextIOWrapper(io.BytesIO(), encoding="cp949", errors="strict")
+		hardened_stream.reconfigure(errors="backslashreplace")
+
+		hardened_stream.write("verification.md에 Issue #54 기록이 없습니다.")
+		hardened_stream.flush()
+		hardened_stream.buffer.seek(0)
+		self.assertEqual(
+			"verification.md에 Issue #54 기록이 없습니다.",
+			hardened_stream.buffer.read().decode("cp949"),
+		)
+
+
 if __name__ == "__main__":
 	unittest.main()

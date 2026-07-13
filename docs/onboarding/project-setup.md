@@ -10,5 +10,6 @@
 ```powershell
 git status --short --branch
 git remote -v
-.\gradlew.bat test
+gradlew test
+# Windows: .\gradlew.bat test, macOS·Linux: ./gradlew test
 ```

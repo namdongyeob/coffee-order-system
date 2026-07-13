@@ -35,7 +35,8 @@ Gradle은 local profile로 실행합니다.
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = 'local'
-.\gradlew.bat bootRun
+gradlew bootRun
+# Windows: .\gradlew.bat bootRun, macOS·Linux: ./gradlew bootRun
 ```
 
 IntelliJ Run Configuration에서 `CoffeeOrderSystemApplication`을 선택하고 Active profiles에 `local`을 입력합니다. Environment variables에는 `.env.example`의 `LOCAL_*` 값을 같은 이름으로 설정하거나 위 PowerShell 세션에서 IntelliJ를 실행합니다. 기본 profile은 datasource 정보를 제공하지 않으므로 local profile 없이 실행하지 않습니다.

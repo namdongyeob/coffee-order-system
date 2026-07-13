@@ -6,7 +6,8 @@
 2. MySQL·Redis·Kafka만 실행한 뒤 다음 명령으로 maintenance runner를 시작합니다.
 
 ```powershell
-.\gradlew.bat bootRun --args="--spring.profiles.active=local --ranking.consumer.enabled=false --ranking.rebuild.maintenance=true --ranking.rebuild.enabled=true"
+gradlew bootRun --args="--spring.profiles.active=local --ranking.consumer.enabled=false --ranking.rebuild.maintenance=true --ranking.rebuild.enabled=true"
+# Windows: .\gradlew.bat ..., macOS·Linux: ./gradlew ...
 ```
 
 3. runner는 snapshot과 partition별 end offset을 고정하고 earliest부터 exclusive end까지 replay합니다.

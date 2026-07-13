@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 try:
-    from scripts.harness_gate import rebuild_verification_log
+    from scripts.harness_gate import harden_console_encoding, rebuild_verification_log
 except ModuleNotFoundError:
-    from harness_gate import rebuild_verification_log
+    from harness_gate import harden_console_encoding, rebuild_verification_log
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,4 +26,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    harden_console_encoding()
     sys.exit(main())
