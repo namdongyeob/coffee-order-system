@@ -21,7 +21,7 @@ Execution mode reason: 비어 있지 않은 선택 근거
 
 Dev가 PR 전 evidence를 완성한 STRICT 흐름에서는 Docs Agent를 기본 dispatch하지 않습니다. metadata 불일치가 있을 때만 조건부로 호출합니다.
 
-`SOLO`와 `STANDARD` 조건을 모두 충족한다는 근거가 없으면 `STRICT`를 선택합니다. Redisson, DB 락, 트랜잭션, Kafka 멱등성은 Sol `high`, `max` 또는 `ultra` 후보로 판단하며, 프로젝트 전체 회귀·아키텍처 점검은 `ultra` 읽기 전용으로 배정할 수 있습니다. 동일 실패가 반복되는 장기 작업에는 설치와 명령이 확인된 경우에만 LazyCodex식 반복 루프를 사용합니다.
+`SOLO`와 `STANDARD` 조건을 모두 충족한다는 근거가 없으면 `STRICT`를 선택합니다. Redisson, DB 락, 트랜잭션, Kafka 멱등성은 고정밀 추론 등급 후보로 판단하며, 프로젝트 전체 회귀·아키텍처 점검은 읽기 전용 대규모 점검 등급으로 배정할 수 있습니다. 역할별 실제 모델 매핑은 [모델·도구 매핑](model-tooling-map.md)을 참조합니다. 동일 실패가 반복되는 장기 작업에는 설치와 명령이 확인된 경우에만 반복 실행 루프를 사용합니다.
 
 Review Gate와 QA Gate의 판정 기준 자체를 추가·삭제·변경하는 Issue는 애플리케이션 코드 변경 여부와 무관하게 workflow policy 변경이므로 `STRICT`를 선택합니다. 단순 링크·오탈자 수정처럼 판정 의미를 바꾸지 않는 변경만 이 규칙에서 제외합니다.
 
@@ -120,22 +120,9 @@ Main은 변경 파일 목록, 역할별 완료 보고, 필수 evidence 존재, G
 
 단순 선호, 새 도구 평가, 예방적 추상화는 기능 Issue와 분리합니다. 허용된 하네스 변경은 변경 전 실패 또는 결함 재현, 변경 후 focused harness test, 영향받는 repository gate 결과를 evidence에 남깁니다.
 
-## 모델 사용 기준
+## 모델·도구와 실행 환경
 
-현재 Codex가 서브에이전트별 모델 override를 제공하는 경우 다음을 기본 후보로 사용합니다. 기능이 노출되지 않은 환경에서는 부모 모델을 상속하고 역할 규칙만 유지합니다.
-
-| 역할 | 후보 | 기준 |
-| --- | --- | --- |
-| Main Coordinator | Sol `medium` 또는 `high` | 의존성과 작업 큐를 관리하고 결과를 전달합니다. |
-| 일반 Spring 구현 | Terra `high` | 비용과 구현 품질의 균형을 맞춥니다. |
-| 파일 탐색, 문서 위치 조사 | Luna `medium` | 빠른 읽기 작업에 사용합니다. |
-| 복잡한 동시성·멱등성 검토 | Sol `high`, `max` 또는 `ultra` | 경쟁 조건과 실패 순서를 분석합니다. |
-
-모델을 낮췄다는 이유로 테스트와 리뷰를 줄이지 않으며, 강한 모델을 사용했다는 이유로 evidence를 생략하지 않습니다.
-
-## 실행 환경 확인
-
-Codex 데스크톱 앱이 사용하는 CLI와 PowerShell `PATH`의 CLI 버전이 다를 수 있습니다. 모델 또는 Skill이 동작하지 않을 때는 먼저 두 실행 파일의 `--version`을 비교하고, 오래된 CLI의 모델 거부를 프로젝트 설계 실패로 판단하지 않습니다. 검증 evidence에는 사용한 CLI 버전, 모델, reasoning effort를 함께 기록합니다.
+역할별 모델 후보 매핑과 실행 환경 확인 절차는 핵심 실행 계약에 두지 않고 [모델·도구 매핑](model-tooling-map.md)에서만 관리합니다. 모델을 낮췄다는 이유로 테스트와 리뷰를 줄이지 않으며, 강한 모델을 사용했다는 이유로 evidence를 생략하지 않습니다.
 
 ## Issue 품질 루프
 
@@ -143,22 +130,9 @@ Codex 데스크톱 앱이 사용하는 CLI와 PowerShell `PATH`의 CLI 버전이
 
 Main의 완료 조건은 코드 품질을 직접 판정하는 것이 아니라 이 문서의 실행 모드 표에 정의된 필수 보고와 CI 상태가 존재하는지 확인하는 것입니다. `SOLO`는 Main을 사용하지 않습니다.
 
-## 품질 개선 지표
+## 지표와 최종 프로젝트 이전
 
-최종 프로젝트로 가져갈 때 에이전트 수가 아니라 아래 결과를 비교합니다.
-
-- Issue 범위 밖 변경 파일 수.
-- Review에서 발견된 요구사항·회귀·과한 추상화 건수.
-- Mock 통과 후 실제 API 검증에서 추가로 발견된 결함 수.
-- 실패를 재현할 수 있는 테스트와 evidence의 비율.
-- PR 문서와 실제 코드·측정 수치의 불일치 건수.
-- 같은 원인으로 재발한 `agent-mistakes.md` 항목 수.
-
-이 수치는 [Issue metrics template](../testing/evidence/issue-metrics-template.md)의 고정 형식으로 `docs/testing/evidence/issue-N/metrics.md`에 남깁니다. 값이 없으면 추정하지 않고 `0`, `없음`, `미측정` 중 해당하는 값을 쓰며 근거를 함께 적습니다. 이 기록은 최종 프로젝트에서 현재 방식과 개선된 방식을 비교하는 기준입니다.
-
-## 최종 프로젝트 이전 범위
-
-그대로 이전할 항목은 전역 작업 규칙, 단일 작성자, 읽기 전용 Review/QA, 검증 레벨, evidence, 사람의 merge 승인입니다. 커피 주문 도메인의 Redisson 키, Kafka topic, Redis ZSET 정책은 이전하지 않고 최종 프로젝트의 도메인 문서와 ADR로 다시 결정합니다.
+품질 개선 지표의 항목과 형식, 최종 프로젝트 이전 범위는 핵심 실행 계약에 두지 않고 [하네스 지표와 이전](harness-metrics-and-transfer.md)에서 관리합니다. 팀 이전 준비 단계에서만 읽습니다. 그대로 이전하는 핵심 불변조건(전역 작업 규칙, 단일 작성자, 읽기 전용 Review/QA, 검증 레벨, evidence, 사람의 merge 승인)은 이 정책 본문이 계속 정본으로 유지합니다.
 
 ## 고정 자율 Issue 큐 실험
 
