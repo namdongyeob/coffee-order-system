@@ -59,6 +59,16 @@ docker compose -f docker/compose.yaml --profile tools down -v
 
 재처리는 운영자가 승인한 메시지만 대상으로 합니다. 자동 전체 재처리는 MVP 범위에서 제외합니다.
 
+## DLT 선택 재발행
+
+운영자는 DLT topic의 **한 partition/offset**과 승인자·사유를 확인한 뒤에만 아래 script를 실행합니다. offset 범위나 전체 topic 재처리는 지원하지 않습니다.
+
+```powershell
+.\scripts\replay_dlt_message.ps1 -Partition 0 -Offset 12 -ApprovedBy operator-a -Reason "Redis recovered"
+```
+
+script는 `order.completed.DLT` record를 해당 offset에서 재조회하고 original topic이 `order.completed`이며 original partition·offset header가 있는지 확인합니다. 불일치면 fail-closed입니다. payload와 key만 보존하며 DLT original·exception·stacktrace header는 복사하지 않고, 기존 consumer의 JSON type header만 새로 추가합니다. `processed_event`에 같은 eventId가 있으면 `SKIPPED_ALREADY_PROCESSED`이며 재발행하지 않습니다. 사전 조회와 consumer 처리 사이의 경쟁은 consumer 멱등성이 최종 방어하므로 결과의 risk를 확인합니다.
+
 ## Redis 랭킹 재구성 후보
 
 1. Redis 랭킹 key가 유실되었거나 오염되었는지 확인합니다.
