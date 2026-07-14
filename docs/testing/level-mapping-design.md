@@ -69,3 +69,4 @@ exemption code는 매핑을 약화하는 도구가 아니라 매핑이 맞았을
 - ENFORCE 후보: M1(`controller/**`→Level 2), M2(`consumer/**`→Level 4), M3(`order/event/**`→Level 4, 좁힌 패턴), M8(`src/test`만 변경 시 경로 매핑 미적용).
 - OBSERVE 후보(추가 표본 필요, #58에서 hard fail로 구현하지 않음): M4(migration→Level 3), M5(설정 파일→Level 4/5), M6(`service/**`→Level 4, 논쟁적), M7(rebuild/recovery→Level 4).
 - 과거 Issue #7·#8·#9·#40·#10은 이 replay로 새로운 누락이 발견되지 않았다(모든 ENFORCE 후보가 실측 PASS와 일치). 소급 FAIL 대상 없음.
+- 표본 확장 후보(참고, 이 Issue의 공식 replay 범위 밖): PR #68("Kafka Consumer 재시도와 DLT 이동")과 PR #76("Kafka replay 기반 Redis ranking rebuild")도 `ranking/consumer/**`(M2)를 변경했다. 이 Issue는 Issue 본문이 지정한 #7·#8·#9·#40·#10 5건만 공식 replay 표본으로 사용했으므로 이 두 PR을 M2 신뢰도 수치에 포함하지 않았지만, #58에서 M2를 ENFORCE로 구현하기 전 추가 신뢰도 확인용 표본으로 검토할 가치가 있다.
