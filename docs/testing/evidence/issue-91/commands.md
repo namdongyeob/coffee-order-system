@@ -10,4 +10,4 @@
 | `python -m pytest scripts/tests/test_team_orchestration.py -q` | 신규 테스트 전체 실행 | 30 passed, 6 subtests passed. |
 | `python -m pytest scripts/tests/ -q` | 전체 scripts 테스트(harness_gate + team_orchestration) 회귀 확인 | 160 passed, 121 subtests passed(기존 130+신규 30, 충돌 없음). |
 | `git status --short` | `.team-orchestration-state/`가 git에 노출되지 않는지 확인 | gitignore 반영 뒤 상태 디렉터리가 `git status`에 나타나지 않음. `.gitignore`, `scripts/team_orchestration.py`, `scripts/tests/test_team_orchestration.py`만 변경분으로 표시. |
-| `python scripts/harness_gate.py --issue 91 --branch claude/issue-91-parallel-orchestration-tool --base-ref e8ea5ed --check-links --include-worktree` | PR 전 preflight | 결과는 `verification.md`에 기록. |
+| `python scripts/harness_gate.py --issue 91 --branch claude/issue-91-parallel-orchestration-tool --base-ref e8ea5ed --check-links --include-worktree` | PR 전 preflight | Review·QA 결과 반영 뒤 `Harness gate PASSED.`를 확인했습니다. |
