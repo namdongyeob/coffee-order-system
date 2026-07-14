@@ -6,7 +6,7 @@ Branch: claude/issue-57-level-mapping-replay
 
 Current disposition: PASS
 Current Attempt: 1
-Current head: 7de2d81c2937941372d3b4d153a1c0cc807359d9
+Current head: 48d3dd6b4f1a600d04e8c337cb3fa2642df69876
 
 ## Attempt 1
 
