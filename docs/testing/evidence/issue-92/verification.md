@@ -1,6 +1,6 @@
 # 검증 로그
 
-Attempt: 1
+Attempt: 2
 Head: 4a2ef42bb9985e4e4bb24ad29fccd0089311c28c
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
