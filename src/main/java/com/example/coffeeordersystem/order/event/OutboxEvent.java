@@ -8,9 +8,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "outbox_event")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OutboxEvent {
 
 	@Id
@@ -33,9 +38,6 @@ public class OutboxEvent {
 	@Column(name = "published_at")
 	private LocalDateTime publishedAt;
 
-	protected OutboxEvent() {
-	}
-
 	public OutboxEvent(String eventId, String eventType, String payload, LocalDateTime createdAt) {
 		this.eventId = eventId;
 		this.eventType = eventType;
@@ -45,29 +47,5 @@ public class OutboxEvent {
 
 	public void markPublished(LocalDateTime publishedAt) {
 		this.publishedAt = publishedAt;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public String getEventId() {
-		return eventId;
-	}
-
-	public String getEventType() {
-		return eventType;
-	}
-
-	public String getPayload() {
-		return payload;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public LocalDateTime getPublishedAt() {
-		return publishedAt;
 	}
 }

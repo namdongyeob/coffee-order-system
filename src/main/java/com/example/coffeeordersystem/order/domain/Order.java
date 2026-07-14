@@ -13,9 +13,14 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "orders")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Order {
 
 	@Id
@@ -39,38 +44,11 @@ public class Order {
 	@Column(name = "ordered_at", nullable = false)
 	private LocalDateTime orderedAt;
 
-	protected Order() {
-	}
-
 	public Order(Long userId, Menu menu, int paidAmount, OrderStatus status, LocalDateTime orderedAt) {
 		this.userId = userId;
 		this.menu = menu;
 		this.paidAmount = paidAmount;
 		this.status = status;
 		this.orderedAt = orderedAt;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public Long getUserId() {
-		return userId;
-	}
-
-	public Menu getMenu() {
-		return menu;
-	}
-
-	public int getPaidAmount() {
-		return paidAmount;
-	}
-
-	public OrderStatus getStatus() {
-		return status;
-	}
-
-	public LocalDateTime getOrderedAt() {
-		return orderedAt;
 	}
 }
