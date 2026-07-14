@@ -44,8 +44,8 @@ class OrderEventKafkaIntegrationTest {
 
 		try {
 			publisher.publish(event).get(10, java.util.concurrent.TimeUnit.SECONDS);
-			ConsumerRecord<String, String> record = KafkaTestUtils.getSingleRecord(
-					consumer, "order.completed", Duration.ofSeconds(10));
+			// 공유 topic에는 다른 테스트가 남긴 레코드가 함께 있을 수 있어 eventId로 우리 레코드를 찾는다.
+			ConsumerRecord<String, String> record = pollForEventId(consumer, event.eventId(), Duration.ofSeconds(10));
 
 			assertThat(record.key()).isEqualTo("22");
 			assertThat(record.value())
@@ -58,5 +58,18 @@ class OrderEventKafkaIntegrationTest {
 		} finally {
 			consumer.close();
 		}
+	}
+
+	private ConsumerRecord<String, String> pollForEventId(Consumer<String, String> consumer, UUID eventId, Duration timeout) {
+		String marker = "\"eventId\":\"" + eventId + "\"";
+		long deadline = System.nanoTime() + timeout.toNanos();
+		while (System.nanoTime() < deadline) {
+			for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(250))) {
+				if (record.value() != null && record.value().contains(marker)) {
+					return record;
+				}
+			}
+		}
+		throw new IllegalStateException("eventId " + eventId + "에 대한 Kafka 레코드를 제한 시간 안에 찾지 못했습니다.");
 	}
 }
