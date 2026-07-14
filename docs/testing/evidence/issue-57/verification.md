@@ -1,7 +1,7 @@
 # 검증 로그
 
 Attempt: 1
-Head: af04297fdad28b470866edfeed63ebfcf614fc7c
+Head: 7de2d81c2937941372d3b4d153a1c0cc807359d9
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |

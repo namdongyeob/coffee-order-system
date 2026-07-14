@@ -6,7 +6,7 @@ Branch: claude/issue-57-level-mapping-replay
 
 Current disposition: PASS
 Current Attempt: 1
-Current head: af04297fdad28b470866edfeed63ebfcf614fc7c
+Current head: 7de2d81c2937941372d3b4d153a1c0cc807359d9
 
 ## Attempt 1
 
@@ -24,8 +24,8 @@ Current head: af04297fdad28b470866edfeed63ebfcf614fc7c
 
 ### Evaluate
 
-- Level 0 하네스 회귀: `python -m pytest scripts/tests/test_harness_gate.py -q`가 head `af04297`에서 107건(110 subtests) PASS입니다.
-- fresh Review Agent: **APPROVED**, P0/P1 없음. M1·M2·M3·M8 매핑과 replay 근거 인용을 재계산해 설계 문서 주장과 일치함을 확인했습니다. P2 2건(시작 시각 미측정 반복, PR #68·#76 표본 확장 후보 이월 권장)은 비차단 권고이며 후자는 본 Attempt에서 반영했습니다.
+- Level 0 하네스 회귀: `python -m pytest scripts/tests/test_harness_gate.py -q`가 head `af04297`(Review·QA가 실제로 diff를 확인한 content 커밋)에서 107건(110 subtests) PASS입니다.
+- fresh Review Agent: **APPROVED**, P0/P1 없음. M1·M2·M3·M8 매핑과 replay 근거 인용을 재계산해 설계 문서 주장과 일치함을 확인했습니다. P2 2건(시작 시각 미측정 반복, PR #68·#76 표본 확장 후보 이월 권장)은 비차단 권고이며 후자는 본 Attempt에서 반영했습니다(`level-mapping-design.md` 1문단 추가 → 이 변경으로 content 최종 커밋이 `7de2d81`로 이동했습니다. evidence reconciliation 규칙상 `Current head`는 마지막 content 변경 커밋을 가리켜야 하므로 `7de2d81`로 기록합니다).
 - fresh QA Agent: **PASS**, P0/P1 없음. `test_harness_gate.py` 재실행 PASS, 완료 기준 3개 대조 PASS, replay 근거 spot-check(PR #38·#39·#42) 일치, 범위 밖 변경 파일 0건 확인. P2 2건(M6 사람 결정 별도 기록 필요, exemption 승인 주체 배분은 #58 이후 운영에서만 검증 가능)은 이 문서의 "판단이 필요한 항목" 절과 exemption 체계에 이미 명시되어 있어 추가 조치 없이 인지 상태로 유지합니다.
 
 ### Failure Cause

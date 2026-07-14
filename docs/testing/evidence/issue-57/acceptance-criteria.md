@@ -15,4 +15,4 @@ Level 6 reason: HTTP 계약을 변경하지 않습니다.
 - [x] 실코드 5건(#7·#8·#9·#40·#10) replay 결과(오탐·미탐 각 건수와 원인)가 기록되고, 기존 Issue를 소급 FAIL시키지 않는 매핑이 확정됨. `docs/testing/level-mapping-design.md`의 "후보 매핑과 분류" 표에 각 규칙의 replay 근거를 기록했고, ENFORCE 후보(M1·M2·M3)는 5건 모두에서 오탐 0건·미탐 0건으로 실측 Level PASS와 일치합니다. 소급 FAIL 대상 없음을 "확정 사항" 절에 명시했습니다.
 - [x] exemption code 목록과 승인 주체가 정의됨. `docs/testing/level-mapping-design.md`의 "exemption code 체계" 절에 고정 code 5개와 역할별 승인 주체를 정의했습니다.
 
-검증 실행 head는 `af04297fdad28b470866edfeed63ebfcf614fc7c`입니다. fresh 독립 Review Agent는 이 head에서 `APPROVED`(P0/P1 없음)이고, fresh 독립 QA Agent는 같은 head에서 `PASS`(P0/P1 없음)입니다.
+fresh 독립 Review Agent와 fresh 독립 QA Agent는 content 커밋 `af04297fdad28b470866edfeed63ebfcf614fc7c`(base~head 전체 diff 기준)에서 각각 `APPROVED`, `PASS`입니다(P0/P1 없음). Review의 P2 권고를 `level-mapping-design.md`에 반영한 뒤 content 최종 커밋은 `7de2d81c2937941372d3b4d153a1c0cc807359d9`로 이동했으며, evidence reconciliation 규칙에 따라 `Current head`는 이 최종 content 커밋을 가리킵니다.
