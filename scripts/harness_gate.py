@@ -63,6 +63,28 @@ METRICS_COLUMNS = (
 SOLO_FORBIDDEN_PREFIXES = ("src/", "gradle/", "docker/")
 SOLO_FORBIDDEN_FILES = {"build.gradle", "settings.gradle", "gradlew", "gradlew.bat"}
 STRICT_ONLY_PREFIXES = ("scripts/", ".github/workflows/")
+# Issue #57 replay로 확정한 ENFORCE 매핑만 코드화한다(M1/M2/M3). OBSERVE(M4~M7)는 구현하지 않고,
+# src/test/**만 바뀐 경우(M8)는 이 패턴들이 src/main/java만 매치하므로 자연히 제외된다.
+LEVEL_PATH_ENFORCE_RULES: tuple[tuple[int, re.Pattern[str]], ...] = (
+    (2, re.compile(r"^src/main/java/.+/controller/[^/]+\.java$")),
+    (4, re.compile(r"^src/main/java/.+/consumer/[^/]+\.java$")),
+    (4, re.compile(r"^src/main/java/.+/order/event/[^/]+\.java$")),
+)
+# docs/testing/level-mapping-design.md(Issue #57)의 exemption code 체계. 자유 산문 사유는 인정하지 않는다.
+LEVEL_EXEMPTION_CODES = frozenset(
+    {
+        "TEST_ONLY_IN_MATCHED_DIR",
+        "NO_BEHAVIOR_CHANGE",
+        "DOC_STRING_ONLY",
+        "SUPERSEDED_BY_HIGHER_LEVEL",
+        "HARNESS_SELF_CHANGE",
+    }
+)
+LEVEL_EXEMPTION_PATTERN = re.compile(
+    r"^Level exemption:[ \t]*(?P<level>[0-9]+)[ \t]+(?P<code>[A-Za-z_]+)[ \t]*[—-][ \t]*"
+    r"(?P<path>\S+)[ \t]*[—-][ \t]*(?P<ref>\S+)[ \t]*$",
+    re.MULTILINE,
+)
 VERIFICATION_LOG_COLUMNS = (
     "날짜",
     "Issue",
@@ -650,7 +672,9 @@ def required_verification_levels(acceptance_markdown: str) -> tuple[int, ...]:
     )
 
 
-def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
+def validate_issue_evidence(
+    repository_root: Path, issue: int, changed_paths_for_level: list[str] | None = None
+) -> list[str]:
     """Validate the minimum evidence needed to make an Issue completion claim."""
     evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
     errors: list[str] = []
@@ -675,6 +699,7 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
     if acceptance_path.is_file():
         acceptance = acceptance_path.read_text(encoding="utf-8")
         errors.extend(validate_acceptance_criteria(acceptance, acceptance_path))
+        errors.extend(validate_level_exemptions(acceptance))
 
     metrics = ""
     metrics_path = evidence_dir / "metrics.md"
@@ -696,7 +721,10 @@ def validate_issue_evidence(repository_root: Path, issue: int) -> list[str]:
         errors.append(f"ERROR: missing Issue verification source: {verification_log}")
     else:
         verification = verification_log.read_text(encoding="utf-8")
-        errors.extend(validate_verification_log(verification, issue, required_verification_levels(acceptance)))
+        required_levels = set(required_verification_levels(acceptance))
+        if changed_paths_for_level is not None:
+            required_levels.update(required_path_levels_needing_pass(changed_paths_for_level, acceptance))
+        errors.extend(validate_verification_log(verification, issue, tuple(sorted(required_levels))))
         if acceptance and metrics and attempt_log:
             errors.extend(validate_evidence_reconciliation(acceptance, attempt_log, metrics, verification, issue))
 
@@ -883,6 +911,70 @@ def validate_changed_path_mode(paths: list[str], mode: str | None) -> list[str]:
     return errors
 
 
+def required_path_levels(paths: list[str]) -> dict[int, list[str]]:
+    """Return {Level: [matched paths]} for Issue #57 ENFORCE path->Level mappings (M1/M2/M3)."""
+    normalized_paths = [path.replace("\\", "/") for path in paths]
+    matched: dict[int, list[str]] = {}
+    for level, pattern in LEVEL_PATH_ENFORCE_RULES:
+        for path in normalized_paths:
+            if pattern.match(path):
+                matched.setdefault(level, []).append(path)
+    return matched
+
+
+def parse_level_exemptions(acceptance_markdown: str) -> list[dict[str, str | int]]:
+    """Parse fixed-format `Level exemption: <level> <code> — <path> — <ref>` lines only."""
+    exemptions: list[dict[str, str | int]] = []
+    for match in LEVEL_EXEMPTION_PATTERN.finditer(acceptance_markdown):
+        exemptions.append(
+            {
+                "level": int(match.group("level")),
+                "code": match.group("code"),
+                "path": match.group("path").replace("\\", "/"),
+                "ref": match.group("ref"),
+            }
+        )
+    return exemptions
+
+
+def validate_level_exemptions(acceptance_markdown: str) -> list[str]:
+    """Reject any declared Level exemption whose code is not on the fixed list (no free-prose reasons)."""
+    errors: list[str] = []
+    for exemption in parse_level_exemptions(acceptance_markdown):
+        if exemption["code"] not in LEVEL_EXEMPTION_CODES:
+            errors.append(
+                f"Level exemption code '{exemption['code']}' is not one of the fixed codes "
+                f"defined in docs/testing/level-mapping-design.md: {', '.join(sorted(LEVEL_EXEMPTION_CODES))}."
+            )
+    return errors
+
+
+def required_path_levels_needing_pass(paths: list[str], acceptance_markdown: str) -> tuple[int, ...]:
+    """Return the subset of ENFORCE Levels (M1/M2/M3) that still need a verification.md PASS row.
+
+    A Level is dropped from the result only when every path that matched an ENFORCE mapping for
+    that Level has its own valid, fixed-code exemption recorded in acceptance-criteria.md.
+    """
+    matched = required_path_levels(paths)
+    if not matched:
+        return ()
+    exemptions = parse_level_exemptions(acceptance_markdown)
+    levels: list[int] = []
+    for level, matched_paths in matched.items():
+        fully_exempted = all(
+            any(
+                exemption["level"] == level
+                and exemption["path"] == path
+                and exemption["code"] in LEVEL_EXEMPTION_CODES
+                for exemption in exemptions
+            )
+            for path in matched_paths
+        )
+        if not fully_exempted:
+            levels.append(level)
+    return tuple(sorted(set(levels)))
+
+
 def current_branch(repository_root: Path) -> str:
     return _git_output(repository_root, "branch", "--show-current").strip()
 
@@ -931,7 +1023,12 @@ def main(argv: list[str] | None = None) -> int:
                 "ERROR: issue number is required. Use --issue N or a branch name containing issue-N."
             )
         else:
-            errors.extend(validate_issue_evidence(repository_root, issue))
+            issue_changed_paths: list[str] | None = None
+            try:
+                issue_changed_paths = changed_paths(repository_root, args.base_ref)
+            except RuntimeError as error:
+                errors.append(f"ERROR: cannot determine changed paths from {args.base_ref}: {error}")
+            errors.extend(validate_issue_evidence(repository_root, issue, issue_changed_paths))
             evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
             acceptance_path = evidence_dir / "acceptance-criteria.md"
             metrics_path = evidence_dir / "metrics.md"
@@ -954,16 +1051,13 @@ def main(argv: list[str] | None = None) -> int:
                             pr_body,
                         )
                     )
-            if acceptance_path.is_file():
-                try:
-                    errors.extend(
-                        validate_changed_path_mode(
-                            changed_paths(repository_root, args.base_ref),
-                            extract_execution_mode(acceptance_path.read_text(encoding="utf-8")),
-                        )
+            if acceptance_path.is_file() and issue_changed_paths is not None:
+                errors.extend(
+                    validate_changed_path_mode(
+                        issue_changed_paths,
+                        extract_execution_mode(acceptance_path.read_text(encoding="utf-8")),
                     )
-                except RuntimeError as error:
-                    errors.append(f"ERROR: cannot determine changed paths from {args.base_ref}: {error}")
+                )
 
     if args.check_links or args.links_only:
         try:

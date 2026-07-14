@@ -825,6 +825,254 @@ class ChangedPathModeValidationTest(unittest.TestCase):
 		self.assertEqual([], harness_gate.validate_changed_path_mode(["docs/gradlew-notes.md"], "SOLO"))
 
 
+class LevelPathEnforcementTest(unittest.TestCase):
+	"""Issue #58: codifies the Issue #57 ENFORCE mappings (M1/M2/M3) and M8 exclusion."""
+
+	def test_controller_path_requires_level_2(self):
+		matched = harness_gate.required_path_levels(
+			["src/main/java/com/example/coffeeordersystem/menu/controller/MenuController.java"]
+		)
+		self.assertEqual(
+			{2: ["src/main/java/com/example/coffeeordersystem/menu/controller/MenuController.java"]},
+			matched,
+		)
+
+	def test_consumer_path_requires_level_4(self):
+		matched = harness_gate.required_path_levels(
+			["src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventConsumer.java"]
+		)
+		self.assertEqual(
+			{4: ["src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventConsumer.java"]},
+			matched,
+		)
+
+	def test_order_event_path_requires_level_4(self):
+		matched = harness_gate.required_path_levels(
+			["src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java"]
+		)
+		self.assertEqual(
+			{4: ["src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java"]},
+			matched,
+		)
+
+	def test_top_level_event_package_name_collision_does_not_match(self):
+		# docs/testing/level-mapping-design.md M3: event/domain, event/repository are plain JPA
+		# entities unrelated to Kafka. The pattern must stay scoped to order/event/**.
+		matched = harness_gate.required_path_levels(
+			[
+				"src/main/java/com/example/coffeeordersystem/event/domain/ProcessedEvent.java",
+				"src/main/java/com/example/coffeeordersystem/event/repository/ProcessedEventRepository.java",
+			]
+		)
+		self.assertEqual({}, matched)
+
+	def test_test_only_paths_do_not_match_m8(self):
+		matched = harness_gate.required_path_levels(
+			["src/test/java/com/example/coffeeordersystem/order/controller/OrderControllerTest.java"]
+		)
+		self.assertEqual({}, matched)
+
+	def test_unmatched_service_path_is_observe_not_enforce(self):
+		# M6(service/**) is OBSERVE per Issue #57 user decision; #58 must not hard fail it.
+		matched = harness_gate.required_path_levels(
+			["src/main/java/com/example/coffeeordersystem/order/service/OrderService.java"]
+		)
+		self.assertEqual({}, matched)
+
+	def test_parse_level_exemption_line(self):
+		acceptance = (
+			"Level exemption: 4 NO_BEHAVIOR_CHANGE — "
+			"src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java — abc1234\n"
+		)
+		exemptions = harness_gate.parse_level_exemptions(acceptance)
+		self.assertEqual(
+			[
+				{
+					"level": 4,
+					"code": "NO_BEHAVIOR_CHANGE",
+					"path": "src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java",
+					"ref": "abc1234",
+				}
+			],
+			exemptions,
+		)
+
+	def test_free_prose_exemption_reason_is_not_parsed(self):
+		acceptance = "Level exemption: 로깅 문구만 바뀌어서 Level 4는 필요 없습니다\n"
+		self.assertEqual([], harness_gate.parse_level_exemptions(acceptance))
+
+	def test_unknown_exemption_code_is_rejected(self):
+		acceptance = "Level exemption: 4 BECAUSE_I_SAID_SO — src/main/Foo.java — abc1234\n"
+		errors = harness_gate.validate_level_exemptions(acceptance)
+		self.assertTrue(any("BECAUSE_I_SAID_SO" in error for error in errors))
+
+	def test_fixed_exemption_codes_are_accepted(self):
+		for code in sorted(harness_gate.LEVEL_EXEMPTION_CODES):
+			with self.subTest(code=code):
+				acceptance = f"Level exemption: 4 {code} — src/main/Foo.java — abc1234\n"
+				self.assertEqual([], harness_gate.validate_level_exemptions(acceptance))
+
+	def test_required_path_levels_needing_pass_without_exemption(self):
+		paths = ["src/main/java/com/example/coffeeordersystem/menu/controller/MenuController.java"]
+		self.assertEqual((2,), harness_gate.required_path_levels_needing_pass(paths, ""))
+
+	def test_required_path_levels_needing_pass_with_valid_exemption_drops_level(self):
+		paths = ["src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java"]
+		acceptance = (
+			"Level exemption: 4 NO_BEHAVIOR_CHANGE — "
+			"src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java — abc1234\n"
+		)
+		self.assertEqual((), harness_gate.required_path_levels_needing_pass(paths, acceptance))
+
+	def test_required_path_levels_needing_pass_with_invalid_code_still_requires_level(self):
+		paths = ["src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java"]
+		acceptance = (
+			"Level exemption: 4 BECAUSE_I_SAID_SO — "
+			"src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java — abc1234\n"
+		)
+		self.assertEqual((4,), harness_gate.required_path_levels_needing_pass(paths, acceptance))
+
+	def test_partial_exemption_coverage_still_requires_level(self):
+		# Two files match Level 4; only one has an exemption, so Level 4 is still required.
+		paths = [
+			"src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventConsumer.java",
+			"src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventProcessor.java",
+		]
+		acceptance = (
+			"Level exemption: 4 NO_BEHAVIOR_CHANGE — "
+			"src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventConsumer.java — abc1234\n"
+		)
+		self.assertEqual((4,), harness_gate.required_path_levels_needing_pass(paths, acceptance))
+
+	def test_evidence_fails_when_matched_level_pass_row_is_missing(self):
+		paths = ["src/main/java/com/example/coffeeordersystem/menu/controller/MenuController.java"]
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 1 | PASS | 빌드 | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, VALID_ACCEPTANCE, log)
+			errors = harness_gate.validate_issue_evidence(root, 23, paths)
+			self.assertTrue(any("Level 2" in error and "PASS is missing" in error for error in errors))
+
+	def test_evidence_passes_when_matched_level_pass_row_exists(self):
+		paths = ["src/main/java/com/example/coffeeordersystem/menu/controller/MenuController.java"]
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 2 | PASS | Controller 계약 | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, VALID_ACCEPTANCE, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23, paths))
+
+	def test_evidence_passes_when_matched_level_has_valid_exemption_instead_of_pass(self):
+		paths = ["src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java"]
+		acceptance = VALID_ACCEPTANCE + (
+			"Level exemption: 4 NO_BEHAVIOR_CHANGE — "
+			"src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java — abc1234\n"
+		)
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 1 | PASS | 빌드 | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, acceptance, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23, paths))
+
+	def test_evidence_ignores_level_check_when_changed_paths_not_supplied(self):
+		# Backward compatible default: callers that do not pass changed paths (changed_paths_for_level=None)
+		# keep the pre-#58 behavior and are not newly blocked by the ENFORCE mapping.
+		log = verification_log(
+			"| 2026-07-10 | Issue #23 | Level 1 | PASS | 빌드 | `command` | 완료 |"
+		)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, VALID_ACCEPTANCE, log)
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+
+class Issue57ReplayFixtureRegressionTest(unittest.TestCase):
+	"""Freezes the Issue #57 replay fixtures (#7/#8/#9/#40/#10) as a no-retroactive-FAIL regression."""
+
+	def _assert_no_level_errors(self, paths: list[str], log_rows: list[str], issue: int = 23) -> None:
+		log = verification_log(*log_rows)
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			write_issue_evidence(root, VALID_ACCEPTANCE, log, issue=issue)
+			errors = harness_gate.validate_issue_evidence(root, issue, paths)
+			level_errors = [error for error in errors if "PASS is missing" in error]
+			self.assertEqual([], level_errors)
+
+	def test_issue_7_redisson_lock_paths_do_not_match_enforce_mapping(self):
+		# PR #38: OrderService.java(order/service) is M6(OBSERVE), OrderControllerTest.java is
+		# test-only(M8). Neither matches an ENFORCE rule, so no Level 2/4 PASS is newly required.
+		paths = [
+			"src/main/java/com/example/coffeeordersystem/common/ErrorCode.java",
+			"src/main/java/com/example/coffeeordersystem/order/service/OrderService.java",
+			"src/test/java/com/example/coffeeordersystem/RedisOrderLockIntegrationTest.java",
+			"src/test/java/com/example/coffeeordersystem/order/controller/OrderControllerTest.java",
+			"src/test/java/com/example/coffeeordersystem/order/service/OrderServiceLockTest.java",
+		]
+		self._assert_no_level_errors(
+			paths,
+			["| 2026-07-11 | Issue #23 | Level 4 | PASS | Redis 분산락 | `command` | 완료 |"],
+		)
+
+	def test_issue_8_kafka_producer_paths_match_m3_and_have_pass(self):
+		# PR #39: OrderEventPublisher.java, OrderCompletedEvent.java match M3 -> Level 4,
+		# which the real verification-log.md PASS row for Issue #8 already satisfies.
+		paths = [
+			"src/main/java/com/example/coffeeordersystem/order/event/OrderCompletedEvent.java",
+			"src/main/java/com/example/coffeeordersystem/order/event/OrderEventPublisher.java",
+			"src/main/java/com/example/coffeeordersystem/order/service/OrderService.java",
+		]
+		self._assert_no_level_errors(
+			paths,
+			["| 2026-07-11 | Issue #23 | Level 4 | PASS | Kafka producer 인프라 통합 | `command` | 완료 |"],
+		)
+
+	def test_issue_9_redis_ranking_write_paths_do_not_match_enforce_mapping(self):
+		# PR #41: PopularMenuRankingService.java is under ranking/service (M6, OBSERVE), not
+		# ranking/consumer or order/event, so no new ENFORCE Level is required.
+		paths = [
+			"src/main/java/com/example/coffeeordersystem/ranking/service/PopularMenuRankingEntry.java",
+			"src/main/java/com/example/coffeeordersystem/ranking/service/PopularMenuRankingService.java",
+		]
+		self._assert_no_level_errors(
+			paths,
+			["| 2026-07-11 | Issue #23 | Level 4 | PASS | Redis ZSET 쓰기 | `command` | 완료 |"],
+		)
+
+	def test_issue_40_kafka_consumer_paths_match_m2_and_have_pass(self):
+		# PR #42: RankingEventConsumer.java, RankingEventProcessor.java match M2 -> Level 4,
+		# satisfied by the real verification-log.md PASS row for Issue #40.
+		paths = [
+			"src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventConsumer.java",
+			"src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventProcessor.java",
+		]
+		self._assert_no_level_errors(
+			paths,
+			[
+				"| 2026-07-11 | Issue #23 | Level 3 | PASS | DB 멱등성 | `command` | 완료 |",
+				"| 2026-07-11 | Issue #23 | Level 4 | PASS | Kafka Consumer 인프라 통합 | `command` | 완료 |",
+			],
+		)
+
+	def test_issue_10_popular_menu_api_paths_match_m1_and_have_pass(self):
+		# PR #43: MenuController.java matches M1 -> Level 2, satisfied by the real
+		# verification-log.md PASS row for Issue #10.
+		paths = [
+			"src/main/java/com/example/coffeeordersystem/menu/controller/MenuController.java",
+			"src/main/java/com/example/coffeeordersystem/menu/dto/PopularMenuResponse.java",
+			"src/main/java/com/example/coffeeordersystem/menu/service/MenuService.java",
+			"src/main/java/com/example/coffeeordersystem/ranking/service/PopularMenuRanking.java",
+		]
+		self._assert_no_level_errors(
+			paths,
+			["| 2026-07-12 | Issue #23 | Level 2 | PASS | Controller/API 계약 | `command` | 완료 |"],
+		)
+
+
 class MarkdownLinkTest(unittest.TestCase):
 	def test_repository_context_router_declared_paths_pass(self):
 		repository_root = Path(__file__).resolve().parents[2]
