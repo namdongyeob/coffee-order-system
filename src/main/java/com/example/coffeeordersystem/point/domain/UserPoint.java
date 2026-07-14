@@ -8,9 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "user_point")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserPoint {
 
 	@Id
@@ -23,24 +28,9 @@ public class UserPoint {
 	@Column(nullable = false)
 	private int balance;
 
-	protected UserPoint() {
-	}
-
 	public UserPoint(Long userId, int balance) {
 		this.userId = userId;
 		this.balance = balance;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public Long getUserId() {
-		return userId;
-	}
-
-	public int getBalance() {
-		return balance;
 	}
 
 	public void charge(int amount) {

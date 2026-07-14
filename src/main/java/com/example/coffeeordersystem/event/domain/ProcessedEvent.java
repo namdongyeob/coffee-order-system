@@ -7,9 +7,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "processed_event")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ProcessedEvent {
 
 	@Id
@@ -28,33 +33,10 @@ public class ProcessedEvent {
 	@Column(name = "processed_at", nullable = false)
 	private LocalDateTime processedAt;
 
-	protected ProcessedEvent() {
-	}
-
 	public ProcessedEvent(String eventId, String eventType, String consumerGroup, LocalDateTime processedAt) {
 		this.eventId = eventId;
 		this.eventType = eventType;
 		this.consumerGroup = consumerGroup;
 		this.processedAt = processedAt;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public String getEventId() {
-		return eventId;
-	}
-
-	public String getEventType() {
-		return eventType;
-	}
-
-	public String getConsumerGroup() {
-		return consumerGroup;
-	}
-
-	public LocalDateTime getProcessedAt() {
-		return processedAt;
 	}
 }

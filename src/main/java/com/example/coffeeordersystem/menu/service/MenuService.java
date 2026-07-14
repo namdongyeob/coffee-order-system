@@ -1,3 +1,4 @@
+// 메뉴 목록 조회와 인기 메뉴 랭킹 조합을 처리하는 서비스입니다.
 package com.example.coffeeordersystem.menu.service;
 
 import com.example.coffeeordersystem.menu.dto.MenuResponse;

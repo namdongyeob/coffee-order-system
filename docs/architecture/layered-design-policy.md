@@ -61,6 +61,14 @@ Repository가 하지 않습니다.
 - Redis ranking 갱신.
 - Controller DTO 반환.
 
+## Entity
+
+Entity는 다음 컨벤션을 따릅니다.
+
+- 기본 생성자는 `protected`로 두어 외부에서 빈 상태로 생성하지 못하게 합니다.
+- 필드는 getter로만 노출하고 setter는 두지 않습니다. 상태 변경은 `charge`, `pay`, `markPublished`처럼 의도가 드러나는 메서드로만 합니다.
+- 구현은 Lombok `@Getter`와 `@NoArgsConstructor(access = AccessLevel.PROTECTED)`로 통일합니다. 직접 protected 생성자나 getter를 손으로 작성하지 않습니다.
+
 ## 인프라 연동 위치
 
 | 인프라 | 위치 |

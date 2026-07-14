@@ -1,3 +1,4 @@
+// 메뉴 목록과 인기 메뉴 조회 HTTP API를 제공하는 컨트롤러입니다.
 package com.example.coffeeordersystem.menu.controller;
 
 import com.example.coffeeordersystem.menu.dto.MenuResponse;
