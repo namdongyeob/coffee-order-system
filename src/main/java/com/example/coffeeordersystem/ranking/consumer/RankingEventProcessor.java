@@ -29,6 +29,6 @@ public class RankingEventProcessor {
 
 		processedEventRepository.saveAndFlush(new ProcessedEvent(
 				eventId, EVENT_TYPE, CONSUMER_GROUP, LocalDateTime.now()));
-		rankingService.increment(event.menuId(), event.orderedAt());
+		rankingService.increment(eventId, event.menuId(), event.orderedAt());
 	}
 }

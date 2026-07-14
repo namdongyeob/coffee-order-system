@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.coffeeordersystem.ranking.service.PopularMenuRankingService;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,20 +29,32 @@ class PopularMenuRankingRedisIntegrationTest {
 	}
 
 	@Test
-	void incrementsSameMenuScoreTwiceOnOrderedDate() {
+	void incrementsSameMenuScoreTwiceOnOrderedDateForDifferentEvents() {
 		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 9, 12, 0);
 
-		rankingService.increment(1L, orderedAt);
-		rankingService.increment(1L, orderedAt);
+		rankingService.increment(UUID.randomUUID().toString(), 1L, orderedAt);
+		rankingService.increment(UUID.randomUUID().toString(), 1L, orderedAt);
 
 		assertThat(redisTemplate.opsForZSet().score("popular:menus:2026-07-09", "1"))
 				.isEqualTo(2.0);
 	}
 
 	@Test
+	void doesNotDoubleCountWhenIncrementCalledTwiceWithSameEventId() {
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 9, 12, 0);
+		String eventId = UUID.randomUUID().toString();
+
+		rankingService.increment(eventId, 1L, orderedAt);
+		rankingService.increment(eventId, 1L, orderedAt);
+
+		assertThat(redisTemplate.opsForZSet().score("popular:menus:2026-07-09", "1"))
+				.isEqualTo(1.0);
+	}
+
+	@Test
 	void separatesSameMenuIntoDifferentOrderedDateKeys() {
-		rankingService.increment(1L, LocalDateTime.of(2026, 7, 9, 23, 59));
-		rankingService.increment(1L, LocalDateTime.of(2026, 7, 10, 0, 0));
+		rankingService.increment(UUID.randomUUID().toString(), 1L, LocalDateTime.of(2026, 7, 9, 23, 59));
+		rankingService.increment(UUID.randomUUID().toString(), 1L, LocalDateTime.of(2026, 7, 10, 0, 0));
 
 		assertThat(redisTemplate.opsForZSet().score("popular:menus:2026-07-09", "1"))
 				.isEqualTo(1.0);
@@ -53,8 +66,8 @@ class PopularMenuRankingRedisIntegrationTest {
 	void separatesDifferentMenusIntoDifferentMembers() {
 		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 9, 12, 0);
 
-		rankingService.increment(1L, orderedAt);
-		rankingService.increment(2L, orderedAt);
+		rankingService.increment(UUID.randomUUID().toString(), 1L, orderedAt);
+		rankingService.increment(UUID.randomUUID().toString(), 2L, orderedAt);
 
 		assertThat(redisTemplate.opsForZSet().score("popular:menus:2026-07-09", "1"))
 				.isEqualTo(1.0);

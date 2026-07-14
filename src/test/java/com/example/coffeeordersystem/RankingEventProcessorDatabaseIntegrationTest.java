@@ -57,7 +57,7 @@ class RankingEventProcessorDatabaseIntegrationTest {
 					assertThat(processed.getConsumerGroup()).isEqualTo("ranking-consumer-group");
 					assertThat(processed.getProcessedAt()).isNotNull();
 				});
-		verify(rankingService, times(1)).increment(event.menuId(), event.orderedAt());
+		verify(rankingService, times(1)).increment(event.eventId().toString(), event.menuId(), event.orderedAt());
 	}
 
 	@Test
@@ -69,15 +69,15 @@ class RankingEventProcessorDatabaseIntegrationTest {
 		processor.process(second);
 
 		assertThat(processedEventRepository.count()).isEqualTo(2);
-		verify(rankingService).increment(first.menuId(), first.orderedAt());
-		verify(rankingService).increment(second.menuId(), second.orderedAt());
+		verify(rankingService).increment(first.eventId().toString(), first.menuId(), first.orderedAt());
+		verify(rankingService).increment(second.eventId().toString(), second.menuId(), second.orderedAt());
 	}
 
 	@Test
 	void rollsBackHistoryWhenRankingUpdateFails() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
 		doThrow(new IllegalStateException("redis unavailable"))
-				.when(rankingService).increment(any(), any());
+				.when(rankingService).increment(any(), any(), any());
 
 		assertThatThrownBy(() -> processor.process(event))
 				.isInstanceOf(IllegalStateException.class);
