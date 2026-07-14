@@ -17,4 +17,6 @@ Level 6 reason: HTTP 계약 변경이 없습니다.
 
 M6(`service/**`→Level 4)은 Issue #57에서 저장소 소유자가 OBSERVE 유지로 결정한 항목이므로 이 Issue에서 hard fail로 구현하지 않았습니다(`test_unmatched_service_path_is_observe_not_enforce`).
 
+fresh 독립 Review Agent와 fresh 독립 QA Agent는 content 커밋 `f07415512d4b1f092fe6f5357b53ab664a9c893f`(base~head 전체 diff 기준)에서 각각 `APPROVED`, `PASS`입니다. 둘 다 공통으로 exemption 표기 형식의 설계 문서-구현 불일치(Review P2, QA P1)를 지적했고, `docs/testing/level-mapping-design.md`를 실제 구현과 정합화하는 커밋 `6193ebda300692aedb3e7d8539436fc23b17daa2`로 반영했습니다. `Current head`는 이 최종 content 커밋을 가리킵니다.
+
 검증 실행 head는 아래 attempt-log.md와 verification.md를 참고합니다.
