@@ -21,4 +21,4 @@ Level 6 reason: HTTP 계약을 변경하지 않습니다.
 - [x] coffee 합성 독립 작업 2개로 smoke가 통과한다(속도 주장 아님). `SyntheticSmokeTest.test_two_non_overlapping_synthetic_dev_tasks_run_end_to_end`가 menu/point 두 비중첩 합성 Dev 작업을 등록→메시지 3건 교환→해제까지 end-to-end로 통과시키고, 반례로 겹치는 경로 합성 작업 2개가 SCOPE_CONFLICT로 막히는 것도 확인합니다. **이 smoke는 기능 안전성만 확인하며 속도·토큰 효과의 증거로 사용하지 않습니다**(Issue 본문 "측정 방식" 절 그대로).
 - [x] 기존 Review→QA→CI→evidence 안전장치가 유지된다. 이 도구는 Review/QA 슬롯이나 merge 판단에 관여하지 않고 Dev 슬롯 배정만 다루며, fresh 독립 Review Agent와 fresh 독립 QA Agent를 이 Issue에도 그대로 배정했습니다.
 
-검증 실행 head는 아래 attempt-log.md와 verification.md를 참고합니다.
+검증 실행 head는 `040ed3319911b90dd9e6a7e6d53030112367dd83`입니다. fresh 독립 Review Agent는 이 head에서 `APPROVED`(P0/P1 없음, P2 2건 — owned_paths_overlap 휴리스틱 한계 문서화 권장은 모의투자 이전 준비 단계 후속 과제로 이월)이고, fresh 독립 QA Agent는 같은 head에서 `PASS`(P0/P1/P2 없음)입니다.
