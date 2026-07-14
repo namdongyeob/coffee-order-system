@@ -16,8 +16,9 @@ Level 6 reason: Controller/DTO 계약이 바뀌지 않아 실제 HTTP 요청 검
 - [x] `MenuController.java`, `MenuService.java`에 누락되어 있던 한 줄 한국어 파일 헤더 주석을 추가했습니다.
 - [x] `./gradlew compileJava`, `./gradlew compileTestJava` 성공을 확인했습니다.
 - [x] 독립 검증 agent(general-purpose, fresh)가 diff를 직접 읽고 getter/생성자 signature 동일성, domain 메서드 보존, 범위 밖 변경 없음을 확인했습니다(PASS).
+- [x] 전체 회귀(76 tests, failures 0, errors 0), `MenuControllerTest`(Level 2), `OutboxEventIntegrationTest`(Level 4, 실제 Kafka Testcontainers)를 실제로 실행해 PASS를 확인했습니다.
 
 ## 참고
 
-- `./gradlew test` 전체 실행은 이 변경과 무관하게 `ClassNotFoundException`으로 실패합니다. `git stash`로 원본(main HEAD) 상태에서 동일하게 재현되는 것을 확인해 기존 로컬 Gradle 테스트 실행 환경 문제이며 이번 변경의 회귀가 아님을 확인했습니다. Level 1 전체 회귀의 최종 판정은 GitHub Actions `quality-gates`를 따릅니다(정책상 로컬 실행 환경 문제로 완료 근거를 대체하지 않으며, CI 결과를 merge 전 확인합니다).
+- 원래 작업 디렉터리 경로(한글 포함)에서는 Windows 시스템 로캘(MS949)과의 조합으로 Gradle 테스트 워커가 `ClassNotFoundException`으로 실행 자체가 되지 않았습니다(`git stash`로 원본 `main` HEAD에서도 재현). 이 제약을 피해 WSL Ubuntu 클론과 비한글 Windows 경로 클론(`C:\coffee-verify`, Docker Desktop 사용)에서 같은 커밋을 fetch해 실제로 테스트를 실행했습니다. 세부 내용은 `verification.md` 참고.
 - `Current head`는 이 커밋을 가리킵니다: `e09452e0d05b883606af7e6ae6bb38a500c67914`.

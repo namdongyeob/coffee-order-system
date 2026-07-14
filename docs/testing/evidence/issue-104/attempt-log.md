@@ -31,8 +31,12 @@ PASS. `./gradlew compileJava`, `./gradlew compileTestJava` 모두 성공. 독립
 
 - `./gradlew compileJava` — 성공.
 - `./gradlew compileTestJava` — 성공.
-- `./gradlew test` — 이 변경과 무관하게 `ClassNotFoundException`으로 전체 실패. `git stash`로 원본 `main` HEAD 상태에서 동일 명령을 재실행해 같은 실패가 재현됨을 확인(기존 로컬 Gradle 테스트 실행 환경 문제, 이번 변경의 회귀 아님). Level 1 전체 회귀 최종 판정은 GitHub Actions `quality-gates`로 대체한다.
+- 원래 작업 디렉터리(한글 경로)의 `./gradlew test`는 Windows 시스템 로캘(MS949) 조합으로 `ClassNotFoundException` 전체 실패. `git stash`로 원본 `main` HEAD에서도 재현되어 이번 변경과 무관한 로컬 환경 제약임을 확인했다.
+- 이 제약을 우회해 WSL Ubuntu 클론에서 `MenuControllerTest`(Level 2)를 실행 — PASS(tests=2, failures=0, errors=0).
+- Docker Desktop이 붙는 비한글 경로 클론(`C:\coffee-verify`)에서 `OutboxEventIntegrationTest`(Level 4, 실제 Kafka Testcontainers)를 실행 — PASS(tests=2, failures=0, errors=0).
+- 같은 클론에서 전체 회귀(`./gradlew.bat test`)를 실행 — PASS(76 tests, failures=0, errors=0, skipped=0).
 - 독립 Combined Verifier subagent(general-purpose, fresh) 실행 — PASS, 세부 근거는 `commands.md`와 `manual-qa.md` 참고.
+- 처음에는 evidence 파일 부재 및 로컬 환경 제약으로 push/PR 시 하네스 gate가 두 차례 막혀 사용자 승인 하에 `--no-verify`로 push했으나, 이후 위 실제 테스트 실행 결과로 evidence를 정본화해 Level 1/2/4 PASS 근거를 실측값으로 채웠다.
 
 ### Next Attempt
 

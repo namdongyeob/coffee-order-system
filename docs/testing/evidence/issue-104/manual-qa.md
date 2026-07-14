@@ -19,6 +19,14 @@ API 계약이나 런타임 동작을 바꾸지 않는 내부 구현 치환이라
 
 판정: PASS. 지적 사항 없음.
 
+## 관찰 3 — 실제 테스트 실행(Level 1/2/4)
+
+원래 작업 디렉터리(한글 경로)에서는 `./gradlew test`가 `ClassNotFoundException`으로 실행 자체가 안 되어(세부 원인은 `verification.md` 참고), 같은 커밋을 WSL Ubuntu 클론과 Docker Desktop이 붙는 비한글 Windows 경로 클론(`C:\coffee-verify`)에서 fetch해 실제로 실행했습니다.
+
+- `C:\coffee-verify`에서 `./gradlew.bat test` 전체 실행 — `build/test-results/test/*.xml` 27개 파일 집계 결과 tests=76, failures=0, errors=0, skipped=0.
+- WSL 클론에서 `./gradlew test --tests '*MenuControllerTest*'` — tests=2, failures=0, errors=0(`getMenusReturnsSeedMenus`, `getPopularMenusReturnsRankedMenus`).
+- `C:\coffee-verify`에서 `./gradlew.bat test --tests '*OutboxEventIntegrationTest*'` — tests=2, failures=0, errors=0(`publishPendingDeliversOutboxEventToKafkaAndMarksItPublished`, `createOrderSavesOutboxEventInOrderTransaction`), 실제 Kafka Testcontainers를 통해 검증.
+
 ## 미검증 항목
 
-- `./gradlew test` 전체 회귀는 로컬 환경 문제(Gradle 테스트 클래스 로딩 실패, `git stash`로 원본 상태에서도 재현 확인)로 이 세션에서 실행하지 못했습니다. Level 1 전체 회귀의 최종 판정은 GitHub Actions `quality-gates` CI 결과를 merge 전 별도로 확인합니다.
+없음. Level 1(전체 회귀), Level 2(Controller), Level 4(Kafka)를 모두 실제로 실행해 확인했습니다.

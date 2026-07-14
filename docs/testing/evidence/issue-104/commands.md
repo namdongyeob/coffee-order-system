@@ -15,4 +15,12 @@
 | `git add` + `git commit` (Refs #104) | 변경 커밋 | 커밋 `e09452e0d05b883606af7e6ae6bb38a500c67914`. |
 | `git diff main HEAD -- <7개 파일> > 임시 diff 파일` | 독립 리뷰용 diff 추출 | `%TEMP%/issue-104.diff` 생성. |
 | Agent(general-purpose, fresh)로 독립 Combined Verifier 실행 | diff의 getter/생성자 동일성, 도메인 메서드 보존, 범위 밖 변경 여부 검증 | PASS, 세부 근거는 `manual-qa.md` 참고. |
-| `git push -u origin claude/issue-104-entity-getter-protected-convention` (1차 시도) | 원격 push | 로컬 pre-push hook(하네스 gate)이 evidence 파일 누락으로 차단. 이후 본 evidence 파일 세트 작성 후 재시도 예정. |
+| `git push -u origin claude/issue-104-entity-getter-protected-convention` (1차 시도) | 원격 push | 로컬 pre-push hook(하네스 gate)이 evidence 파일 누락으로 차단. |
+| `git push --no-verify` (evidence 파일 작성 후) | 원격 push | 성공. 사용자 승인 하에 evidence 파일 미비/로컬 환경 제약으로 이번 1건 한정 hook 우회. |
+| `gh pr create` + `python scripts/harness_gate.py --issue 104 --pr-body-file ...` | PR #105 생성 | preflight도 Level 2/4 PASS 행 부재로 FAILED, PR은 사용자 승인으로 생성 진행. CI의 `quality-gates` job도 동일한 evidence gate에서 차단됨을 확인(`gh run watch`). |
+| `wsl -e bash -lc "git clone ... && git checkout claude/issue-104-..."` | 한글 경로/MS949 로캘 제약이 없는 WSL Ubuntu에 같은 브랜치 클론 | 성공. WSL에 JDK 17, 21 모두 설치되어 있음을 확인(JDK 17 사용). |
+| WSL: `./gradlew test --tests '*MenuControllerTest*'` | Level 2 Controller 테스트 실제 실행 | PASS(tests=2, failures=0, errors=0). |
+| `git clone ... C:\coffee-verify` (비한글 경로, Docker Desktop 사용 가능) | Kafka Testcontainers가 필요한 테스트 실행 환경 확보(WSL은 Docker 미연동) | 성공. |
+| `C:\coffee-verify`: `./gradlew.bat test --tests '*OutboxEventIntegrationTest*'` | Level 4 Kafka 통합 테스트 실제 실행 | PASS(tests=2, failures=0, errors=0, 실제 Kafka Testcontainers 사용). |
+| `C:\coffee-verify`: `./gradlew.bat test` (전체) | Level 1 전체 회귀 실제 실행 | PASS(`build/test-results/test/*.xml` 27개 파일 집계: tests=76, failures=0, errors=0, skipped=0). |
+| `verification.md`/`acceptance-criteria.md`/`manual-qa.md` 갱신 후 재커밋·재push | evidence를 실제 실행 결과로 정본화 | 완료. |
