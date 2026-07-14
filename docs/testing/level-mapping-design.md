@@ -38,6 +38,8 @@
 
 M6(`**/service/**.java` → Level 4)은 표본 내 4/4 일치라는 강한 신호와, "표본 선택 편향으로 인한 우연의 일치일 수 있다"는 반대 근거가 동시에 존재하는 논쟁적 판단이다. `service/` 경로만으로 인프라 호출 여부를 알 수 없다는 구조적 한계가 있고, 이 저장소에는 `point/service/**`처럼 실제로 순수 DB/비즈니스 로직만 다루는 서비스 디렉터리도 있다. #58에서 이 규칙을 ENFORCE로 승격할지, 계속 OBSERVE로 남겨 추가 표본(예: `point/service/**` 변경 Issue)을 기다릴지는 사람 판단이 필요하다. 이 Issue에서는 사용자에게 보고하고 자동으로 ENFORCE에 포함하지 않는다.
 
+**결정(2026-07-14, PR #94 리뷰 중 저장소 소유자 확인)**: M6은 **OBSERVE로 유지**한다. 근거: 5건 표본이 전부 "Redis/Kafka 기능 구현" Issue였다는 선택 편향이 실재하고, `point/service/**`처럼 순수 로직만 바꾸는 반례가 아직 표본에 없어 오탐률을 확정할 수 없다. `service/` 경로만으로 hard fail을 걸면 향후 실제 오탐이 나왔을 때 다른 ENFORCE 규칙(M1·M2·M3)의 신뢰도까지 깎을 위험이 있으므로, 확실한 것만 ENFORCE로 걸고 애매한 것은 데이터가 쌓일 때까지 관찰한다. 대안으로 논의된 "경로 매칭 대신 diff 안의 Redis/Kafka/Redisson import·심볼 존재 여부까지 보는 2단계 검사"는 #58 게이트 구현 범위에서 별도로 검토할 후보로 남긴다. #58은 M6을 hard fail로 구현하지 않는다.
+
 ## 경로 기반 검사의 한계
 
 - **이름 충돌**: M3에서 확인했듯 같은 단어(`event`)가 서로 다른 의미(Kafka 이벤트 vs JPA entity)로 쓰이는 패키지가 실제로 존재한다. 패턴은 짧은 키워드가 아니라 저장소의 실제 패키지 전체 경로로 좁혀야 한다.
@@ -67,6 +69,6 @@ exemption code는 매핑을 약화하는 도구가 아니라 매핑이 맞았을
 ## #58로 전달하는 확정 사항
 
 - ENFORCE 후보: M1(`controller/**`→Level 2), M2(`consumer/**`→Level 4), M3(`order/event/**`→Level 4, 좁힌 패턴), M8(`src/test`만 변경 시 경로 매핑 미적용).
-- OBSERVE 후보(추가 표본 필요, #58에서 hard fail로 구현하지 않음): M4(migration→Level 3), M5(설정 파일→Level 4/5), M6(`service/**`→Level 4, 논쟁적), M7(rebuild/recovery→Level 4).
+- OBSERVE 후보(추가 표본 필요, #58에서 hard fail로 구현하지 않음): M4(migration→Level 3), M5(설정 파일→Level 4/5), M6(`service/**`→Level 4, 저장소 소유자가 OBSERVE 유지로 확정), M7(rebuild/recovery→Level 4).
 - 과거 Issue #7·#8·#9·#40·#10은 이 replay로 새로운 누락이 발견되지 않았다(모든 ENFORCE 후보가 실측 PASS와 일치). 소급 FAIL 대상 없음.
 - 표본 확장 후보(참고, 이 Issue의 공식 replay 범위 밖): PR #68("Kafka Consumer 재시도와 DLT 이동")과 PR #76("Kafka replay 기반 Redis ranking rebuild")도 `ranking/consumer/**`(M2)를 변경했다. 이 Issue는 Issue 본문이 지정한 #7·#8·#9·#40·#10 5건만 공식 replay 표본으로 사용했으므로 이 두 PR을 M2 신뢰도 수치에 포함하지 않았지만, #58에서 M2를 ENFORCE로 구현하기 전 추가 신뢰도 확인용 표본으로 검토할 가치가 있다.

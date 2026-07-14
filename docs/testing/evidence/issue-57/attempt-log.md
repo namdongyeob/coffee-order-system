@@ -47,4 +47,4 @@ Current head: 7de2d81c2937941372d3b4d153a1c0cc807359d9
 
 ### Next Attempt
 
-- 없음. fresh 독립 Review(APPROVED)와 fresh 독립 QA(PASS) 모두 완료했습니다. M6(`service/**`→Level 4 ENFORCE 승격 여부)는 논쟁적 판단이라 자동 결정하지 않고 사용자에게 보고합니다. #58 착수 전 이 판단이 사람 결정으로 확정되어야 합니다.
+- 없음. fresh 독립 Review(APPROVED)와 fresh 독립 QA(PASS) 모두 완료했습니다. M6(`service/**`→Level 4 ENFORCE 승격 여부)는 논쟁적 판단이라 자동 결정하지 않고 사용자에게 보고했습니다. 저장소 소유자가 PR #94 리뷰 중 **OBSERVE 유지**로 확정했고, 근거를 `level-mapping-design.md`의 "판단이 필요한 항목" 절에 결정 기록으로 추가했습니다. 이 결정으로 content 최종 커밋이 다시 이동했으므로 `Current head`를 아래에서 갱신합니다.
