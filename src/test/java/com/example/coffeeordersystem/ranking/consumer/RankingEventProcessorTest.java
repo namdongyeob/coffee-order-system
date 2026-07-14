@@ -47,7 +47,7 @@ class RankingEventProcessorTest {
 
 		InOrder inOrder = inOrder(processedEventRepository, rankingService);
 		inOrder.verify(processedEventRepository).saveAndFlush(any(ProcessedEvent.class));
-		inOrder.verify(rankingService).increment(event.menuId(), event.orderedAt());
+		inOrder.verify(rankingService).increment(event.eventId().toString(), event.menuId(), event.orderedAt());
 	}
 
 	@Test
@@ -58,7 +58,7 @@ class RankingEventProcessorTest {
 		processor.process(event);
 
 		verify(processedEventRepository, never()).saveAndFlush(any(ProcessedEvent.class));
-		verify(rankingService, never()).increment(any(), any());
+		verify(rankingService, never()).increment(any(), any(), any());
 	}
 
 	@Test
@@ -71,8 +71,8 @@ class RankingEventProcessorTest {
 		processor.process(second);
 
 		verify(processedEventRepository, org.mockito.Mockito.times(2)).saveAndFlush(any(ProcessedEvent.class));
-		verify(rankingService).increment(first.menuId(), first.orderedAt());
-		verify(rankingService).increment(second.menuId(), second.orderedAt());
+		verify(rankingService).increment(first.eventId().toString(), first.menuId(), first.orderedAt());
+		verify(rankingService).increment(second.eventId().toString(), second.menuId(), second.orderedAt());
 	}
 
 	@Test
@@ -80,7 +80,7 @@ class RankingEventProcessorTest {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
 		when(processedEventRepository.existsByEventId(event.eventId().toString())).thenReturn(false);
 		doThrow(new IllegalStateException("redis unavailable"))
-				.when(rankingService).increment(event.menuId(), event.orderedAt());
+				.when(rankingService).increment(event.eventId().toString(), event.menuId(), event.orderedAt());
 
 		assertThatThrownBy(() -> processor.process(event))
 				.isInstanceOf(IllegalStateException.class)
