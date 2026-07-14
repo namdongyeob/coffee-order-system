@@ -9,4 +9,4 @@
 | `find src/main/java/com/example/coffeeordersystem/event -type f` | `**/event/**` 넓은 패턴의 이름 충돌 여부 확인 | `event/domain/ProcessedEvent.java`, `event/repository/ProcessedEventRepository.java`는 Kafka와 무관한 JPA entity/repository. M3를 `order/event/**`로 좁히는 근거. |
 | `gh pr list --state merged --limit 100 --json number,title,files` + Python 필터 | ENFORCE 후보 경로가 5건 표본 밖에서도 등장하는지 확인(참고용, replay 표본 확장 아님) | PR #68·#76이 `ranking/consumer/**`를 추가로 변경했으나 Issue 범위(#7·#8·#9·#40·#10)에 없어 공식 replay 표본에는 포함하지 않음. |
 | `python -m pytest scripts/tests/test_harness_gate.py -q` | worktree head에서 하네스 회귀 baseline 확인 | 107 passed, 110 subtests passed. |
-| `python scripts/harness_gate.py --issue 57 --branch claude/issue-57-level-mapping-replay --base-ref 5859619 --check-links --include-worktree` | PR 전 preflight | 결과는 `verification.md`에 기록. |
+| `python scripts/harness_gate.py --issue 57 --branch claude/issue-57-level-mapping-replay --base-ref 5859619 --check-links --include-worktree` | PR 전 preflight | 최초 실행은 evidence reconciliation FAIL(`Current head`가 content 변경 이후 커밋을 반영하지 못함). `Current head`를 마지막 content 커밋 `7de2d81`로 갱신한 뒤 재실행하여 `Harness gate PASSED.`를 확인했습니다. |
