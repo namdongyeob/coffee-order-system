@@ -42,3 +42,7 @@ __pycache__/
 
 # Local runtime secrets must never be committed. Use .env.example for safe defaults.
 .env
+
+# Issue #91: parallel orchestration runtime team-state is a local cache, not a source of truth.
+# GitHub Issue/PR/evidence remain canonical; this directory is safe to delete at any time.
+.team-orchestration-state/
