@@ -1,6 +1,7 @@
 // 주문 서비스의 사용자별 Redisson 진입 락 계약을 검증합니다.
 package com.example.coffeeordersystem.order.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
@@ -13,7 +14,7 @@ import com.example.coffeeordersystem.common.ErrorCode;
 import com.example.coffeeordersystem.menu.repository.MenuRepository;
 import com.example.coffeeordersystem.order.domain.OrderStatus;
 import com.example.coffeeordersystem.order.dto.OrderResponse;
-import com.example.coffeeordersystem.order.event.OrderEventPublisher;
+import com.example.coffeeordersystem.order.event.OutboxEventRepository;
 import com.example.coffeeordersystem.order.repository.OrderRepository;
 import com.example.coffeeordersystem.point.repository.UserPointRepository;
 import java.time.LocalDateTime;
@@ -50,7 +51,7 @@ class OrderServiceLockTest {
 	TransactionTemplate transactionTemplate;
 
 	@Mock
-	OrderEventPublisher orderEventPublisher;
+	OutboxEventRepository outboxEventRepository;
 
 	@InjectMocks
 	OrderService orderService;
@@ -69,18 +70,18 @@ class OrderServiceLockTest {
 	}
 
 	@Test
-	void createOrderPublishesAfterTransactionTemplateReturnsAndThenUnlocks() throws Exception {
+	void createOrderReturnsResponseAfterTransactionTemplateAndThenUnlocks() throws Exception {
 		OrderResponse expected = new OrderResponse(1L, 7L, 1L, "아메리카노", 4_500, OrderStatus.PAID, LocalDateTime.now());
 		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
 		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
 		when(lock.isHeldByCurrentThread()).thenReturn(true);
 		when(transactionTemplate.execute(any())).thenReturn(expected);
 
-		orderService.createOrder(7L, 1L);
+		OrderResponse actual = orderService.createOrder(7L, 1L);
 
-		InOrder order = inOrder(transactionTemplate, orderEventPublisher, lock);
+		assertThat(actual).isEqualTo(expected);
+		InOrder order = inOrder(transactionTemplate, lock);
 		order.verify(transactionTemplate).execute(any());
-		order.verify(orderEventPublisher).publish(any());
 		order.verify(lock).unlock();
 	}
 
@@ -96,6 +97,5 @@ class OrderServiceLockTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INSUFFICIENT_POINT);
 		verify(lock).unlock();
-		verify(orderEventPublisher, never()).publish(any());
 	}
 }
