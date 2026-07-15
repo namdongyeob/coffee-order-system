@@ -4,8 +4,35 @@ Issue: #110
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/110
 Branch: issue-110
 Current disposition: BLOCKED
-Current Attempt: 2
-Current head: af5a8e4
+Current Attempt: 3
+Current head: 36036acfe464fe2750d74a6df34d27afde927b73
+
+## Attempt 3
+
+### Generate
+
+- Rebooted Git environment was available; no Gradle, Java, or Git HTTPS process was running before the focused test.
+
+### Evaluate
+
+- The required clean focused Level 4 command compiled main and test sources, but the Gradle test executor could not load any compiled test class.
+- The binary test result reports `ClassNotFoundException`, including `RankingRebuildServiceIntegrationTest`; target test XML was not produced.
+
+### Failure Cause
+
+- This reproduces the prior environment-level Gradle test-runtime class-loading failure. The focused test body did not run, so the result cannot validate the Issue behavior.
+
+### Change Scope
+
+- No production or test source was changed after the failed retry. Only Issue #110 evidence is updated.
+
+### Reverification
+
+- `gradlew.bat clean test --tests "*RankingRebuildServiceIntegrationTest.deduplicatesMatchingEventIdsAndExposesReplayMetrics" --tests "*RankingRebuildServiceIntegrationTest.rejectsConflictingPayloadsForTheSameEventId" --no-daemon --max-workers=1 --console=plain` was blocked by the same class-loading failure.
+
+### Next Attempt
+
+- Do not retry unchanged. Run the focused Level 4 test only after the Gradle runtime can load compiled test classes.
 
 ## Attempt 1
 
