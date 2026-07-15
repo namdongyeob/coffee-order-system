@@ -4,11 +4,13 @@ package com.example.coffeeordersystem.ranking.consumer;
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
 import com.example.coffeeordersystem.order.event.OrderEventPublisher;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "ranking.rebuild.enabled", havingValue = "false", matchIfMissing = true)
 public class RankingEventConsumer {
 
 	private final RankingEventProcessor processor;
