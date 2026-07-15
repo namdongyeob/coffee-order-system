@@ -107,10 +107,11 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@BeforeEach
-	void clean() {
+	void clean() throws Exception {
 		redis.getConnectionFactory().getConnection().serverCommands().flushAll();
 		jdbc.update("delete from processed_event");
 		jdbc.update("delete from orders");
+		deleteBeforeCurrentEnds();
 	}
 
 	@Test
@@ -277,6 +278,8 @@ class RankingRebuildServiceIntegrationTest {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		publish(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
 		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
 		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
 		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
@@ -305,6 +308,9 @@ class RankingRebuildServiceIntegrationTest {
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 30));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		publish(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
 		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 30));
 		RankingRebuildOffsetManager failedCompensation = new RankingRebuildOffsetManager() {
 			@Override
