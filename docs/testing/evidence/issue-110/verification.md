@@ -1,11 +1,11 @@
 # Verification
 
-Attempt: 3
-Head: 36036acfe464fe2750d74a6df34d27afde927b73
+Attempt: 4
+Head: 94db94a64a7b526c56abad0791cad415b331243f
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-15 | Issue #110 | Level 4 | PARTIAL | actual Kafka and Redis focused integration test | `commands.md` clean focused command | Gradle Test Executor class-loading failure; test body and target XML were not produced |
-| 2026-07-15 | Issue #110 | Level 5 | PARTIAL | rebuild runner | `attempt-log.md` Attempt 3 | Level 4 blocked, therefore runner was not run |
+| 2026-07-15 | Issue #110 | Level 4 | PASS | actual Kafka, MySQL, and Redis focused integration | `commands.md` focused clean test command | matching duplicate eventId and conflicting payload tests PASS; consumer isolation test 2건도 PASS |
+| 2026-07-15 | Issue #110 | Level 5 | PASS | local maintenance rebuild runner | `commands.md` Level 5 bootRun command | completion metrics logged; Kafka CLI confirmed normal consumer group has no active member |
 
 Level 6: NO — the Issue changes no HTTP API behavior.

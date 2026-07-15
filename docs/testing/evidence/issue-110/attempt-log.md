@@ -3,9 +3,42 @@
 Issue: #110
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/110
 Branch: issue-110
-Current disposition: BLOCKED
-Current Attempt: 3
-Current head: 36036acfe464fe2750d74a6df34d27afde927b73
+Current disposition: PASS
+Current Attempt: 4
+Current head: 94db94a64a7b526c56abad0791cad415b331243f
+
+## Attempt 4
+
+### Generate
+
+- `ranking.rebuild.enabled=true`이면 일반 `RankingEventConsumer` bean이 등록되지 않도록 조건을 추가했습니다.
+- maintenance runner 활성화 시 consumer bean이 없고, 기본 실행에서는 기존 consumer가 등록되는 focused 조건 테스트를 추가했습니다.
+
+### Evaluate
+
+- 수정 전 조건 테스트는 rebuild enabled인데 `RankingEventConsumer` bean이 존재하여 의도한 대로 FAIL 했습니다.
+- 수정 후 focused Level 4는 실제 Kafka·MySQL·Redis Testcontainers에서 동일 payload 중복 제거와 충돌 payload fail-closed를 PASS 했습니다.
+- Level 5에서 local compose Kafka·MySQL·Redis를 healthy로 기동하고 `order.completed` topic을 만든 뒤 maintenance runner를 실행했습니다.
+
+### Failure Cause
+
+- 최초 runtime 실행은 `Start-Process`가 application argument를 Gradle option으로 전달해 시작 전 실패했습니다. 환경변수 방식으로 교정했습니다.
+- 교정된 첫 runtime 실행은 비활성화된 일반 consumer가 topic을 자동 생성하지 않는 clean compose 환경에서 `UnknownTopicOrPartitionException`으로 fail-closed 했습니다. `order.completed` topic을 명시적으로 생성한 뒤 재실행했습니다.
+
+### Change Scope
+
+- 일반 ranking Kafka consumer의 maintenance runner 상호 배제, focused 조건 테스트, Issue #110 evidence만 변경했습니다.
+- 영구 ledger, DLT replay, Redis 조회·tie 정책, Kafka offset·topic 구조는 변경하지 않았습니다.
+
+### Reverification
+
+- `clean test` focused command는 조건 테스트 2건과 actual Kafka·MySQL·Redis integration 2건을 failures 0, errors 0으로 PASS 했습니다.
+- Level 5 runner는 `ranking_rebuild_completed inputRecords=0 uniqueEvents=0 conflicts=0`를 남겼고, `ranking-consumer-group`은 active member가 없음을 Kafka CLI로 확인했습니다.
+- compose 컨테이너와 runner process tree를 정리했습니다.
+
+### Next Attempt
+
+- 없음.
 
 ## Attempt 3
 
