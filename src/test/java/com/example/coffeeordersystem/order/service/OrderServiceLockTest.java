@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -97,5 +98,69 @@ class OrderServiceLockTest {
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.INSUFFICIENT_POINT);
 		verify(lock).unlock();
+	}
+
+	@Test
+	void createOrderReturnsCommittedResponseWhenLockOwnershipCheckFails() throws Exception {
+		OrderResponse expected = new OrderResponse(1L, 7L, 1L, "아메리카노", 4_500, OrderStatus.PAID, LocalDateTime.now());
+		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
+		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
+		when(lock.isHeldByCurrentThread()).thenThrow(new IllegalStateException("Redis unavailable"));
+		when(transactionTemplate.execute(any())).thenReturn(expected);
+
+		assertThat(orderService.createOrder(7L, 1L)).isEqualTo(expected);
+		verify(lock, never()).unlock();
+	}
+
+	@Test
+	void createOrderReturnsCommittedResponseWhenUnlockFails() throws Exception {
+		OrderResponse expected = new OrderResponse(1L, 7L, 1L, "아메리카노", 4_500, OrderStatus.PAID, LocalDateTime.now());
+		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
+		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
+		when(lock.isHeldByCurrentThread()).thenReturn(true);
+		doThrow(new IllegalStateException("Redis unavailable")).when(lock).unlock();
+		when(transactionTemplate.execute(any())).thenReturn(expected);
+
+		assertThat(orderService.createOrder(7L, 1L)).isEqualTo(expected);
+	}
+
+	@Test
+	void createOrderPreservesBusinessExceptionWhenLockOwnershipCheckFails() throws Exception {
+		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
+		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
+		when(lock.isHeldByCurrentThread()).thenThrow(new IllegalStateException("Redis unavailable"));
+		when(transactionTemplate.execute(any())).thenThrow(new ApiException(ErrorCode.INSUFFICIENT_POINT));
+
+		assertThatThrownBy(() -> orderService.createOrder(7L, 1L))
+				.isInstanceOf(ApiException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INSUFFICIENT_POINT);
+		verify(lock, never()).unlock();
+	}
+
+	@Test
+	void createOrderPreservesBusinessExceptionWhenUnlockFails() throws Exception {
+		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
+		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
+		when(lock.isHeldByCurrentThread()).thenReturn(true);
+		doThrow(new IllegalStateException("Redis unavailable")).when(lock).unlock();
+		when(transactionTemplate.execute(any())).thenThrow(new ApiException(ErrorCode.INSUFFICIENT_POINT));
+
+		assertThatThrownBy(() -> orderService.createOrder(7L, 1L))
+				.isInstanceOf(ApiException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INSUFFICIENT_POINT);
+	}
+
+	@Test
+	void createOrderDoesNotUnlockWhenCurrentThreadDoesNotOwnLock() throws Exception {
+		OrderResponse expected = new OrderResponse(1L, 7L, 1L, "아메리카노", 4_500, OrderStatus.PAID, LocalDateTime.now());
+		when(redissonClient.getLock("lock:order:user:7")).thenReturn(lock);
+		when(lock.tryLock(2, 5, TimeUnit.SECONDS)).thenReturn(true);
+		when(lock.isHeldByCurrentThread()).thenReturn(false);
+		when(transactionTemplate.execute(any())).thenReturn(expected);
+
+		assertThat(orderService.createOrder(7L, 1L)).isEqualTo(expected);
+		verify(lock, never()).unlock();
 	}
 }
