@@ -43,7 +43,7 @@
 
 ### Review
 
-- 필수. [Review Gate](review-gate.md), [구현 가드레일](implementation-guardrails.md), [테스트 전략](../testing/test-strategy.md), [반복 실수](agent-mistakes.md), [계층 설계 정책](../architecture/layered-design-policy.md)을 읽습니다.
+- 필수. [Review Gate](review-gate.md), [구현 가드레일](implementation-guardrails.md), [테스트 전략](../testing/test-strategy.md), [반복 실수](agent-mistakes.md), [계층 설계 정책](../architecture/layered-design-policy.md), [코드 스타일 가이드](../architecture/code-style-guide.md)를 읽습니다.
 - 조건부. 변경 영역의 개발 hot path와 [오케스트레이션 정책](orchestration-policy.md)을 추가합니다.
 - 제외. 변경과 무관한 도메인·ADR 전체는 읽지 않습니다.
 - 추가 탐색. 설계 원칙과 Issue 요구사항이 충돌할 때 [요구사항](../product/requirements.md)을 추가합니다.
