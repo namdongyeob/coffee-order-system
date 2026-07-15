@@ -2,6 +2,9 @@
 
 | Command | Purpose | Result |
 | --- | --- | --- |
+| `gradlew.bat clean test --tests "*RankingRebuildServiceIntegrationTest" --no-daemon --max-workers=1 --console=plain` | Kafka fixture isolation sequence | PASS. rebuild integration 10건, failures 0, errors 0 |
+| `gradlew.bat clean test --tests "*RankingRebuildServiceIntegrationTest.deduplicatesMatchingEventIdsAndExposesReplayMetrics" --tests "*RankingRebuildServiceIntegrationTest.rejectsConflictingPayloadsForTheSameEventId" --no-daemon --max-workers=1 --console=plain` | Level 4 focused re-verification | PASS. matching duplicate와 conflicting payload 2건, failures 0, errors 0 |
+| `gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | full suite regression | PASS. 85 tests, failures 0, errors 0, `BUILD SUCCESSFUL in 4m 39s`, daemon exit status 0 |
 | `gradlew.bat clean test --tests "*RankingRebuildServiceIntegrationTest.deduplicatesMatchingEventIdsAndExposesReplayMetrics" --tests "*RankingRebuildServiceIntegrationTest.rejectsConflictingPayloadsForTheSameEventId" --no-daemon --max-workers=1 --console=plain` | reboot 후 단일 focused Level 4 재검증 | `compileTestJava` 뒤 Test Executor가 `RankingRebuildServiceIntegrationTest`를 포함한 모든 test class에 `ClassNotFoundException`을 기록했고 target XML은 생성되지 않음 |
 | `gradlew.bat test --tests "*RankingRebuildServiceIntegrationTest.deduplicatesMatchingEventIdsAndExposesReplayMetrics" --tests "*RankingRebuildServiceIntegrationTest.rejectsConflictingPayloadsForTheSameEventId" --no-daemon --max-workers=1` | TDD RED | `RankingRebuildResult` 지표 accessor 3개가 없어 `compileTestJava FAILED` |
 | `gradlew.bat clean compileJava --no-daemon --max-workers=1 --console=plain` | production compile | `BUILD SUCCESSFUL in 26s` |

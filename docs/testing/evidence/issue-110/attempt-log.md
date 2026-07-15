@@ -4,8 +4,38 @@ Issue: #110
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/110
 Branch: issue-110
 Current disposition: PASS
-Current Attempt: 4
-Current head: 94db94a64a7b526c56abad0791cad415b331243f
+Current Attempt: 5
+Current head: 8ba84153c49384bc35fa660162c56ff7adeef12a
+
+## Attempt 5
+
+### Generate
+
+- `RankingRebuildServiceIntegrationTest`의 매 테스트 시작 시 Kafka `order.completed` 기록을 정리해 #110의 신규 중복 eventId 테스트가 선행 테스트 레코드를 읽지 않도록 했습니다.
+- 기존 offset 복구 테스트 두 건이 DB에 삽입한 주문 전체의 Kafka 이벤트를 직접 발행하도록 보완했습니다.
+
+### Evaluate
+
+- 기존 전체 suite에서는 #110의 신규 `deduplicatesMatchingEventIdsAndExposesReplayMetrics`가 선행 Kafka 레코드를 포함해 DB 집계 불일치로 실패했습니다.
+- Kafka 정리만 적용한 재현에서 기존 offset 복구 테스트 두 건이 선행 레코드에 의존했음을 확인했고, 각 테스트의 누락 이벤트를 직접 발행한 뒤 독립 실행을 확인했습니다.
+
+### Failure Cause
+
+- 테스트 fixture가 Redis와 DB만 정리하고 Kafka 토픽 레코드는 유지해, 테스트 실행 순서에 따라 서로의 이벤트를 읽었습니다.
+
+### Change Scope
+
+- `RankingRebuildServiceIntegrationTest`만 수정했습니다.
+- production 코드, ledger, DLT, runner 설정, Kafka topic과 offset 설계는 변경하지 않았습니다.
+
+### Reverification
+
+- `clean test`로 rebuild 테스트 클래스 10건, #110 Level 4 focused 2건, 전체 suite 85건을 모두 failures 0, errors 0으로 확인했습니다.
+- 전체 suite는 `BUILD SUCCESSFUL in 4m 39s`와 Gradle daemon exit status 0을 확인했습니다.
+
+### Next Attempt
+
+- 없음.
 
 ## Attempt 4
 
