@@ -107,10 +107,11 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@BeforeEach
-	void clean() {
+	void clean() throws Exception {
 		redis.getConnectionFactory().getConnection().serverCommands().flushAll();
 		jdbc.update("delete from processed_event");
 		jdbc.update("delete from orders");
+		deleteBeforeCurrentEnds();
 	}
 
 	@Test
@@ -236,10 +237,49 @@ class RankingRebuildServiceIntegrationTest {
 
 	@Test
 	@Order(7)
+	void deduplicatesMatchingEventIdsAndExposesReplayMetrics() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+		publish(2L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 12, 11, 0));
+
+		RankingRebuildResult result = service.rebuild();
+
+		assertThat(result.counts()).containsExactlyInAnyOrderEntriesOf(Map.of(
+				new RankingRebuildCount("2026-07-12", 1L), 1L,
+				new RankingRebuildCount("2026-07-12", 2L), 1L));
+		assertThat(result.inputRecordCount()).isEqualTo(3);
+		assertThat(result.uniqueEventCount()).isEqualTo(2);
+		assertThat(result.conflictCount()).isZero();
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "2")).isEqualTo(1);
+	}
+
+	@Test
+	@Order(8)
+	void rejectsConflictingPayloadsForTheSameEventId() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		publish(eventId, 1L, orderedAt);
+		publish(eventId, 2L, orderedAt);
+
+		assertThatThrownBy(service::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("eventId 충돌");
+		assertThat(redis.keys("rebuild:popular:menus:*")).isEmpty();
+	}
+
+	@Test
+	@Order(9)
 	void partialOffsetMoveTimeoutRestoresAllOffsetsAndLiveRedis() throws Exception {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		publish(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
 		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
 		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
 		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
@@ -262,12 +302,15 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	@Test
-	@Order(8)
+	@Order(10)
 	void compensationFailureReportsUncertainOffsetStateWithoutClaimingRollback() throws Exception {
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
 		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
 		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 11, 30));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		publish(2L, LocalDateTime.of(2026, 7, 6, 12, 0));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 0));
 		publish(1L, LocalDateTime.of(2026, 7, 12, 11, 30));
 		RankingRebuildOffsetManager failedCompensation = new RankingRebuildOffsetManager() {
 			@Override
@@ -328,7 +371,11 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	private void publish(Long menuId, LocalDateTime orderedAt) throws Exception {
-		OrderCompletedEvent event = new OrderCompletedEvent(UUID.randomUUID(), 1L, 6101L, menuId, 4500, orderedAt);
+		publish(UUID.randomUUID(), menuId, orderedAt);
+	}
+
+	private void publish(UUID eventId, Long menuId, LocalDateTime orderedAt) throws Exception {
+		OrderCompletedEvent event = new OrderCompletedEvent(eventId, 1L, 6101L, menuId, 4500, orderedAt);
 		kafkaTemplate.send("order.completed", "6101", event).get(10, TimeUnit.SECONDS);
 		kafkaTemplate.flush();
 	}

@@ -7,5 +7,8 @@ import org.apache.kafka.common.TopicPartition;
 
 public record RankingRebuildResult(
 		Map<RankingRebuildCount, Long> counts,
-		Map<TopicPartition, OffsetAndMetadata> endOffsets) {
+		Map<TopicPartition, OffsetAndMetadata> endOffsets,
+		long inputRecordCount,
+		long uniqueEventCount,
+		long conflictCount) {
 }
