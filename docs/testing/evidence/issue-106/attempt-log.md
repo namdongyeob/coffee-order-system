@@ -5,7 +5,7 @@ Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/106
 Branch: claude/issue-106-code-style-guide
 Current disposition: PASS
 Current Attempt: 1
-Current head: (커밋 후 기록)
+Current head: 084d2da2f66d4b3ef2100f4eaa39d0703ffbfab5
 
 ## Attempt 1
 

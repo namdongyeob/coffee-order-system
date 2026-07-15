@@ -18,4 +18,4 @@ Level 6 reason: 실제 API 계약을 변경하지 않는 문서 전용 작업입
 ## 참고
 
 - 독립 검증: general-purpose agent 1개(fresh)가 문서의 모든 인용을 실제 소스와 대조. 초안에서 1건의 사실 오류(`XxxIntegrationTest`가 항상 root 테스트 패키지에 위치한다는 서술이 `ranking/rebuild/RankingRebuildServiceIntegrationTest.java`의 실제 패키지(`ranking.rebuild`)와 모순)를 지적받아 위치는 규칙이 아니라고 정정했습니다. 나머지 항목은 전부 정확했습니다(PASS).
-- `Current head`는 이 커밋을 가리킵니다: 이 파일 커밋 직후 `git rev-parse HEAD`로 확인.
+- `Current head`는 이 커밋을 가리킵니다: `084d2da2f66d4b3ef2100f4eaa39d0703ffbfab5`.
