@@ -36,6 +36,8 @@ import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -47,6 +49,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(name = "ranking.rebuild.maintenance", havingValue = "true")
 public class RankingRebuildService {
+	private static final Logger log = LoggerFactory.getLogger(RankingRebuildService.class);
 
 	private static final String TOPIC = "order.completed";
 	private static final String NORMAL_GROUP = "ranking-consumer-group";
@@ -105,9 +108,9 @@ public class RankingRebuildService {
 			assertNormalConsumerStopped(admin);
 			Map<TopicPartition, Long> capturedEnds = captureEndOffsets(admin);
 			previousOffsets = offsetManager.capture(admin, capturedEnds.keySet());
-			Map<RankingRebuildCount, Long> replay = replay(capturedEnds, lower, upper, namespace);
+			ReplayResult replay = replay(capturedEnds, lower, upper, namespace);
 			Map<RankingRebuildCount, Long> database = databaseCounts(lower, upper);
-			if (!database.equals(replay)) {
+			if (!database.equals(replay.counts())) {
 				throw new RankingRebuildException("Kafka replay와 DB 집계가 일치하지 않습니다");
 			}
 			requireLease(token);
@@ -126,7 +129,9 @@ public class RankingRebuildService {
 				throw compensated;
 			}
 			deleteBackupsAfterSuccess(namespace, dates);
-			return new RankingRebuildResult(Map.copyOf(replay), Map.copyOf(offsets));
+			return new RankingRebuildResult(
+					Map.copyOf(replay.counts()), Map.copyOf(offsets), replay.inputRecordCount(),
+					replay.uniqueEventCount(), replay.conflictCount());
 		} catch (RankingRebuildException exception) {
 			if (swapped) {
 				rollbackSwap(namespace, dates);
@@ -210,7 +215,7 @@ public class RankingRebuildService {
 				.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().offset()));
 	}
 
-	private Map<RankingRebuildCount, Long> replay(
+	private ReplayResult replay(
 			Map<TopicPartition, Long> ends,
 			LocalDateTime lower,
 			LocalDateTime upper,
@@ -223,6 +228,8 @@ public class RankingRebuildService {
 		properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 		properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 		Map<RankingRebuildCount, Long> counts = new HashMap<>();
+		Map<UUID, EventPayload> eventPayloads = new HashMap<>();
+		long inputRecordCount = 0;
 		try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties)) {
 			consumer.assign(ends.keySet());
 			consumer.seekToBeginning(ends.keySet());
@@ -237,6 +244,17 @@ public class RankingRebuildService {
 					}
 					OrderCompletedEvent event = objectMapper.readValue(record.value(), OrderCompletedEvent.class);
 					if (!event.orderedAt().isBefore(lower) && event.orderedAt().isBefore(upper)) {
+						inputRecordCount++;
+						EventPayload payload = EventPayload.from(event);
+						EventPayload previous = eventPayloads.putIfAbsent(event.eventId(), payload);
+						if (previous != null) {
+							if (!previous.equals(payload)) {
+								log.error("ranking_rebuild_event_id_conflict eventId={} inputRecords={} uniqueEvents={} conflicts=1",
+										event.eventId(), inputRecordCount, eventPayloads.size());
+								throw new RankingRebuildException("rebuild eventId 충돌이 감지되었습니다");
+							}
+							continue;
+						}
 						RankingRebuildCount key = new RankingRebuildCount(event.orderedAt().toLocalDate().toString(), event.menuId());
 						counts.merge(key, 1L, Long::sum);
 						redis.opsForZSet().incrementScore(tempKey(namespace, key.date()), key.menuId().toString(), 1);
@@ -244,7 +262,20 @@ public class RankingRebuildService {
 				}
 			}
 		}
-		return counts;
+		return new ReplayResult(counts, inputRecordCount, eventPayloads.size(), 0);
+	}
+
+	private record ReplayResult(
+			Map<RankingRebuildCount, Long> counts,
+			long inputRecordCount,
+			long uniqueEventCount,
+			long conflictCount) {
+	}
+
+	private record EventPayload(Long orderId, Long userId, Long menuId, Integer paidAmount, LocalDateTime orderedAt) {
+		private static EventPayload from(OrderCompletedEvent event) {
+			return new EventPayload(event.orderId(), event.userId(), event.menuId(), event.paidAmount(), event.orderedAt());
+		}
 	}
 
 	private boolean reachedEnds(KafkaConsumer<String, String> consumer, Map<TopicPartition, Long> ends) {
