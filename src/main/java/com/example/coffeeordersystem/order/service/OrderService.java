@@ -22,12 +22,14 @@ import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class OrderService {
 
@@ -40,7 +42,8 @@ public class OrderService {
 	private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
 	public OrderResponse createOrder(Long userId, Long menuId) {
-		RLock lock = redissonClient.getLock("lock:order:user:" + userId);
+		String lockKey = "lock:order:user:" + userId;
+		RLock lock = redissonClient.getLock(lockKey);
 		boolean acquired = false;
 		try {
 			acquired = lock.tryLock(2, 5, TimeUnit.SECONDS);
@@ -52,9 +55,28 @@ public class OrderService {
 			Thread.currentThread().interrupt();
 			throw new ApiException(ErrorCode.ORDER_LOCK_NOT_ACQUIRED);
 		} finally {
-			if (acquired && lock.isHeldByCurrentThread()) {
-				lock.unlock();
+			releaseLockSafely(lock, userId, lockKey, acquired);
+		}
+	}
+
+	private void releaseLockSafely(RLock lock, Long userId, String lockKey, boolean acquired) {
+		if (!acquired) {
+			return;
+		}
+
+		try {
+			if (!lock.isHeldByCurrentThread()) {
+				return;
 			}
+		} catch (RuntimeException exception) {
+			log.warn("Order lock cleanup failed. userId={}, lockKey={}, stage=isHeldByCurrentThread", userId, lockKey, exception);
+			return;
+		}
+
+		try {
+			lock.unlock();
+		} catch (RuntimeException exception) {
+			log.warn("Order lock cleanup failed. userId={}, lockKey={}, stage=unlock", userId, lockKey, exception);
 		}
 	}
 
