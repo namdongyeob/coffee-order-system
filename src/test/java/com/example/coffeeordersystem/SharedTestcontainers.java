@@ -59,7 +59,7 @@ public final class SharedTestcontainers {
 		clearSharedKafkaTopics();
 	}
 
-	private static synchronized void clearSharedKafkaTopics() {
+	private static void clearSharedKafkaTopics() {
 		try (AdminClient admin = AdminClient.create(Map.of(
 				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
 			Set<String> existingTopics = admin.listTopics().names().get();

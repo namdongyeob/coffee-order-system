@@ -43,9 +43,6 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.annotation.Import;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.kafka.KafkaContainer;
-import org.testcontainers.mysql.MySQLContainer;
 
 @SpringBootTest(properties = {
 		"ranking.consumer.enabled=false",
@@ -58,19 +55,15 @@ class RankingRebuildServiceIntegrationTest {
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 	private static final Instant SNAPSHOT = LocalDateTime.of(2026, 7, 13, 12, 0).atZone(SEOUL).toInstant();
 
-	static final KafkaContainer KAFKA = SharedTestcontainers.kafka();
-	static final MySQLContainer MYSQL = SharedTestcontainers.mysql();
-	static final GenericContainer<?> REDIS = SharedTestcontainers.redis();
-
 	@DynamicPropertySource
 	static void properties(DynamicPropertyRegistry registry) {
 		SharedTestcontainers.start();
-		registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
-		registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
-		registry.add("spring.datasource.username", MYSQL::getUsername);
-		registry.add("spring.datasource.password", MYSQL::getPassword);
-		registry.add("spring.data.redis.host", REDIS::getHost);
-		registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+		registry.add("spring.kafka.bootstrap-servers", SharedTestcontainers.kafka()::getBootstrapServers);
+		registry.add("spring.datasource.url", SharedTestcontainers.mysql()::getJdbcUrl);
+		registry.add("spring.datasource.username", SharedTestcontainers.mysql()::getUsername);
+		registry.add("spring.datasource.password", SharedTestcontainers.mysql()::getPassword);
+		registry.add("spring.data.redis.host", SharedTestcontainers.redis()::getHost);
+		registry.add("spring.data.redis.port", () -> SharedTestcontainers.redis().getMappedPort(6379));
 		registry.add("ranking.rebuild.snapshot", () -> SNAPSHOT.toString());
 	}
 
@@ -86,7 +79,7 @@ class RankingRebuildServiceIntegrationTest {
 	static void createTwoPartitionTopic() throws Exception {
 		SharedTestcontainers.start();
 		try (AdminClient admin = AdminClient.create(Map.of(
-				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()))) {
 			try {
 				admin.createTopics(List.of(new NewTopic("order.completed", 2, (short) 1))).all().get(10, TimeUnit.SECONDS);
 			} catch (java.util.concurrent.ExecutionException exception) {
@@ -107,6 +100,9 @@ class RankingRebuildServiceIntegrationTest {
 	void clean() throws Exception {
 		redis.getConnectionFactory().getConnection().serverCommands().flushAll();
 		jdbc.update("delete from processed_event");
+		jdbc.update("delete from ranking_rebuild_run_event");
+		jdbc.update("delete from ranking_rebuild_run");
+		jdbc.update("delete from ranking_event_ledger");
 		jdbc.update("delete from orders");
 		deleteBeforeCurrentEnds();
 	}
@@ -139,7 +135,7 @@ class RankingRebuildServiceIntegrationTest {
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
 
 		try (AdminClient admin = AdminClient.create(Map.of(
-				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()))) {
 			Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> offsets = admin
 					.listConsumerGroupOffsets("ranking-consumer-group").partitionsToOffsetAndMetadata().get(10, TimeUnit.SECONDS);
 			assertThat(offsets).containsAllEntriesOf(result.endOffsets());
@@ -175,6 +171,8 @@ class RankingRebuildServiceIntegrationTest {
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
 		assertThat(redis.keys("rebuild:popular:menus:*")).isEmpty();
 		assertThat(normalOffsets()).isEqualTo(before);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isZero();
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isZero();
 	}
 
 	@Test
@@ -214,7 +212,8 @@ class RankingRebuildServiceIntegrationTest {
 	void activeNormalConsumerMemberBlocksRebuild() throws Exception {
 		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
 		Map<String, Object> properties = new HashMap<>();
-		properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+		properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+				SharedTestcontainers.kafka().getBootstrapServers());
 		properties.put(ConsumerConfig.GROUP_ID_CONFIG, "ranking-consumer-group");
 		properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 		properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -253,6 +252,110 @@ class RankingRebuildServiceIntegrationTest {
 		assertThat(result.conflictCount()).isZero();
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "2")).isEqualTo(1);
+	}
+
+	@Test
+	@Order(11)
+	void writesCommittedRebuildLedgerAfterSuccessfulSwap() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+
+		service.rebuild();
+
+		Map<String, Object> row = jdbc.queryForMap(
+				"select event_id, event_type, payload_fingerprint, state, source, rebuild_run_id, committed_at "
+						+ "from ranking_event_ledger where event_id = ?", eventId.toString());
+		assertThat(row).containsEntry("event_id", eventId.toString())
+				.containsEntry("event_type", "order.completed")
+				.containsEntry("state", "COMMITTED")
+				.containsEntry("source", "REBUILD")
+				.containsKey("payload_fingerprint")
+				.containsKey("rebuild_run_id")
+				.containsKey("committed_at");
+	}
+
+	@Test
+	@Order(12)
+	void repeatedRebuildKeepsOneLedgerRowForTheSameEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0, 0, 123_456_789);
+		insertPaidOrder(1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+
+		service.rebuild();
+		service.rebuild();
+
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_event_ledger where event_id = ?", Long.class, eventId.toString()))
+				.isEqualTo(1L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+	}
+
+	@Test
+	@Order(13)
+	void differentExistingLedgerFingerprintFailsBeforeSwap() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+		RankingRebuildEvent conflicting = new RankingRebuildEvent(eventId, 1L, 6101L, 2L, 4500, orderedAt);
+		jdbc.update("insert into ranking_event_ledger(event_id, event_type, payload_fingerprint, state, source, "
+				+ "reserved_at, committed_at) values (?,?,?,?,?,?,?)",
+				eventId.toString(), "order.completed", conflicting.payloadFingerprint(), "COMMITTED", "DLT_REPLAY",
+				orderedAt, orderedAt);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+
+		assertThatThrownBy(service::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("EVENT_ID_PAYLOAD_CONFLICT");
+
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isZero();
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNull();
+	}
+
+	@Test
+	@Order(14)
+	void retryAfterLedgerFailureCompletesTheSamePendingRunWithoutAnotherSwap() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+		RankingRebuildLedger interruptedLedger = new RankingRebuildLedger(jdbc) {
+			private boolean firstBackfill = true;
+
+			@Override
+			void backfillAndComplete(UUID runId) {
+				if (firstBackfill) {
+					firstBackfill = false;
+					throw new RankingRebuildException("injected ledger backfill interruption");
+				}
+				super.backfillAndComplete(runId);
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, offsetManager, interruptedLedger).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("injected ledger backfill interruption");
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'SWAPPED_PENDING_LEDGER'", Long.class))
+				.isEqualTo(1L);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+
+		redis.delete(RankingRebuildLock.KEY);
+		service.rebuild();
+
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'COMPLETED'", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_event_ledger where event_id = ? and state = 'COMMITTED'",
+				Long.class, eventId.toString())).isEqualTo(1L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNull();
 	}
 
 	@Test
@@ -329,12 +432,21 @@ class RankingRebuildServiceIntegrationTest {
 	}
 
 	private RankingRebuildService service(RankingRebuildLock lock, RankingRebuildOffsetManager manager) {
-		return new RankingRebuildService(redis, jdbc, lock, manager, KAFKA.getBootstrapServers(), true, SNAPSHOT.toString());
+		return new RankingRebuildService(redis, jdbc, lock, manager,
+				SharedTestcontainers.kafka().getBootstrapServers(), true, SNAPSHOT.toString());
+	}
+
+	private RankingRebuildService service(
+			RankingRebuildLock lock,
+			RankingRebuildOffsetManager manager,
+			RankingRebuildLedger ledger) {
+		return new RankingRebuildService(redis, jdbc, lock, manager, ledger,
+				SharedTestcontainers.kafka().getBootstrapServers(), true, SNAPSHOT.toString());
 	}
 
 	private Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> normalOffsets() throws Exception {
 		try (AdminClient admin = AdminClient.create(Map.of(
-				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()))) {
 			return admin.listConsumerGroupOffsets("ranking-consumer-group")
 					.partitionsToOffsetAndMetadata().get(10, TimeUnit.SECONDS);
 		}
@@ -342,7 +454,7 @@ class RankingRebuildServiceIntegrationTest {
 
 	private void deleteBeforeCurrentEnds() throws Exception {
 		try (AdminClient admin = AdminClient.create(Map.of(
-				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()))) {
 			List<TopicPartition> partitions = admin.describeTopics(List.of("order.completed")).allTopicNames()
 					.get(10, TimeUnit.SECONDS).get("order.completed").partitions().stream()
 					.map(info -> new TopicPartition("order.completed", info.partition())).toList();
