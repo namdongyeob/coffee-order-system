@@ -1,0 +1,19 @@
+# Issue #113 Test Output (핵심 발췌)
+
+묶음 명령: `S:\gradlew.bat clean test --no-daemon --tests '*ControllerTest' --tests '*IntegrationTest' --tests '*LocalRuntimeConfigurationTest'`
+
+```text
+BUILD SUCCESSFUL in 3m 11s
+JUnit XML: 19 files
+tests=57 failures=0 errors=0 skipped=0
+```
+
+단독 명령: `S:\gradlew.bat clean test --no-daemon --tests '*RankingRebuildServiceIntegrationTest'`
+
+```text
+BUILD SUCCESSFUL in 1m 42s
+JUnit XML: 1 file
+tests=10 failures=0 errors=0 skipped=0
+```
+
+두 실행 후 Docker Testcontainers 및 Java/Gradle 프로세스는 0개였습니다.
