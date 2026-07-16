@@ -2,16 +2,17 @@
 
 Issue: #119
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/119
-Execution head: 45b3a3f8686e2e469e029d6bb0846c8910bcfc28
+Execution head: 8506132df37034e31ee2e8037eb6a37dead2050f
 
 | 구분 | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
 | Redis marker TDD | 같은 eventId·같은 fingerprint no-op, 다른 fingerprint conflict focused tests | RED 후 GREEN |
 | ledger TDD | normal 상태 전이, Redis 적용 뒤 DB 실패·재시도, fingerprint conflict focused tests | RED 후 GREEN |
+| Review WRONGTYPE TDD | live ZSET을 string으로 만든 실제 Redis processor 회귀 | RED: marker-only 잔존, GREEN: RESERVED/marker 없음 뒤 retry score 1·COMMITTED |
 | DLT guard TDD | processed_event 비의존, pending run 차단, replay source header, publish failure 재시도 tests | RED 후 GREEN |
 | 양방향 통합 | `*RankingLedgerBilateralRecoveryIntegrationTest`, DLT↔Rebuild 실제 Kafka 흐름 | PASS, 6/6 |
-| 관련 clean | `V:\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --tests '*DltReplay*' --tests '*DatabaseSchemaIntegrationTest' --console=plain` | PASS, 75/75, failures/errors/skipped 0, 2m 32s |
-| 전체 clean 정본 | `V:\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 125/125, failures/errors/skipped 0, BUILD SUCCESSFUL in 2m 45s |
+| 관련 clean | `V:\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --tests '*DltReplay*' --tests '*DatabaseSchemaIntegrationTest' --console=plain` | PASS, 76/76, failures/errors/skipped 0, 2m 35s |
+| 전체 clean 정본 | `V:\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 126/126, failures/errors/skipped 0, BUILD SUCCESSFUL in 2m 46s |
 | Compose | `docker compose -f docker/compose.yaml up -d --wait` | MySQL·Redis·Kafka healthy |
 | normal Level 5 | 실제 charge/order API 뒤 DB·Redis·Kafka 조회 | COMMITTED/NORMAL_CONSUMER, processed 1, menu1 score 1 |
 | DLT→Rebuild Level 5 | DLT offset 0 선택 replay 뒤 maintenance Rebuild | RESERVED/DLT_REPLAY→COMMITTED/DLT_REPLAY, menu2 score 1 |
