@@ -4,8 +4,8 @@ Issue: #112
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
 Branch: issue-112-attempt2
 Current disposition: PASS
-Current Attempt: 4
-Current head: b3753c8
+Current Attempt: 5
+Current head: c06c28c
 
 ## Attempt 1
 
@@ -153,3 +153,38 @@ swap 전 충돌 차단과 pending 재시도에서 새 run·swap이 생기지 않
 ### Next Attempt
 
 없음. Review 재검증과 독립 QA, 최신 CI는 GitHub 정본에서 후속 확인합니다.
+
+## Attempt 5
+
+### Generate
+
+- 재검토 P1 세 건에 따라 `OFFSET_APPLIED_PENDING_LEDGER` 복구를 offset verify와 ledger backfill 전용으로 분리하고, verify 실패 시 `RECOVERY_REQUIRED`로 봉인했습니다.
+- Redis·offset 완전 보상 뒤 run cancel이 실패하면 같은 run을 `RECOVERY_REQUIRED`로 봉인해 자동 offset 이동과 ledger 완료를 차단했습니다.
+- 대량 prepare의 50행 event batch와 offset plan 저장 사이에 lease heartbeat를 추가하고 atomic swap 직전에 소유권을 다시 확인했습니다.
+- 위 경계를 검증하는 회귀 테스트 4개를 추가하고 기존 backfill heartbeat 테스트의 실패 주입 순서를 새 renew 호출 순서에 맞췄습니다.
+
+### Evaluate
+
+- RED. 신규 focused 4 tests가 부분 ledger 보존, cancel 실패 봉인, prepare 중 lease 상실, swap 직전 소유권 변경 경계에서 모두 실패했습니다.
+- GREEN. 같은 focused 4 tests와 기존 backfill heartbeat focused test가 PASS했습니다.
+- PASS. Rebuild 전체 27/27, 관련 clean 50/50, 전체 clean 106/106이 failures=0, errors=0, skipped=0으로 통과했습니다.
+- Level 5는 사용자 지시에 따라 반복하지 않았으며 Attempt 4의 실제 Compose 결과를 유지했습니다.
+
+### Failure Cause
+
+- `SWAPPED_PENDING_OFFSET`과 `OFFSET_APPLIED_PENDING_LEDGER`가 같은 recovery 분기를 사용해 이미 적용된 offset을 다시 이동하고 실패 시 ledger 일부와 분리될 수 있었습니다.
+- 완전 보상 뒤 cancel 실패를 durable 상태로 봉인하지 않았고, prepare와 atomic swap 사이에는 장시간 작업을 덮는 lease 재확인이 없었습니다.
+
+### Change Scope
+
+- Rebuild 전용 ledger/service와 Rebuild 통합 테스트만 수정했습니다.
+- `DltReplayService`, 정상 ranking consumer production 코드, 공통 applied-event marker는 수정하지 않았습니다.
+
+### Reverification
+
+- focused 4/4, 기존 heartbeat 1/1, Rebuild 27/27, 관련 clean 50/50, 전체 clean 106/106이 PASS했습니다.
+- `git diff --check`, 1MB 초과 파일과 forbidden production scope 검사를 통과했습니다.
+
+### Next Attempt
+
+없음. 재검토·독립 QA와 최신 CI는 갱신된 Draft PR의 GitHub 정본에서 후속 확인합니다.

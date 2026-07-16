@@ -2,7 +2,7 @@
 
 Issue: #112
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
-Execution head: b3753c8
+Execution head: c06c28c
 
 | 구분 | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
@@ -14,9 +14,11 @@ Execution head: b3753c8
 | nanos GREEN | 저장된 run-event fingerprint 사용 후 같은 focused test | PASS, BUILD SUCCESSFUL in 1m 33s |
 | Review crash RED | swap mark failure, partial offset crash, incomplete compensation, 101-event heartbeat focused tests | RED, marker 없음·offset 미복구·run/events 삭제·renew 미호출을 각각 확인 |
 | Review crash GREEN | 같은 5 focused tests | PASS, swap marker/same-run offset/cascade or uncertain/heartbeat 상태 확인 |
-| Rebuild bundle | `Push-Location U:\; .\gradlew.bat test --no-daemon --max-workers=1 --tests '*RankingRebuild*' --console=plain` | PASS, 23/23, BUILD SUCCESSFUL in 2m 31s |
-| 관련 clean bundle | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --console=plain` | PASS, 46/46, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 2s |
-| 전체 | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 102/102, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 21s |
+| Retry-boundary RED | 부분 backfill+offset verify, cancel 실패 봉인, prepare batch lease, swap 직전 lease focused 4 tests | RED, 4/4 예상 실패 |
+| Retry-boundary GREEN | 같은 focused 4 tests와 기존 backfill heartbeat focused test | PASS, 4/4 및 1/1 |
+| Rebuild bundle | `Push-Location U:\; .\gradlew.bat test --no-daemon --max-workers=1 --tests '*RankingRebuild*' --console=plain` | PASS, 27/27, BUILD SUCCESSFUL in 2m 7s |
+| 관련 clean bundle | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --console=plain` | PASS, 50/50, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 6s |
+| 전체 | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 106/106, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 33s |
 | Compose | `docker compose -f docker\compose.yaml up -d --wait` | MySQL·Redis·Kafka healthy |
 | 최초 rebuild | maintenance runner 실행 뒤 MySQL ledger/run과 Redis score 조회 | ledger 1, COMMITTED/REBUILD, completed run 1, score 1, lock 0, temp key 0 |
 | 동일 재실행 | 동일 Kafka event로 runner 재실행 뒤 같은 조회 | ledger 1, distinct fingerprint 1, completed run 2, score 1, lock 0 |
