@@ -4,7 +4,7 @@
 
 | 명령 | 목적 | 결과 |
 | --- | --- | --- |
-| `S:\gradlew.bat clean test --no-daemon --tests '*ControllerTest' --tests '*IntegrationTest' --tests '*LocalRuntimeConfigurationTest'` | Controller·Integration·LocalRuntime 묶음에서 context 수명과 scheduler 종료 동작 검증 | PASS. `BUILD SUCCESSFUL in 3m 11s`; JUnit XML 19개, tests=57, failures=0, errors=0, skipped=0; HTML report 생성 |
+| `S:\gradlew.bat clean test --no-daemon --tests '*ControllerTest' --tests '*IntegrationTest' --tests '*LocalRuntimeConfigurationTest'` | Controller·Integration·LocalRuntime 묶음에서 context 수명, scheduler 종료, Kafka stale record 격리 검증 | PASS. `BUILD SUCCESSFUL in 2m 31s`; JUnit XML 20개, tests=58, failures=0, errors=0, skipped=0; HTML report 생성 |
 
 실행은 `S:` ASCII subst worktree의 단일 Gradle 프로세스에서 수행했습니다. 컴파일 중 KafkaTestUtils deprecated warning 4건 외 오류는 없었습니다.
 
@@ -12,7 +12,19 @@
 
 | 명령 | 목적 | 결과 |
 | --- | --- | --- |
-| `S:\gradlew.bat clean test --no-daemon --tests '*RankingRebuildServiceIntegrationTest'` | 완료 기준의 단독 Testcontainers lifecycle 검증 | PASS. `BUILD SUCCESSFUL in 1m 42s`; JUnit XML 1개, tests=10, failures=0, errors=0, skipped=0; HTML report 생성 |
+| `S:\gradlew.bat clean test --no-daemon --tests '*RankingRebuildServiceIntegrationTest'` | 완료 기준의 단독 Testcontainers lifecycle 검증 | PASS. 최신 clean 묶음 안의 동일 XML에서 tests=10, failures=0, errors=0, skipped=0으로 확인 |
+
+## Attempt 2 focused Kafka 격리
+
+| 명령 | 목적 | 결과 |
+| --- | --- | --- |
+| `S:\gradlew.bat test --no-daemon --tests '*RankingEventConsumerKafkaRedisIntegrationTest*' --tests '*RankingEventConsumerDltIntegrationTest*'` | stale Kafka record 격리와 listener stop·purge·restart 순서 검증 | PASS. `BUILD SUCCESSFUL in 1m 35s`; JUnit XML 2개, tests=2, failures=0, errors=0, skipped=0 |
+
+## Attempt 2 RED
+
+| 명령 | 목적 | 결과 |
+| --- | --- | --- |
+| 동일 focused 명령, `clearKafkaTopics()` 호출 추가 후 helper 구현 전 | 테스트 우선 RED 확인 | EXPECTED FAIL. `compileTestJava`에서 `SharedTestcontainers.clearKafkaTopics()` 심볼 2건 미해결 |
 
 ## 종료·cleanup 관찰
 

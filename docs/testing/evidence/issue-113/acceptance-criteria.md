@@ -17,6 +17,7 @@ Level 6 reason: 실제 HTTP API 동작이나 계약을 변경하지 않습니다
 - [x] 테스트 context에서 scheduled task가 실행되지 않도록 test-only scheduler를 적용했습니다.
 - [x] production 업무 로직, Kafka·Redis 복구 정책, DLT replay 코드는 변경하지 않았습니다.
 - [x] clean 묶음 실행과 `RankingRebuildServiceIntegrationTest` 단독 실행이 PASS했습니다.
+- [x] 공유 Kafka를 사용하는 ranking consumer 테스트가 listener 중지·topic purge·재시작 순서로 이전 레코드와 in-flight 처리를 격리합니다.
 - [x] 테스트 종료 뒤 Java/Gradle 및 Testcontainers 잔여 프로세스·컨테이너가 없고 connection-refused/scheduler 오류가 관찰되지 않았습니다.
 - [x] `git diff --check`와 변경 범위 검사를 통과했습니다.
 
