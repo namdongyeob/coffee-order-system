@@ -19,6 +19,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,6 +48,16 @@ class RankingEventConsumerDltIntegrationTest {
 
 	@MockitoBean
 	RankingEventProcessor processor;
+
+	@BeforeEach
+	void clearKafkaTopicsBeforeEachTest() {
+		listenerEndpointRegistry.getListenerContainers().forEach(container -> container.stop());
+		SharedTestcontainers.clearKafkaTopics();
+		listenerEndpointRegistry.getListenerContainers().forEach(container -> {
+			container.start();
+			ContainerTestUtils.waitForAssignment(container, 1);
+		});
+	}
 
 	@Test
 	void retriesTwiceThenPublishesFailedRecordToDlt() throws Exception {

@@ -37,10 +37,14 @@ class RankingEventConsumerKafkaRedisIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
-		listenerEndpointRegistry.getListenerContainers().forEach(
-				container -> ContainerTestUtils.waitForAssignment(container, 1));
+		listenerEndpointRegistry.getListenerContainers().forEach(container -> container.stop());
+		SharedTestcontainers.clearKafkaTopics();
 		processedEventRepository.deleteAll();
 		redisTemplate.delete(redisTemplate.keys("popular:menus:*"));
+		listenerEndpointRegistry.getListenerContainers().forEach(container -> {
+			container.start();
+			ContainerTestUtils.waitForAssignment(container, 1);
+		});
 	}
 
 	@Test
