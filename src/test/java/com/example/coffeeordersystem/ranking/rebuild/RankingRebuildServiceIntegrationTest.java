@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
+import com.example.coffeeordersystem.DisabledTaskSchedulerConfiguration;
+import com.example.coffeeordersystem.SharedTestcontainers;
+import com.example.coffeeordersystem.TestcontainersConfiguration;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -39,36 +42,29 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.mysql.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
-@Testcontainers
 @SpringBootTest(properties = {
 		"ranking.consumer.enabled=false",
 		"ranking.rebuild.maintenance=true"
 })
+@Import({DisabledTaskSchedulerConfiguration.class, TestcontainersConfiguration.class})
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class RankingRebuildServiceIntegrationTest {
 
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 	private static final Instant SNAPSHOT = LocalDateTime.of(2026, 7, 13, 12, 0).atZone(SEOUL).toInstant();
 
-	@Container
-	static final KafkaContainer KAFKA = new KafkaContainer(DockerImageName.parse("apache/kafka-native:3.9.1"));
-
-	@Container
-	static final MySQLContainer MYSQL = new MySQLContainer(DockerImageName.parse("mysql:8.4.5"));
-
-	@Container
-	static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7.4.2"))
-			.withExposedPorts(6379);
+	static final KafkaContainer KAFKA = SharedTestcontainers.kafka();
+	static final MySQLContainer MYSQL = SharedTestcontainers.mysql();
+	static final GenericContainer<?> REDIS = SharedTestcontainers.redis();
 
 	@DynamicPropertySource
 	static void properties(DynamicPropertyRegistry registry) {
+		SharedTestcontainers.start();
 		registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
 		registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
 		registry.add("spring.datasource.username", MYSQL::getUsername);
@@ -88,6 +84,7 @@ class RankingRebuildServiceIntegrationTest {
 
 	@BeforeAll
 	static void createTwoPartitionTopic() throws Exception {
+		SharedTestcontainers.start();
 		try (AdminClient admin = AdminClient.create(Map.of(
 				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
 			try {
