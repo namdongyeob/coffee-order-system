@@ -197,9 +197,9 @@ class RankingRebuildServiceIntegrationTest {
 		publish(1L, LocalDateTime.of(2026, 7, 1, 10, 0));
 		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
 		RankingRebuildLock lostLock = new RankingRebuildLock(redis) {
-			@Override boolean acquire(String token) { return true; }
-			@Override boolean renew(String token) { return false; }
-			@Override void release(String token) { }
+			@Override public boolean acquire(String token) { return true; }
+			@Override public boolean renew(String token) { return false; }
+			@Override public void release(String token) { }
 		};
 		RankingRebuildService lostLeaseService = service(lostLock, offsetManager);
 
@@ -539,12 +539,12 @@ class RankingRebuildServiceIntegrationTest {
 		AtomicInteger renewCalls = new AtomicInteger();
 		RankingRebuildLock shortLease = new RankingRebuildLock(redis) {
 			@Override
-			boolean acquire(String token) {
+			public boolean acquire(String token) {
 				return Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(KEY, token, Duration.ofSeconds(5)));
 			}
 
 			@Override
-			boolean renew(String token) {
+			public boolean renew(String token) {
 				if (renewCalls.incrementAndGet() == 9) {
 					return false;
 				}
@@ -936,7 +936,7 @@ class RankingRebuildServiceIntegrationTest {
 	private RankingRebuildLock ownershipChangingLock(int failAtRenew, AtomicInteger renewCalls) {
 		return new RankingRebuildLock(redis) {
 			@Override
-			boolean renew(String token) {
+			public boolean renew(String token) {
 				if (renewCalls.incrementAndGet() == failAtRenew) {
 					redis.opsForValue().set(KEY, "other-owner", Duration.ofMinutes(5));
 					return false;

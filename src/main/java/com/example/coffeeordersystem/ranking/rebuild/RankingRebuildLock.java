@@ -8,29 +8,29 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 @Component
-class RankingRebuildLock {
+public class RankingRebuildLock {
 
 	static final String KEY = "ranking:rebuild:lock";
 	private static final Duration LEASE = Duration.ofMinutes(30);
 
 	private final StringRedisTemplate redis;
 
-	RankingRebuildLock(StringRedisTemplate redis) {
+	public RankingRebuildLock(StringRedisTemplate redis) {
 		this.redis = redis;
 	}
 
-	boolean acquire(String token) {
+	public boolean acquire(String token) {
 		return Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(KEY, token, LEASE));
 	}
 
-	boolean renew(String token) {
+	public boolean renew(String token) {
 		Long renewed = redis.execute(new DefaultRedisScript<>(
 				"if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('PEXPIRE',KEYS[1],ARGV[2]) else return 0 end",
 				Long.class), List.of(KEY), token, Long.toString(LEASE.toMillis()));
 		return Long.valueOf(1L).equals(renewed);
 	}
 
-	void release(String token) {
+	public void release(String token) {
 		redis.execute(new DefaultRedisScript<>(
 				"if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end",
 				Long.class), List.of(KEY), token);

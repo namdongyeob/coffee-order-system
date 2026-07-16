@@ -31,56 +31,75 @@ class RankingEventProcessorTest {
 	@Mock
 	PopularMenuRankingService rankingService;
 
+	@Mock
+	RankingEventLedger rankingEventLedger;
+
 	RankingEventProcessor processor;
 
 	@BeforeEach
 	void setUp() {
-		processor = new RankingEventProcessor(processedEventRepository, rankingService);
+		processor = new RankingEventProcessor(processedEventRepository, rankingService, rankingEventLedger);
 	}
 
 	@Test
-	void savesAndFlushesNewEventBeforeIncrementingRanking() {
+	void appliesLedgerAndRankingBeforeSavingCompatibilityHistory() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
+		String fingerprint = RankingEventFingerprint.from(event);
+		when(rankingEventLedger.reserve(
+				event.eventId().toString(), fingerprint, RankingEventSource.NORMAL_CONSUMER))
+				.thenReturn(new RankingEventLedger.Reservation(false, false));
 		when(processedEventRepository.existsByEventId(event.eventId().toString())).thenReturn(false);
 
 		processor.process(event);
 
-		InOrder inOrder = inOrder(processedEventRepository, rankingService);
+		InOrder inOrder = inOrder(rankingEventLedger, rankingService, processedEventRepository);
+		inOrder.verify(rankingEventLedger).reserve(
+				event.eventId().toString(), fingerprint, RankingEventSource.NORMAL_CONSUMER);
+		inOrder.verify(rankingService).apply(event.eventId().toString(), fingerprint, event.menuId(), event.orderedAt());
+		inOrder.verify(rankingEventLedger).markRedisApplied(event.eventId().toString());
+		inOrder.verify(rankingEventLedger).markCommitted(event.eventId().toString());
 		inOrder.verify(processedEventRepository).saveAndFlush(any(ProcessedEvent.class));
-		inOrder.verify(rankingService).increment(event.eventId().toString(), event.menuId(), event.orderedAt());
 	}
 
 	@Test
 	void skipsAlreadyProcessedEvent() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
+		when(rankingEventLedger.reserve(any(), any(), any()))
+				.thenReturn(new RankingEventLedger.Reservation(true, false));
 		when(processedEventRepository.existsByEventId(event.eventId().toString())).thenReturn(true);
 
 		processor.process(event);
 
 		verify(processedEventRepository, never()).saveAndFlush(any(ProcessedEvent.class));
-		verify(rankingService, never()).increment(any(), any(), any());
+		verify(rankingService, never()).apply(any(), any(), any(), any());
 	}
 
 	@Test
 	void processesDifferentEventIdsIndependently() {
 		OrderCompletedEvent first = event(UUID.randomUUID(), 11L);
 		OrderCompletedEvent second = event(UUID.randomUUID(), 12L);
+		when(rankingEventLedger.reserve(any(), any(), any()))
+				.thenReturn(new RankingEventLedger.Reservation(false, false));
 		when(processedEventRepository.existsByEventId(any())).thenReturn(false);
 
 		processor.process(first);
 		processor.process(second);
 
 		verify(processedEventRepository, org.mockito.Mockito.times(2)).saveAndFlush(any(ProcessedEvent.class));
-		verify(rankingService).increment(first.eventId().toString(), first.menuId(), first.orderedAt());
-		verify(rankingService).increment(second.eventId().toString(), second.menuId(), second.orderedAt());
+		verify(rankingService).apply(
+				first.eventId().toString(), RankingEventFingerprint.from(first), first.menuId(), first.orderedAt());
+		verify(rankingService).apply(
+				second.eventId().toString(), RankingEventFingerprint.from(second), second.menuId(), second.orderedAt());
 	}
 
 	@Test
 	void propagatesRankingFailure() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
-		when(processedEventRepository.existsByEventId(event.eventId().toString())).thenReturn(false);
+		when(rankingEventLedger.reserve(any(), any(), any()))
+				.thenReturn(new RankingEventLedger.Reservation(false, false));
 		doThrow(new IllegalStateException("redis unavailable"))
-				.when(rankingService).increment(event.eventId().toString(), event.menuId(), event.orderedAt());
+				.when(rankingService).apply(
+						event.eventId().toString(), RankingEventFingerprint.from(event), event.menuId(), event.orderedAt());
 
 		assertThatThrownBy(() -> processor.process(event))
 				.isInstanceOf(IllegalStateException.class)
