@@ -1,28 +1,27 @@
 // 승인된 DLT 한 건을 원본 topic으로 안전하게 재발행합니다.
 package com.example.coffeeordersystem.recovery;
 
-import com.example.coffeeordersystem.event.repository.ProcessedEventRepository;
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
 import com.example.coffeeordersystem.order.event.OrderEventPublisher;
+import com.example.coffeeordersystem.ranking.consumer.RankingEventFingerprint;
+import com.example.coffeeordersystem.ranking.consumer.RankingEventLedger;
+import com.example.coffeeordersystem.ranking.rebuild.RankingRebuildLock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.boot.kafka.autoconfigure.KafkaConnectionDetails;
 import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,29 +30,57 @@ public class DltReplayService {
 	static final String DLT_TOPIC = OrderEventPublisher.ORDER_COMPLETED_TOPIC + ".DLT";
 	private static final Duration POLL_TIMEOUT = Duration.ofMillis(250);
 	private static final Duration RECORD_TIMEOUT = Duration.ofSeconds(10);
-	private static final String RACE_RISK = "processed_event 사전 조회 뒤 consumer 처리와 경쟁할 수 있으며 최종 중복 방어는 consumer 멱등성에 맡깁니다.";
+	private static final String RECOVERY_GUARANTEE = "공통 ranking ledger와 recovery lock이 DLT replay와 rebuild의 중복 집계를 방지합니다.";
 
-	private final ProcessedEventRepository processedEvents;
-	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 	private final String bootstrapServers;
+	private final RankingRebuildLock recoveryLock;
+	private final JdbcTemplate jdbc;
+	private final RankingEventLedger rankingEventLedger;
+	private final DltReplayPublisher replayPublisher;
 
 	public DltReplayService(
-			ProcessedEventRepository processedEvents,
-			KafkaConnectionDetails connectionDetails) {
-		this.processedEvents = processedEvents;
+			KafkaConnectionDetails connectionDetails,
+			RankingRebuildLock recoveryLock,
+			JdbcTemplate jdbc,
+			RankingEventLedger rankingEventLedger,
+			DltReplayPublisher replayPublisher) {
 		this.bootstrapServers = String.join(",", connectionDetails.getBootstrapServers());
+		this.recoveryLock = recoveryLock;
+		this.jdbc = jdbc;
+		this.rankingEventLedger = rankingEventLedger;
+		this.replayPublisher = replayPublisher;
 	}
 
 	public DltReplayResult replay(DltReplayRequest request) {
 		validate(request);
-		ConsumerRecord<String, String> record = loadOne(request);
-		verifyOriginalHeaders(record);
-		String eventId = eventId(record.value());
-		if (processedEvents.existsByEventId(eventId)) {
-			return new DltReplayResult(DltReplayStatus.SKIPPED_ALREADY_PROCESSED, eventId, RACE_RISK);
+		String token = UUID.randomUUID().toString();
+		if (!recoveryLock.acquire(token)) {
+			throw new DltReplayRetryableException("ranking recovery lock이 사용 중이므로 DLT 재발행을 재시도해야 합니다.");
 		}
-		publishOriginal(record);
-		return new DltReplayResult(DltReplayStatus.REPUBLISHED, eventId, RACE_RISK);
+		try {
+			if (hasPendingRebuild()) {
+				throw new DltReplayRetryableException("pending rebuild가 있어 DLT 재발행을 재시도해야 합니다.");
+			}
+			ConsumerRecord<String, String> record = loadOne(request);
+			verifyOriginalHeaders(record);
+			OrderCompletedEvent event = event(record.value());
+			String eventId = event.eventId().toString();
+			rankingEventLedger.reserveReplay(eventId, RankingEventFingerprint.from(event));
+			if (!recoveryLock.renew(token)) {
+				throw new DltReplayRetryableException("ranking recovery lock 소유권을 잃어 DLT 재발행을 재시도해야 합니다.");
+			}
+			replayPublisher.publish(record);
+			return new DltReplayResult(DltReplayStatus.REPUBLISHED, eventId, RECOVERY_GUARANTEE);
+		} finally {
+			recoveryLock.release(token);
+		}
+	}
+
+	private boolean hasPendingRebuild() {
+		Long count = jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state <> 'COMPLETED'", Long.class);
+		return count != null && count > 0;
 	}
 
 	private void validate(DltReplayRequest request) {
@@ -101,29 +128,18 @@ public class DltReplayService {
 		}
 	}
 
-	private String eventId(String payload) {
+	private OrderCompletedEvent event(String payload) {
 		try {
 			JsonNode eventId = objectMapper.readTree(payload).path("eventId");
 			if (!eventId.isTextual()) {
 				throw new DltReplayException("payload에 eventId가 없습니다.");
 			}
-			return UUID.fromString(eventId.asText()).toString();
+			UUID.fromString(eventId.asText());
+			return objectMapper.readValue(payload, OrderCompletedEvent.class);
 		} catch (DltReplayException exception) {
 			throw exception;
 		} catch (Exception exception) {
 			throw new DltReplayException("payload eventId를 검증하지 못했습니다.", exception);
-		}
-	}
-
-	private void publishOriginal(ConsumerRecord<String, String> record) {
-		try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties())) {
-			ProducerRecord<String, String> replayed = new ProducerRecord<>(
-					OrderEventPublisher.ORDER_COMPLETED_TOPIC, record.key(), record.value());
-			replayed.headers().add("__TypeId__", OrderCompletedEvent.class.getName().getBytes(StandardCharsets.UTF_8));
-			producer.send(replayed)
-					.get(10, TimeUnit.SECONDS);
-		} catch (Exception exception) {
-			throw new DltReplayException("원본 topic으로 재발행하지 못했습니다.", exception);
 		}
 	}
 
@@ -147,14 +163,6 @@ public class DltReplayService {
 				ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
 				ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false,
 				ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
-	}
-
-	private Map<String, Object> producerProperties() {
-		return Map.of(
-				ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-				ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-				ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-				ProducerConfig.ACKS_CONFIG, "all");
 	}
 
 	private boolean isBlank(String value) {

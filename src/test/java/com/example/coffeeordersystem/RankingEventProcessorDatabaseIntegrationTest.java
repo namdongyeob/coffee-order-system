@@ -13,6 +13,7 @@ import com.example.coffeeordersystem.event.domain.ProcessedEvent;
 import com.example.coffeeordersystem.event.repository.ProcessedEventRepository;
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
 import com.example.coffeeordersystem.ranking.consumer.RankingEventProcessor;
+import com.example.coffeeordersystem.ranking.consumer.RankingEventFingerprint;
 import com.example.coffeeordersystem.ranking.service.PopularMenuRankingService;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @Import(TestcontainersConfiguration.class)
@@ -37,12 +39,16 @@ class RankingEventProcessorDatabaseIntegrationTest {
 	@Autowired
 	KafkaListenerEndpointRegistry listenerEndpointRegistry;
 
+	@Autowired
+	JdbcTemplate jdbc;
+
 	@MockitoBean
 	PopularMenuRankingService rankingService;
 
 	@BeforeEach
 	void setUp() {
 		processedEventRepository.deleteAll();
+		jdbc.update("delete from ranking_event_ledger");
 		reset(rankingService);
 	}
 
@@ -61,7 +67,8 @@ class RankingEventProcessorDatabaseIntegrationTest {
 					assertThat(processed.getConsumerGroup()).isEqualTo("ranking-consumer-group");
 					assertThat(processed.getProcessedAt()).isNotNull();
 				});
-		verify(rankingService, times(1)).increment(event.eventId().toString(), event.menuId(), event.orderedAt());
+		verify(rankingService, times(1)).apply(
+				event.eventId().toString(), RankingEventFingerprint.from(event), event.menuId(), event.orderedAt());
 	}
 
 	@Test
@@ -73,20 +80,26 @@ class RankingEventProcessorDatabaseIntegrationTest {
 		processor.process(second);
 
 		assertThat(processedEventRepository.count()).isEqualTo(2);
-		verify(rankingService).increment(first.eventId().toString(), first.menuId(), first.orderedAt());
-		verify(rankingService).increment(second.eventId().toString(), second.menuId(), second.orderedAt());
+		verify(rankingService).apply(
+				first.eventId().toString(), RankingEventFingerprint.from(first), first.menuId(), first.orderedAt());
+		verify(rankingService).apply(
+				second.eventId().toString(), RankingEventFingerprint.from(second), second.menuId(), second.orderedAt());
 	}
 
 	@Test
-	void rollsBackHistoryWhenRankingUpdateFails() {
+	void keepsReservedLedgerAndRollsBackHistoryWhenRankingUpdateFails() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
 		doThrow(new IllegalStateException("redis unavailable"))
-				.when(rankingService).increment(any(), any(), any());
+				.when(rankingService).apply(any(), any(), any(), any());
 
 		assertThatThrownBy(() -> processor.process(event))
 				.isInstanceOf(IllegalStateException.class);
 
 		assertThat(processedEventRepository.existsByEventId(event.eventId().toString())).isFalse();
+		assertThat(jdbc.queryForObject(
+				"select state from ranking_event_ledger where event_id = ?",
+				String.class, event.eventId().toString()))
+				.isEqualTo("RESERVED");
 	}
 
 	@Test

@@ -22,30 +22,28 @@ public class PopularMenuRankingService {
 
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 	private static final String KEY_PREFIX = "popular:menus:";
-	private static final String PROCESSED_KEY_PREFIX = "popular:menus:processed:";
-	private static final Duration PROCESSED_KEY_TTL = Duration.ofDays(9);
+	private static final String APPLIED_EVENT_KEY_PREFIX = "ranking:applied-event:";
+	private static final Duration APPLIED_EVENT_TTL = Duration.ofDays(30);
 
-	// eventId가 이미 반영됐는지 Redis에서 원자적으로 확인한 뒤에만 ZINCRBY한다.
-	// Kafka 재처리로 같은 eventId가 다시 들어와도(예: DB 커밋 실패 후 재시도) score가 중복 증가하지 않는다.
-	private static final DefaultRedisScript<Long> INCREMENT_ONCE_SCRIPT = new DefaultRedisScript<>(
-			"if redis.call('SISMEMBER', KEYS[2], ARGV[2]) == 1 then "
-					+ "return 0 "
-					+ "end "
-					+ "redis.call('SADD', KEYS[2], ARGV[2]) "
-					+ "redis.call('EXPIRE', KEYS[2], ARGV[3]) "
+	private static final DefaultRedisScript<Long> APPLY_FINGERPRINT_ONCE_SCRIPT = new DefaultRedisScript<>(
+			"local existing = redis.call('GET', KEYS[2]) "
+					+ "if existing then if existing == ARGV[2] then return 0 else return -1 end end "
 					+ "redis.call('ZINCRBY', KEYS[1], 1, ARGV[1]) "
+					+ "redis.call('SET', KEYS[2], ARGV[2], 'EX', ARGV[3]) "
 					+ "return 1",
 			Long.class);
 
 	private final StringRedisTemplate redisTemplate;
 
-	public void increment(String eventId, Long menuId, LocalDateTime orderedAt) {
+	public void apply(String eventId, String fingerprint, Long menuId, LocalDateTime orderedAt) {
 		PopularMenuRankingEntry entry = PopularMenuRankingEntry.from(menuId, orderedAt);
-		String processedKey = PROCESSED_KEY_PREFIX + orderedAt.toLocalDate().format(DATE_FORMATTER);
-		redisTemplate.execute(
-				INCREMENT_ONCE_SCRIPT,
-				List.of(entry.key(), processedKey),
-				entry.member(), eventId, Long.toString(PROCESSED_KEY_TTL.toSeconds()));
+		Long result = redisTemplate.execute(
+				APPLY_FINGERPRINT_ONCE_SCRIPT,
+				List.of(entry.key(), APPLIED_EVENT_KEY_PREFIX + eventId),
+				entry.member(), fingerprint, Long.toString(APPLIED_EVENT_TTL.toSeconds()));
+		if (Long.valueOf(-1L).equals(result)) {
+			throw new IllegalStateException("EVENT_ID_PAYLOAD_CONFLICT eventId=" + eventId);
+		}
 	}
 
 	public List<PopularMenuRanking> findRecentSevenDayRankings(LocalDate today) {

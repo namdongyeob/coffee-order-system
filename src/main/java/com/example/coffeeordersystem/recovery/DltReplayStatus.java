@@ -2,6 +2,5 @@
 package com.example.coffeeordersystem.recovery;
 
 public enum DltReplayStatus {
-	REPUBLISHED,
-	SKIPPED_ALREADY_PROCESSED
+	REPUBLISHED
 }

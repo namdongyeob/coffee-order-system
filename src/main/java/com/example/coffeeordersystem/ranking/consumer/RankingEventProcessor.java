@@ -19,16 +19,29 @@ public class RankingEventProcessor {
 
 	private final ProcessedEventRepository processedEventRepository;
 	private final PopularMenuRankingService rankingService;
+	private final RankingEventLedger rankingEventLedger;
 
 	@Transactional
 	public void process(OrderCompletedEvent event) {
+		process(event, RankingEventSource.NORMAL_CONSUMER);
+	}
+
+	@Transactional
+	public void process(OrderCompletedEvent event, RankingEventSource source) {
 		String eventId = event.eventId().toString();
-		if (processedEventRepository.existsByEventId(eventId)) {
-			return;
+		String fingerprint = RankingEventFingerprint.from(event);
+		RankingEventLedger.Reservation reservation = rankingEventLedger.reserve(eventId, fingerprint, source);
+		if (!reservation.committed()) {
+			rankingService.apply(eventId, fingerprint, event.menuId(), event.orderedAt());
+			if (!reservation.redisApplied()) {
+				rankingEventLedger.markRedisApplied(eventId);
+			}
+			rankingEventLedger.markCommitted(eventId);
 		}
 
-		processedEventRepository.saveAndFlush(new ProcessedEvent(
-				eventId, EVENT_TYPE, CONSUMER_GROUP, LocalDateTime.now()));
-		rankingService.increment(eventId, event.menuId(), event.orderedAt());
+		if (!processedEventRepository.existsByEventId(eventId)) {
+			processedEventRepository.saveAndFlush(new ProcessedEvent(
+					eventId, EVENT_TYPE, CONSUMER_GROUP, LocalDateTime.now()));
+		}
 	}
 }

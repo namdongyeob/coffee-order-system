@@ -57,7 +57,7 @@ docker compose -f docker/compose.yaml --profile tools down -v
 | 일시적 Redis 장애 | Redis 정상화 후 선택 메시지만 재발행합니다. |
 | Consumer 코드 버그 | 코드 수정과 배포 후 재발행합니다. |
 | 잘못된 payload | 원본 메시지를 그대로 재발행하지 않습니다. 보정 가능 여부를 먼저 판단합니다. |
-| 이미 처리된 이벤트 | `processed_event`를 확인하고 재발행하지 않습니다. |
+| 이미 처리된 이벤트 | 공통 `ranking_event_ledger`의 같은 fingerprint는 재발행 후 consumer에서 no-op이며, 다른 fingerprint는 fail-closed 합니다. |
 
 재처리는 운영자가 승인한 메시지만 대상으로 합니다. 자동 전체 재처리는 MVP 범위에서 제외합니다.
 
@@ -69,7 +69,7 @@ docker compose -f docker/compose.yaml --profile tools down -v
 .\scripts\replay_dlt_message.ps1 -Partition 0 -Offset 12 -ApprovedBy operator-a -Reason "Redis recovered"
 ```
 
-script는 `order.completed.DLT` record를 해당 offset에서 재조회하고 original topic이 `order.completed`이며 original partition·offset header가 있는지 확인합니다. 불일치면 fail-closed입니다. payload와 key만 보존하며 DLT original·exception·stacktrace header는 복사하지 않고, 기존 consumer의 JSON type header만 새로 추가합니다. `processed_event`에 같은 eventId가 있으면 `SKIPPED_ALREADY_PROCESSED`이며 재발행하지 않습니다. 사전 조회와 consumer 처리 사이의 경쟁은 consumer 멱등성이 최종 방어하므로 결과의 risk를 확인합니다.
+script는 `order.completed.DLT` record를 해당 offset에서 재조회하고 original topic이 `order.completed`이며 original partition·offset header가 있는지 확인합니다. 불일치면 fail-closed입니다. payload와 key만 보존하며 DLT original·exception·stacktrace header는 복사하지 않고 JSON type header와 내부 `DLT_REPLAY` source header를 추가합니다. 재발행 전 공통 `ranking_event_ledger`에 eventId와 fingerprint를 예약하며 결과는 `REPUBLISHED`입니다. 이미 `COMMITTED`인 같은 fingerprint는 consumer에서 no-op이고 다른 fingerprint는 fail-closed 하므로 `processed_event` 사전 조회에 의존하지 않습니다.
 
 ## Redis 랭킹 재구성 후보
 
