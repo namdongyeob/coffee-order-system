@@ -31,4 +31,4 @@ python scripts/harness_gate.py --links-only --base-ref origin/main
 .\scripts\replay_dlt_message.ps1 -Partition 0 -Offset 12 -ApprovedBy operator-a -Reason "Redis recovered"
 ```
 
-스크립트는 원본 topic·partition·offset header를 fail-closed로 확인하고, 같은 `eventId`가 `processed_event`에 있으면 `SKIPPED_ALREADY_PROCESSED`로 종료합니다. payload와 key는 보존하지만 DLT·예외·stacktrace header는 복사하지 않습니다. 기존 consumer 역직렬화를 위해 JSON type header만 새로 추가합니다.
+스크립트는 원본 topic·partition·offset header를 fail-closed로 확인하고 공통 `ranking_event_ledger`에 eventId와 fingerprint를 먼저 예약한 뒤 `REPUBLISHED`로 원본 topic에 발행합니다. payload와 key는 보존하지만 DLT·예외·stacktrace header는 복사하지 않으며, JSON type header와 내부 `DLT_REPLAY` source header를 추가합니다. 이미 `COMMITTED`인 같은 fingerprint는 consumer에서 no-op이고, 다른 fingerprint는 ledger가 fail-closed 합니다.

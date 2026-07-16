@@ -94,6 +94,35 @@ class RankingEventLedgerIntegrationTest {
 	}
 
 	@Test
+	void redisWrongTypeFailureLeavesNoMarkerAndRetryAppliesScoreOnce() {
+		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
+		String rankingKey = "popular:menus:2026-07-11";
+		String markerKey = "ranking:applied-event:" + event.eventId();
+		redis.opsForValue().set(rankingKey, "wrong-type");
+
+		assertThatThrownBy(() -> processor.process(event))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessageContaining("WRONGTYPE");
+		assertThat(jdbc.queryForObject(
+				"select state from ranking_event_ledger where event_id = ?",
+				String.class, event.eventId().toString()))
+				.isEqualTo("RESERVED");
+		assertThat(redis.opsForValue().get(markerKey)).isNull();
+		assertThat(processedEvents.existsByEventId(event.eventId().toString())).isFalse();
+
+		redis.delete(rankingKey);
+		processor.process(event);
+
+		assertThat(jdbc.queryForObject(
+				"select state from ranking_event_ledger where event_id = ?",
+				String.class, event.eventId().toString()))
+				.isEqualTo("COMMITTED");
+		assertThat(redis.opsForValue().get(markerKey)).isEqualTo(RankingEventFingerprint.from(event));
+		assertThat(redis.opsForZSet().score(rankingKey, "11")).isEqualTo(1.0);
+		assertThat(processedEvents.existsByEventId(event.eventId().toString())).isTrue();
+	}
+
+	@Test
 	void rebuildCommittedEventIsNormalConsumerNoOpAndKeepsOriginalLedgerSource() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
 		String runId = UUID.randomUUID().toString();

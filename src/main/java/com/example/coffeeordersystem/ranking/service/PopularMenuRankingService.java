@@ -28,8 +28,8 @@ public class PopularMenuRankingService {
 	private static final DefaultRedisScript<Long> APPLY_FINGERPRINT_ONCE_SCRIPT = new DefaultRedisScript<>(
 			"local existing = redis.call('GET', KEYS[2]) "
 					+ "if existing then if existing == ARGV[2] then return 0 else return -1 end end "
-					+ "redis.call('SET', KEYS[2], ARGV[2], 'EX', ARGV[3]) "
 					+ "redis.call('ZINCRBY', KEYS[1], 1, ARGV[1]) "
+					+ "redis.call('SET', KEYS[2], ARGV[2], 'EX', ARGV[3]) "
 					+ "return 1",
 			Long.class);
 
