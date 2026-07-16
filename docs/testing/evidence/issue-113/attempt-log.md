@@ -7,6 +7,8 @@ Current disposition: PASS
 Current Attempt: 3
 Current head: 8fffb1c
 
+Head reconciliation: `Current head` (`8fffb1c`) is the tested source head for Attempt 3. The docs reconciliation/PR snapshot head was `123286d`; this follow-up changes evidence text only and does not change production or test sources.
+
 ## Attempt 1
 
 ### Generate

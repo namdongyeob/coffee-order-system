@@ -3,6 +3,8 @@
 Attempt: 3
 Head: 8fffb1c
 
+Head reconciliation: `Head` (`8fffb1c`) is the tested source head for Attempt 3. The docs reconciliation/PR snapshot head was `123286d`; this follow-up changes evidence text only and does not change production or test sources.
+
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-07-16 | Issue #113 Testcontainers 수명·scheduler 종료 안정화 | Level 0 | PASS | test-only 변경 범위, `git diff --check`, cleanup 관찰 기록 | `commands.md`, `attempt-log.md` | origin/main 대비 `src/test/**` 23개만 변경했고 production·migration·runtime 설정은 변경하지 않았습니다. |
