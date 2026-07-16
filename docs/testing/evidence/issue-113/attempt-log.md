@@ -4,8 +4,8 @@ Issue: #113
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/113
 Branch: issue-113
 Current disposition: PASS
-Current Attempt: 2
-Current head: efd3c51
+Current Attempt: 3
+Current head: 8fffb1c
 
 ## Attempt 1
 
@@ -73,6 +73,41 @@ Current head: efd3c51
 - clean 실행 후 `docker ps`, Testcontainers label 조회, Java/Gradle process 조회 — 모두 0개.
 - build test report에서 `connection refused`, `connection-refused`, `failed to connect`, scheduler exception, `CannotCreateTransactionException`, `Communications link failure` — 0건.
 - `git diff --cached --check`와 production 변경 범위 확인 — PASS. 변경은 `src/test/**` 5개입니다.
+
+### Next Attempt
+
+없음. Dev 단계는 종료했으며 독립 Review·QA와 최신 CI는 GitHub 정본에서 후속 확인합니다.
+
+## Attempt 3
+
+### Generate
+
+- 독립 Review에서 확인된 stale Kafka record 재오염 경계를 test-only로 보완했습니다.
+- Kafka listener를 직접 검증하지 않는 통합 테스트 context에는 `ranking.consumer.enabled=false`를 명시해 공유 `ranking-consumer-group` listener가 메시지를 가로채지 않도록 했습니다.
+- listener를 검증하는 `RankingEventConsumerKafkaRedisIntegrationTest`와 `RankingEventConsumerDltIntegrationTest`에는 `@DirtiesContext(classMode = AFTER_CLASS)`를 추가해 테스트 클래스 종료 시 listener context를 폐기하도록 했습니다.
+- `RankingEventProcessorDatabaseIntegrationTest`에는 listener가 시작되지 않는다는 회귀 assertion을 추가했고, listener context 경계를 확인하는 `RankingListenerContextIsolationTest` 2건을 추가했습니다.
+- production 코드, #112, migration, runtime 설정, DLT replay production 코드는 변경하지 않았습니다.
+
+### Evaluate
+
+- PASS. S: ASCII subst worktree의 clean 묶음은 `BUILD SUCCESSFUL in 3m 8s`, XML 20개, tests=59, failures=0, errors=0, skipped=0이었습니다.
+- PASS. clean 묶음에는 Ranking Rebuild 10 tests, KafkaRedis 1 test, DLT 1 test, Processor DB 4 tests가 포함됐고 모두 통과했습니다.
+- PASS. 종료 로그에서 JPA/Hikari/Kafka producer가 정상 종료했고 stale Kafka·connection-refused·scheduler 오류가 재현되지 않았습니다.
+
+### Failure Cause
+
+- Attempt 2의 purge만으로는 다른 Spring TestContext의 listener가 살아 있는 동안 메시지를 가로챌 수 있었습니다. non-listener context의 자동 listener 시작과 listener context의 재사용 경계가 남은 원인이었습니다.
+
+### Change Scope
+
+- 허용 범위는 `src/test/**`의 Kafka listener context 격리와 테스트 회귀 assertion입니다. `src/main/**`, migration, runtime 설정, DLT replay와 정상 consumer production 코드는 수정하지 않았습니다.
+
+### Reverification
+
+- `Push-Location -LiteralPath 'S:\\'; & '.\\gradlew.bat' clean test --no-daemon --tests '*ControllerTest' --tests '*IntegrationTest' --tests '*LocalRuntimeConfigurationTest'; Pop-Location` — PASS, BUILD SUCCESSFUL in 3m 8s, XML 20개, 59/0/0/0.
+- JUnit XML 합계는 59 tests, failures=0, errors=0, skipped=0이며 Ranking Rebuild 10, KafkaRedis 1, DLT 1, Processor DB 4, context isolation 2를 포함합니다.
+- 종료 뒤 Java/Gradle process 0개, Testcontainers Ryuk 정리 뒤 `docker ps -a` 0개를 확인했습니다.
+- `git diff --check` PASS이며 `git diff --name-only -- src/main`은 비어 production 변경이 없습니다.
 
 ### Next Attempt
 
