@@ -22,7 +22,7 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.testcontainers.kafka.KafkaContainer;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "ranking.consumer.enabled=false")
 class OrderEventKafkaIntegrationTest {
 
 	@Autowired

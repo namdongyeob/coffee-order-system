@@ -1,0 +1,27 @@
+# Issue #113 Test Output (핵심 발췌)
+
+묶음 명령: `S:\gradlew.bat clean test --no-daemon --tests '*ControllerTest' --tests '*IntegrationTest' --tests '*LocalRuntimeConfigurationTest'`
+
+```text
+BUILD SUCCESSFUL in 2m 31s
+JUnit XML: 20 files
+tests=58 failures=0 errors=0 skipped=0
+```
+
+묶음 안의 `RankingRebuildServiceIntegrationTest`
+
+```text
+JUnit XML: 1 suite
+tests=10 failures=0 errors=0 skipped=0
+```
+
+focused 명령: `S:\gradlew.bat test --no-daemon --tests '*RankingEventConsumerKafkaRedisIntegrationTest*' --tests '*RankingEventConsumerDltIntegrationTest*'`
+
+```text
+BUILD SUCCESSFUL in 1m 35s
+JUnit XML: 2 files
+tests=2 failures=0 errors=0 skipped=0
+```
+
+clean 실행 후 Docker Testcontainers 및 Java/Gradle 프로세스는 0개였습니다.
+종료 오류 검색 대상(`connection refused`, `connection-refused`, `failed to connect`, scheduler exception, `CannotCreateTransactionException`, `Communications link failure`)은 0건입니다.

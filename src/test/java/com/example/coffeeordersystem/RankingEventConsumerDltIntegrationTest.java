@@ -19,6 +19,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,11 +30,13 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.kafka.KafkaContainer;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RankingEventConsumerDltIntegrationTest {
 
 	@Autowired
@@ -47,6 +50,16 @@ class RankingEventConsumerDltIntegrationTest {
 
 	@MockitoBean
 	RankingEventProcessor processor;
+
+	@BeforeEach
+	void clearKafkaTopicsBeforeEachTest() {
+		listenerEndpointRegistry.getListenerContainers().forEach(container -> container.stop());
+		SharedTestcontainers.clearKafkaTopics();
+		listenerEndpointRegistry.getListenerContainers().forEach(container -> {
+			container.start();
+			ContainerTestUtils.waitForAssignment(container, 1);
+		});
+	}
 
 	@Test
 	void retriesTwiceThenPublishesFailedRecordToDlt() throws Exception {
