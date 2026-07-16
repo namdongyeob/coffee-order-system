@@ -380,11 +380,20 @@ class RankingRebuildServiceIntegrationTest {
 				.hasMessageContaining("injected failure before DB swap mark");
 
 		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		String namespace = jdbc.queryForObject("select namespace from ranking_rebuild_run", String.class);
+		String markerKey = "ranking:rebuild:swap:" + runId;
+		String backupKey = "rebuild:backup:popular:menus:" + namespace + ":2026-07-12";
+		String existenceKey = "ranking:rebuild:original-exists:" + runId + ":2026-07-12";
 		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
 				.isEqualTo("PREPARED");
 		assertThat(jdbc.queryForObject(
 				"select count(*) from ranking_rebuild_run_event where run_id = ?", Long.class, runId)).isEqualTo(1L);
-		assertThat(redis.opsForValue().get("ranking:rebuild:swap:" + runId)).isEqualTo("SWAPPED");
+		assertThat(redis.opsForValue().get(markerKey)).isEqualTo("SWAPPED");
+		assertThat(redis.getExpire(markerKey)).isEqualTo(-1L);
+		assertThat(redis.opsForValue().get(existenceKey)).isEqualTo("1");
+		assertThat(redis.getExpire(existenceKey)).isEqualTo(-1L);
+		assertThat(redis.opsForZSet().score(backupKey, "77")).isEqualTo(7);
+		assertThat(redis.getExpire(backupKey)).isEqualTo(-1L);
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
 		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
 
@@ -396,7 +405,9 @@ class RankingRebuildServiceIntegrationTest {
 		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
 				.isEqualTo("COMPLETED");
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
-		assertThat(redis.opsForValue().get("ranking:rebuild:swap:" + runId)).isNull();
+		assertThat(redis.opsForValue().get(markerKey)).isNull();
+		assertThat(redis.hasKey(existenceKey)).isFalse();
+		assertThat(redis.hasKey(backupKey)).isFalse();
 	}
 
 	@Test
@@ -623,6 +634,11 @@ class RankingRebuildServiceIntegrationTest {
 					throws Exception {
 				throw new TimeoutException("injected before offset move");
 			}
+
+			@Override
+			void restoreAndVerify(AdminClient admin, OffsetSnapshot snapshot) {
+				// move 전에 실패했으므로 offset은 원래 absent 상태 그대로입니다.
+			}
 		};
 		RankingRebuildLedger cancelFailure = new RankingRebuildLedger(jdbc) {
 			@Override
@@ -636,10 +652,19 @@ class RankingRebuildServiceIntegrationTest {
 				.hasMessageContaining("복원했습니다");
 
 		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		String namespace = jdbc.queryForObject("select namespace from ranking_rebuild_run", String.class);
+		String markerKey = "ranking:rebuild:swap:" + runId;
+		String backupKey = "rebuild:backup:popular:menus:" + namespace + ":2026-07-12";
+		String existenceKey = "ranking:rebuild:original-exists:" + runId + ":2026-07-12";
 		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
 				.isEqualTo("RECOVERY_REQUIRED");
 		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event", Long.class)).isEqualTo(1L);
-		assertThat(redis.opsForValue().get("ranking:rebuild:swap:" + runId)).isNull();
+		assertThat(redis.opsForValue().get(markerKey)).isEqualTo("SWAPPED");
+		assertThat(redis.getExpire(markerKey)).isEqualTo(-1L);
+		assertThat(redis.opsForValue().get(existenceKey)).isEqualTo("1");
+		assertThat(redis.getExpire(existenceKey)).isEqualTo(-1L);
+		assertThat(redis.opsForZSet().score(backupKey, "77")).isEqualTo(7);
+		assertThat(redis.getExpire(backupKey)).isEqualTo(-1L);
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
 		assertThat(normalOffsets()).isEqualTo(before);
 		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
@@ -694,6 +719,149 @@ class RankingRebuildServiceIntegrationTest {
 		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isZero();
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
 		assertThat(redis.keys("ranking:rebuild:swap:*")).isEmpty();
+	}
+
+	@Test
+	@Order(22)
+	void missingMarkerOnPreparedRunSealsRecoveryWithoutCancellingThePlan() throws Exception {
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(1L, orderedAt);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		RankingRebuildLedger interruptedLedger = new RankingRebuildLedger(jdbc) {
+			@Override
+			void markSwapped(UUID runId) {
+				throw new RankingRebuildException("injected failure before DB swap mark");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, offsetManager, interruptedLedger).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("injected failure");
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		String markerKey = "ranking:rebuild:swap:" + runId;
+		redis.delete(markerKey);
+		redis.delete(RankingRebuildLock.KEY);
+		Double rebuiltScore = redis.opsForZSet().score("popular:menus:2026-07-12", "1");
+
+		assertThatThrownBy(service::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("recovery artifact");
+
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event where run_id = ?", Long.class, runId))
+				.isEqualTo(1L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(rebuiltScore);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isNull();
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+	}
+
+	@Test
+	@Order(23)
+	void missingBackupOnSwappedRunPreservesLiveOffsetsAndRecoveryPlan() throws Exception {
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(1L, orderedAt);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
+
+		assertThatThrownBy(() -> service(rebuildLock, crashBeforeOffsetMove()).rebuild())
+				.isInstanceOf(AssertionError.class)
+				.hasMessageContaining("before offset move");
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		String namespace = jdbc.queryForObject("select namespace from ranking_rebuild_run", String.class);
+		String backupKey = "rebuild:backup:popular:menus:" + namespace + ":2026-07-12";
+		String existenceKey = "ranking:rebuild:original-exists:" + runId + ":2026-07-12";
+		assertThat(redis.opsForValue().get(existenceKey)).isEqualTo("1");
+		redis.delete(backupKey);
+		redis.delete(RankingRebuildLock.KEY);
+		Double rebuiltScore = redis.opsForZSet().score("popular:menus:2026-07-12", "1");
+
+		assertThatThrownBy(service::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("recovery artifact");
+
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event where run_id = ?", Long.class, runId))
+				.isEqualTo(1L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(rebuiltScore);
+		assertThat(normalOffsets()).isEqualTo(before);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+	}
+
+	@Test
+	@Order(24)
+	void missingOriginalExistenceMetadataPreservesAnOriginallyAbsentLiveKey() throws Exception {
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(1L, orderedAt);
+		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
+
+		assertThatThrownBy(() -> service(rebuildLock, crashBeforeOffsetMove()).rebuild())
+				.isInstanceOf(AssertionError.class)
+				.hasMessageContaining("before offset move");
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		String existenceKey = "ranking:rebuild:original-exists:" + runId + ":2026-07-12";
+		assertThat(redis.opsForValue().get(existenceKey)).isEqualTo("0");
+		redis.delete(existenceKey);
+		redis.delete(RankingRebuildLock.KEY);
+		Double rebuiltScore = redis.opsForZSet().score("popular:menus:2026-07-12", "1");
+
+		assertThatThrownBy(service::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("recovery artifact");
+
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event where run_id = ?", Long.class, runId))
+				.isEqualTo(1L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(rebuiltScore);
+		assertThat(normalOffsets()).isEqualTo(before);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+	}
+
+	@Test
+	@Order(25)
+	void completeRecoveryCompensationReleasesLockCleansArtifactsAndAllowsFreshRebuild() throws Exception {
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(1L, orderedAt);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+
+		assertThatThrownBy(() -> service(rebuildLock, crashBeforeOffsetMove()).rebuild())
+				.isInstanceOf(AssertionError.class)
+				.hasMessageContaining("before offset move");
+		redis.delete(RankingRebuildLock.KEY);
+		RankingRebuildOffsetManager retryableMoveFailure = new RankingRebuildOffsetManager() {
+			@Override
+			void move(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> target)
+					throws Exception {
+				throw new TimeoutException("injected retryable move failure");
+			}
+
+			@Override
+			void restoreAndVerify(AdminClient admin, OffsetSnapshot snapshot) {
+				// move 전에 실패했으므로 offset은 원래 absent 상태 그대로입니다.
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, retryableMoveFailure).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("복원했습니다");
+
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isZero();
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+		assertThat(redis.keys("ranking:rebuild:swap:*")).isEmpty();
+		assertThat(redis.keys("ranking:rebuild:original-exists:*")).isEmpty();
+		assertThat(redis.keys("rebuild:backup:popular:menus:*")).isEmpty();
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNull();
+
+		RankingRebuildResult fresh = service.rebuild();
+		assertThat(fresh.inputRecordCount()).isEqualTo(1);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'COMPLETED'", Long.class)).isEqualTo(1L);
 	}
 
 	private RankingRebuildService service(RankingRebuildLock lock, RankingRebuildOffsetManager manager) {
@@ -774,6 +942,15 @@ class RankingRebuildServiceIntegrationTest {
 					return false;
 				}
 				return super.renew(token);
+			}
+		};
+	}
+
+	private RankingRebuildOffsetManager crashBeforeOffsetMove() {
+		return new RankingRebuildOffsetManager() {
+			@Override
+			void move(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> target) {
+				throw new AssertionError("injected process crash before offset move");
 			}
 		};
 	}

@@ -60,7 +60,7 @@ public class RankingRebuildService {
 	private static final String TEMP_PREFIX = "rebuild:popular:menus:";
 	private static final String LIVE_PREFIX = "popular:menus:";
 	private static final String SWAP_MARKER_PREFIX = "ranking:rebuild:swap:";
-	private static final long SWAP_MARKER_TTL_SECONDS = Duration.ofDays(31).toSeconds();
+	private static final String ORIGINAL_EXISTS_PREFIX = "ranking:rebuild:original-exists:";
 
 	private final StringRedisTemplate redis;
 	private final JdbcTemplate jdbc;
@@ -127,6 +127,9 @@ public class RankingRebuildService {
 				if (recoverIncomplete(admin, token)) {
 					return new RankingRebuildResult(Map.of(), Map.of(), 0, 0, 0);
 				}
+			} catch (RunExecutionException recoveryFailure) {
+				keepLock = recoveryFailure.retainLock();
+				throw recoveryFailure;
 			} catch (RuntimeException recoveryFailure) {
 				keepLock = true;
 				throw recoveryFailure;
@@ -191,12 +194,7 @@ public class RankingRebuildService {
 			throw new RankingRebuildException("RECOVERY_REQUIRED rebuild run은 운영자 확인 전 자동 진행할 수 없습니다");
 		}
 		if (RankingRebuildLedger.PREPARED.equals(run.state())) {
-			if (!hasSwapMarker(run.runId())) {
-				String preparedNamespace = run.namespace();
-				delete(run.dates().stream().map(date -> tempKey(preparedNamespace, date)).toList());
-				ledger.cancel(run.runId());
-				return false;
-			}
+			requireRecoveryArtifacts(run);
 			ledger.markSwapped(run.runId());
 			run = ledger.findIncomplete().orElseThrow(
 					() -> new RankingRebuildException("swap marker가 있는 rebuild run을 다시 조회하지 못했습니다"));
@@ -206,6 +204,10 @@ public class RankingRebuildService {
 	}
 
 	private void completeSwappedRun(AdminClient admin, RankingRebuildLedger.RunPlan run, String token) {
+		if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())
+				|| RankingRebuildLedger.OFFSET_APPLIED_PENDING_LEDGER.equals(run.state())) {
+			requireRecoveryArtifacts(run);
+		}
 		if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())) {
 			requireLease(token);
 			try {
@@ -225,6 +227,13 @@ public class RankingRebuildService {
 						}
 						throw new RunExecutionException(compensation.exception().getMessage(),
 								compensation.exception(), true);
+					}
+					try {
+						cleanupRecoveryArtifacts(run);
+					} catch (RuntimeException cleanupFailure) {
+						compensation.exception().addSuppressed(cleanupFailure);
+						throw new RunExecutionException("보상된 rebuild recovery artifact를 정리하지 못했습니다",
+								compensation.exception(), false);
 					}
 					throw new RunExecutionException(compensation.exception().getMessage(),
 							compensation.exception(), false);
@@ -269,8 +278,36 @@ public class RankingRebuildService {
 					"rebuild ledger backfill을 완료하지 못했습니다: " + ledgerFailure.getMessage(),
 					ledgerFailure, true);
 		}
-		deleteBackupsAfterSuccess(run.namespace(), run.dates());
-		clearSwapMarker(run.runId());
+		try {
+			cleanupRecoveryArtifacts(run);
+		} catch (RuntimeException cleanupFailure) {
+			throw new RunExecutionException("완료된 rebuild recovery artifact를 정리하지 못했습니다",
+					cleanupFailure, false);
+		}
+	}
+
+	private void requireRecoveryArtifacts(RankingRebuildLedger.RunPlan run) {
+		try {
+			if (recoveryArtifactsIntact(run)) {
+				return;
+			}
+			sealRecoveryRequired(run, null);
+		} catch (RunExecutionException exception) {
+			throw exception;
+		} catch (RuntimeException validationFailure) {
+			sealRecoveryRequired(run, validationFailure);
+		}
+	}
+
+	private void sealRecoveryRequired(RankingRebuildLedger.RunPlan run, RuntimeException cause) {
+		RankingRebuildException failure = new RankingRebuildException(
+				"rebuild recovery artifact를 완전하게 확인할 수 없어 RECOVERY_REQUIRED로 봉인했습니다", cause);
+		try {
+			ledger.markRecoveryRequired(run.runId());
+		} catch (RuntimeException stateFailure) {
+			failure.addSuppressed(stateFailure);
+		}
+		throw new RunExecutionException(failure.getMessage(), failure, true);
 	}
 
 	private void requireLease(String token) {
@@ -420,37 +457,70 @@ public class RankingRebuildService {
 			keys.add(tempKey(namespace, date));
 			keys.add(LIVE_PREFIX + date);
 			keys.add(backupKey(namespace, date));
+			keys.add(originalExistsKey(runId, date));
 		});
-		String script = "for i=2,#KEYS,3 do redis.call('DEL',KEYS[i+2]); "
-				+ "if redis.call('EXISTS',KEYS[i+1])==1 then redis.call('RENAME',KEYS[i+1],KEYS[i+2]); redis.call('EXPIRE',KEYS[i+2],ARGV[1]) end; "
+		String script = "for i=2,#KEYS,4 do "
+				+ "redis.call('DEL',KEYS[i+2]); redis.call('DEL',KEYS[i+3]); "
+				+ "local originalExists=redis.call('EXISTS',KEYS[i+1]); "
+				+ "redis.call('SET',KEYS[i+3],tostring(originalExists)); "
+				+ "if originalExists==1 then redis.call('RENAME',KEYS[i+1],KEYS[i+2]); redis.call('PERSIST',KEYS[i+2]) end; "
 				+ "if redis.call('EXISTS',KEYS[i])==1 then redis.call('RENAME',KEYS[i],KEYS[i+1]) end end; "
-				+ "redis.call('SET',KEYS[1],'SWAPPED','EX',ARGV[1]); return 1";
-		redis.execute(new DefaultRedisScript<>(script, Long.class), keys, Long.toString(SWAP_MARKER_TTL_SECONDS));
-	}
-
-	private void rollbackSwap(String namespace, Set<String> dates, UUID runId) {
-		List<String> keys = new ArrayList<>();
-		keys.add(swapMarkerKey(runId));
-		dates.stream().sorted().forEach(date -> {
-			keys.add(LIVE_PREFIX + date);
-			keys.add(backupKey(namespace, date));
-		});
-		String script = "for i=2,#KEYS,2 do redis.call('DEL',KEYS[i]); "
-				+ "if redis.call('EXISTS',KEYS[i+1])==1 then redis.call('RENAME',KEYS[i+1],KEYS[i]) end end; "
-				+ "redis.call('DEL',KEYS[1]); return 1";
+				+ "redis.call('SET',KEYS[1],'SWAPPED'); return 1";
 		redis.execute(new DefaultRedisScript<>(script, Long.class), keys);
 	}
 
-	private boolean hasSwapMarker(UUID runId) {
-		return "SWAPPED".equals(redis.opsForValue().get(swapMarkerKey(runId)));
+	private void rollbackSwap(String namespace, Set<String> dates, UUID runId) {
+		List<String> keys = recoveryArtifactKeys(namespace, dates, runId, true);
+		String script = recoveryArtifactValidationScript()
+				+ "for i=2,#KEYS,3 do redis.call('DEL',KEYS[i]); "
+				+ "if redis.call('GET',KEYS[i+2])=='1' then redis.call('COPY',KEYS[i+1],KEYS[i],'REPLACE') end end; "
+				+ "return 1";
+		Long restored = redis.execute(new DefaultRedisScript<>(script, Long.class), keys);
+		if (!Long.valueOf(1L).equals(restored)) {
+			throw new RankingRebuildException("rebuild recovery artifact 소실로 live Redis를 복원하지 않았습니다");
+		}
 	}
 
-	private void clearSwapMarker(UUID runId) {
-		redis.delete(swapMarkerKey(runId));
+	private boolean recoveryArtifactsIntact(RankingRebuildLedger.RunPlan run) {
+		List<String> keys = recoveryArtifactKeys(run.namespace(), run.dates(), run.runId(), true);
+		Long valid = redis.execute(new DefaultRedisScript<>(recoveryArtifactValidationScript() + "return 1", Long.class),
+				keys);
+		return Long.valueOf(1L).equals(valid);
+	}
+
+	private String recoveryArtifactValidationScript() {
+		return "if redis.call('GET',KEYS[1])~='SWAPPED' then return 0 end; "
+				+ "for i=2,#KEYS,3 do local originalExists=redis.call('GET',KEYS[i+2]); "
+				+ "if originalExists~='0' and originalExists~='1' then return 0 end; "
+				+ "local backupExists=redis.call('EXISTS',KEYS[i+1]); "
+				+ "if originalExists=='1' and backupExists~=1 then return 0 end; "
+				+ "if originalExists=='0' and backupExists~=0 then return 0 end end; ";
+	}
+
+	private List<String> recoveryArtifactKeys(
+			String namespace, Set<String> dates, UUID runId, boolean includeLiveKeys) {
+		List<String> keys = new ArrayList<>();
+		keys.add(swapMarkerKey(runId));
+		dates.stream().sorted().forEach(date -> {
+			if (includeLiveKeys) {
+				keys.add(LIVE_PREFIX + date);
+			}
+			keys.add(backupKey(namespace, date));
+			keys.add(originalExistsKey(runId, date));
+		});
+		return keys;
+	}
+
+	private void cleanupRecoveryArtifacts(RankingRebuildLedger.RunPlan run) {
+		delete(recoveryArtifactKeys(run.namespace(), run.dates(), run.runId(), false));
 	}
 
 	private String swapMarkerKey(UUID runId) {
 		return SWAP_MARKER_PREFIX + runId;
+	}
+
+	private String originalExistsKey(UUID runId, String date) {
+		return ORIGINAL_EXISTS_PREFIX + runId + ":" + date;
 	}
 
 	static Set<String> datesIntersecting(LocalDateTime lower, LocalDateTime upper) {
@@ -472,18 +542,6 @@ public class RankingRebuildService {
 
 	private String backupKey(String namespace, String date) {
 		return "rebuild:backup:popular:menus:" + namespace + ":" + date;
-	}
-
-	private List<String> backupKeys(String namespace, Set<String> dates) {
-		return dates.stream().map(date -> backupKey(namespace, date)).toList();
-	}
-
-	private void deleteBackupsAfterSuccess(String namespace, Set<String> dates) {
-		try {
-			delete(backupKeys(namespace, dates));
-		} catch (RuntimeException ignored) {
-			// 성공한 swap과 offset 이동을 되돌리지 않으며 TTL이 backup을 정리합니다.
-		}
 	}
 
 	private void delete(List<String> keys) {
