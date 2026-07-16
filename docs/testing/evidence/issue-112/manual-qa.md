@@ -49,6 +49,18 @@ Date: 2026-07-16
 - Rebuild ApplicationRunner는 기능 완료 후에도 non-web process로 대기하므로 완료 로그와 DB·Redis evidence 뒤 해당 runner PID만 수동 종료했습니다. Ctrl+C 때문에 Gradle wrapper exit 1이 기록됐지만 완료 전 기능 예외나 rollback은 없었습니다.
 - 최종 `docker compose down` 뒤 project container와 network가 제거됐고 `docker ps` 잔여 container는 0개였습니다.
 
+## Attempt 6 durable artifact와 fail-closed
+
+- 최신 코드로 MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2를 healthy 기동하고 Flyway V1~V6 적용을 확인했습니다.
+- user 8112 charge 10000, orderId 1 PAID를 생성했고 outbox 발행 뒤 normal group current/end/lag `1/1/0`, Redis `popular:menus:2026-07-16` menu 1 score `1`을 확인했습니다.
+- 최초 runner는 `inputRecords=1 uniqueEvents=1 conflicts=0`으로 완료됐고 run `6734ead5-a500-4aca-bbfb-bc25ec69cb21`은 COMPLETED, ledger 1 COMMITTED/REBUILD, marker·존재 메타·backup 0으로 정리됐습니다.
+- 같은 run을 PREPARED와 intact marker/backup/날짜별 존재 메타로 조성했습니다. marker, menu 1 backup, 존재 메타의 TTL은 모두 `-1`이었습니다.
+- recovery runner는 `inputRecords=0 uniqueEvents=0 conflicts=0`으로 같은 run을 완료했습니다. run/events `1/1`, current/end/lag `1/1/0`, score `1`을 유지하고 marker·meta·backup·lock을 모두 0으로 정리했습니다.
+- 다시 같은 run을 SWAPPED_PENDING_OFFSET와 intact artifact로 조성한 뒤 원래 live가 존재했다고 기록한 날짜의 backup 1개만 삭제했습니다.
+- runner는 `rebuild recovery artifact를 완전하게 확인할 수 없어 RECOVERY_REQUIRED로 봉인했습니다`로 실패했습니다. run/events `1/1`, ledger 1 COMMITTED/REBUILD, score `1`, current/end/lag `1/1/0`은 바뀌지 않았습니다.
+- fail-closed 뒤 lock 1, marker `SWAPPED` TTL `-1`, 존재 메타 `1` TTL `-1`을 유지했고 삭제한 backup은 0이었습니다.
+- 최종 `docker compose down`으로 세 container와 network를 제거했고 `docker compose ps -a`가 비어 있음을 확인했습니다.
+
 ## 후속 판정
 
-- 독립 Review, 독립 QA, 최신 GitHub Actions CI는 아직 Dev evidence에 포함하지 않으며 Draft PR의 GitHub 정본에서 확인합니다.
+- 독립 re-review, 독립 QA, 최신 GitHub Actions CI는 아직 Dev evidence에 포함하지 않으며 Ready PR의 GitHub 정본에서 확인합니다.

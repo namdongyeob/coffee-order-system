@@ -4,8 +4,8 @@ Issue: #112
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
 Branch: issue-112-attempt2
 Current disposition: PASS
-Current Attempt: 5
-Current head: c06c28c
+Current Attempt: 6
+Current head: 3e25f27
 
 ## Attempt 1
 
@@ -97,7 +97,7 @@ swap 전 충돌 차단과 pending 재시도에서 새 run·swap이 생기지 않
 ### Change Scope
 
 - backfill은 run-event에 prepare 시 저장한 `payload_fingerprint`를 그대로 ledger에 기록하도록 변경했습니다.
-- Rebuild 전용 production과 관련 테스트만 수정했으며 DLT replay, 정상 consumer production, Redis marker는 변경하지 않았습니다.
+- Rebuild 전용 production과 관련 테스트만 수정했으며 DLT replay, 정상 consumer production, 공통 applied-event marker는 변경하지 않았습니다.
 
 ### Reverification
 
@@ -188,3 +188,41 @@ swap 전 충돌 차단과 pending 재시도에서 새 run·swap이 생기지 않
 ### Next Attempt
 
 없음. 재검토·독립 QA와 최신 CI는 갱신된 Draft PR의 GitHub 정본에서 후속 확인합니다.
+
+## Attempt 6
+
+### Generate
+
+- 독립 Review P1에 따라 31일 TTL을 제거하고 run별 swap marker, backup, 날짜별 원래 live 존재 메타를 완료 또는 정상 cancel까지 무기한 보존했습니다.
+- rollback Lua를 전체 recovery artifact 검증 단계와 live mutation 단계로 분리하고, 원래 live가 있던 날짜만 Redis `COPY`로 복원해 cancel 전 backup을 유지했습니다.
+- PREPARED marker 소실과 SWAPPED backup·존재 메타 소실을 자동 진행하지 않고 `RECOVERY_REQUIRED`로 봉인했습니다.
+- recovery wrapper가 `RunExecutionException.retainLock()`을 반영해 완전 보상·run cancel 뒤 lock을 해제하도록 수정했습니다.
+
+### Evaluate
+
+- RED. durable artifact/cleanup, PREPARED marker 소실, SWAPPED backup·존재 메타 소실, recovery lock 해제 focused 5 tests가 모두 실패했습니다.
+- GREEN. 같은 focused 5 tests가 PASS했습니다.
+- PASS. Rebuild 전체 31/31, 관련 clean 54/54, 전체 clean 110/110이 failures=0, errors=0, skipped=0으로 통과했습니다.
+- PASS. 최신 코드 Level 5에서 intact PREPARED same-run recovery/cleanup과 backup 소실 fail-closed를 실제 Compose로 확인했습니다.
+
+### Failure Cause
+
+- marker와 backup의 31일 TTL이 무기한 DB pending보다 짧고, 원래 live가 없던 경우와 backup 소실을 구분하는 durable 메타가 없었습니다.
+- rollback Lua가 날짜별 live를 먼저 삭제해 뒤 날짜의 artifact 소실을 발견하면 부분 mutation이 가능했습니다.
+- recovery wrapper가 보상 결과와 무관하게 모든 runtime failure의 lock을 유지했습니다.
+
+### Change Scope
+
+- Rebuild 전용 service와 Rebuild Testcontainers 통합 테스트만 수정했습니다.
+- `DltReplayService`, 정상 ranking consumer production 코드, 공통 applied-event marker는 수정하지 않았습니다.
+
+### Reverification
+
+- focused 5/5, Rebuild 31/31, 관련 clean 54/54, 전체 clean 110/110이 PASS했습니다.
+- Level 5 intact recovery는 run/events 1/1, COMPLETED, input 0, current/end/lag 1/1/0, score 1, marker/meta/backup/lock 0이었습니다.
+- Level 5 backup 소실은 run/events 1/1, RECOVERY_REQUIRED, ledger 1 COMMITTED/REBUILD, score 1, current/end/lag 1/1/0을 유지하고 lock 1·marker/meta TTL -1을 보존했습니다.
+- `git diff --check`, 1MB 초과 파일과 forbidden production scope 검사를 통과했고 Compose container/network를 제거했습니다.
+
+### Next Attempt
+
+없음. 독립 re-review·QA와 최신 CI는 Ready PR의 GitHub 정본에서 후속 확인합니다.

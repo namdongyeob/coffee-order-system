@@ -2,7 +2,7 @@
 
 Issue: #112
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
-Execution head: c06c28c
+Execution head: 3e25f27
 
 | 구분 | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
@@ -16,14 +16,18 @@ Execution head: c06c28c
 | Review crash GREEN | 같은 5 focused tests | PASS, swap marker/same-run offset/cascade or uncertain/heartbeat 상태 확인 |
 | Retry-boundary RED | 부분 backfill+offset verify, cancel 실패 봉인, prepare batch lease, swap 직전 lease focused 4 tests | RED, 4/4 예상 실패 |
 | Retry-boundary GREEN | 같은 focused 4 tests와 기존 backfill heartbeat focused test | PASS, 4/4 및 1/1 |
-| Rebuild bundle | `Push-Location U:\; .\gradlew.bat test --no-daemon --max-workers=1 --tests '*RankingRebuild*' --console=plain` | PASS, 27/27, BUILD SUCCESSFUL in 2m 7s |
-| 관련 clean bundle | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --console=plain` | PASS, 50/50, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 6s |
-| 전체 | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 106/106, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 33s |
+| Artifact/lock RED | durable cleanup, PREPARED marker 소실, SWAPPED backup·존재 메타 소실, recovery lock 해제 focused 5 tests | RED, 5/5 예상 실패 |
+| Artifact/lock GREEN | 같은 focused 5 tests | PASS, 5/5, BUILD SUCCESSFUL in 1m 6s |
+| Rebuild bundle | `Push-Location U:\; .\gradlew.bat test --no-daemon --max-workers=1 --tests '*RankingRebuild*' --console=plain` | PASS, 31/31, BUILD SUCCESSFUL in 1m 34s |
+| 관련 clean bundle | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --console=plain` | PASS, 54/54, failures/errors/skipped 0, BUILD SUCCESSFUL in 2m 10s |
+| 전체 | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 110/110, failures/errors/skipped 0, BUILD SUCCESSFUL in 2m 23s |
 | Compose | `docker compose -f docker\compose.yaml up -d --wait` | MySQL·Redis·Kafka healthy |
 | 최초 rebuild | maintenance runner 실행 뒤 MySQL ledger/run과 Redis score 조회 | ledger 1, COMMITTED/REBUILD, completed run 1, score 1, lock 0, temp key 0 |
 | 동일 재실행 | 동일 Kafka event로 runner 재실행 뒤 같은 조회 | ledger 1, distinct fingerprint 1, completed run 2, score 1, lock 0 |
 | Level 5 최초 | Compose healthy, normal API 주문 1건 뒤 maintenance runner | input/unique/conflict 1/1/0, run/ledger/offset plan 각 1, current=end=1, lag 0, score 1 |
 | Level 5 swap-mark crash | 완료 run을 PREPARED+swap marker로 조성, ledger 삭제, normal offset 0(lag 1) 뒤 runner | input/unique/conflict 0/0/0, run 총수 1·같은 runId, offset 1/lag 0, ledger COMMITTED, marker·lock 0 |
+| Level 5 durable recovery | 최신 코드 완료 run을 intact PREPARED+무기한 marker/backup/존재 메타로 조성 뒤 runner | input/unique/conflict 0/0/0, 같은 run COMPLETED, run/events 1/1, current/end/lag 1/1/0, score 1, marker/meta/backup/lock 0 |
+| Level 5 artifact loss | 같은 run을 SWAPPED_PENDING_OFFSET로 조성한 뒤 원래-live backup 1개 삭제 후 runner | 예상 fail-closed, RECOVERY_REQUIRED, run/events 1/1, ledger 1, score 1, current/end/lag 1/1/0, lock 1, marker/meta TTL -1 |
 | Kafka group | AdminClient로 정상 consumer group member와 current/end/lag 확인 | active member 없음, current=end=1, lag 0 |
 | diff | `git diff --cached --check` | PASS, LF/CRLF 안내 외 오류 없음 |
 | 범위 | staged path와 `DltReplayService`·consumer production·Redis production pattern 비교 | 대상 변경 0개 |
