@@ -1,0 +1,28 @@
+# Issue Metrics
+
+Issue: #112
+Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
+Branch: issue-112-attempt2
+Measured at: 2026-07-16
+
+| 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| STRICT | 1 | 미측정 | 2 | 1 | 0 | 0 | 0 | 11 |
+
+## 측정 근거
+
+- Generate 시작 시각을 별도 기록하지 않아 작업 시간은 추정하지 않고 `미측정`으로 기록합니다. 개별 Gradle 소요 시간과 Level 5 관찰은 `commands.md`와 `manual-qa.md`에 남겼습니다.
+- 현재 고유 역할은 Dev 1명입니다. 독립 Review·QA·Docs는 아직 실행 전이며 Main Coordinator와 CI는 Agent 수에서 제외합니다.
+- Attempt 2는 conflict prevalidation과 pending recovery short-circuit 보완, Attempt 3은 실제 Compose에서 발견한 DB 시간 정밀도 false conflict 보완으로 재시도 2회입니다.
+- 정체 1회는 test-only SharedTestcontainers class monitor 교착으로, thread dump 후 최소 범위 수정으로 해소했습니다.
+- Review·QA가 아직 실행 전이므로 결함 수는 0이며 pending 상태는 GitHub PR에서 후속 확인합니다.
+- 범위 밖 변경 파일은 0개입니다. production 변경은 Rebuild 전용 package와 V6 migration이며 test-only SharedTestcontainers 수정 1개가 포함됩니다.
+- 핵심 문서 11개는 repository AGENTS, Issue Loop Skill, Context Router, 구현 가드레일, Evidence Guide, Orchestration Policy, Issue 개발 흐름, 테스트 전략, ADR-008과 관련 Kafka·복구 문서입니다.
+
+## Evidence links
+
+- Commands: `commands.md`
+- Attempts: `attempt-log.md`
+- Runtime and cleanup: `manual-qa.md`
+- Verification: `verification.md`
+- Review/QA/CI: GitHub PR comments와 checks를 정본으로 확인
