@@ -24,15 +24,24 @@ Date: 2026-07-16
 - 같은 Kafka 이벤트로 Rebuild runner를 다시 실행했습니다.
 - 완료 로그는 다시 `inputRecords=1 uniqueEvents=1 conflicts=0`이었습니다.
 - ledger는 여전히 한 행, distinct fingerprint 한 종류, state/source는 `COMMITTED`/`REBUILD`였습니다.
-- completed run은 2, run-event는 2가 됐지만 live Redis score는 1이어서 양방향 중복 집계가 없었습니다.
+- completed run은 2, run-event는 2가 됐지만 live Redis score는 1이어서 동일 Rebuild 재실행의 중복 집계가 없었습니다.
 - rebuild lock 0, normal group active member 없음, current=end=1, lag 0이었습니다.
 
-## Pending 복구
+## Attempt 3 Pending 복구
 
 - 최신 run `344f1b8e-a813-4df9-833a-c276ceb88690`을 `SWAPPED_PENDING_LEDGER`로 변경하고 completed_at과 해당 ledger 행을 비운 상태를 조성했습니다.
 - 다음 runner 완료 로그는 `inputRecords=0 uniqueEvents=0 conflicts=0`이어서 replay와 새 swap 없이 backfill-only로 복구됐습니다.
 - ledger의 rebuild_run_id는 조성한 pending run id와 같았고 state/source는 `COMMITTED`/`REBUILD`였습니다.
 - run 총수는 2로 유지됐고 둘 다 COMPLETED, run-event 2, Redis score 1, lock 0, 임시 key 0이었습니다.
+
+## Attempt 4 실제 swap-mark·offset 복구
+
+- 새 Compose 환경에서 MySQL·Kafka·Redis healthy와 Flyway V1~V6 적용을 확인했습니다.
+- 사용자 7112 charge 200, order 201로 주문 1을 생성했고 outbox event `7f3d2d62-ef36-4af0-a3d5-94be4e80b1fe`, normal Redis score 1, current=end=1을 확인했습니다.
+- 최초 maintenance runner는 `inputRecords=1 uniqueEvents=1 conflicts=0`으로 완료됐습니다. run `d14fa4e0-e816-449a-bc74-ab6278a9904f`는 COMPLETED, ledger COMMITTED/REBUILD, durable captured end 1, score 1, marker·lock 0, lag 0이었습니다.
+- 같은 run을 `PREPARED`, event 1, ledger 0으로 조성하고 Redis swap marker를 `SWAPPED`로 기록한 뒤 normal offset을 0으로 낮춰 lag 1을 만들었습니다.
+- recovery runner는 `inputRecords=0 uniqueEvents=0 conflicts=0`으로 끝났습니다. 새 replay·swap 없이 run 총수 1과 같은 runId를 유지했고 offset 1·lag 0, ledger COMMITTED/REBUILD, score 1, marker·lock 0으로 복구했습니다.
+- heartbeat failure injection은 실제 Compose에 넣지 않았고, 짧은 5초 test lease와 101 events를 사용한 Testcontainers 통합 테스트에서 50행 batch 사이 renew 실패·pending 보존으로 검증했습니다.
 
 ## 관찰 구분과 cleanup
 

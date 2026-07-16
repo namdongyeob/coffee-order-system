@@ -4,8 +4,8 @@ Issue: #112
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
 Branch: issue-112-attempt2
 Current disposition: PASS
-Current Attempt: 3
-Current head: f33b054
+Current Attempt: 4
+Current head: b3753c8
 
 ## Attempt 1
 
@@ -109,3 +109,47 @@ swap 전 충돌 차단과 pending 재시도에서 새 run·swap이 생기지 않
 ### Next Attempt
 
 없음. Dev 단계는 종료했으며 독립 Review·QA와 최신 CI는 GitHub 정본에서 후속 확인합니다.
+
+## Attempt 4
+
+### Generate
+
+- 독립 Review의 P1 네 건에 대해 swap/DB mark, captured offset recovery, 보상 결과, lease heartbeat 상태 경계를 TDD로 보완했습니다.
+- Redis Lua가 live/backup 교체와 `ranking:rebuild:swap:{runId}` marker를 원자 기록하고 marker·backup을 31일 보존하도록 변경했습니다.
+- run에 namespace·날짜 window와 partition별 captured end·이전 offset을 저장하고 `SWAPPED_PENDING_OFFSET`, `OFFSET_APPLIED_PENDING_LEDGER`, `RECOVERY_REQUIRED` 상태를 추가했습니다.
+- 완전 보상은 FK cascade 단일 run 삭제, 불완전 보상은 events·offset plan·lock 보존으로 분리했습니다.
+- ledger backfill은 50행 batch마다 lease heartbeat를 실행합니다.
+
+### Evaluate
+
+- RED. swap 직후 DB mark 실패 테스트는 Redis run marker가 없어 실패했습니다.
+- RED. schema 테스트는 durable offset table, 새 상태와 cascade가 없어 실패했습니다.
+- RED. partial partition offset crash는 재실행이 captured end를 복구하지 못했습니다.
+- RED. 불완전 보상은 run/events를 삭제했고 lock을 해제했습니다.
+- RED. 101-event heartbeat 테스트는 backfill 중 renew가 호출되지 않아 예외가 발생하지 않았습니다.
+- GREEN. 핵심 crash/offset/compensation/heartbeat 5 tests, Rebuild 전체 23/23, 관련 clean 46/46, 전체 clean 102/102가 PASS했습니다.
+- GREEN. Level 5에서 실제 Compose V6, 최초 rebuild, PREPARED+swap marker+lag 1 same-run recovery가 PASS했습니다.
+
+### Failure Cause
+
+- 기존 흐름은 Redis swap과 DB `markSwapped` 사이에 durable marker가 없고 captured offsets를 run에 저장하지 않았습니다.
+- offset 실패 외부 catch가 pending run을 일괄 discard했고, backfill loop에는 장시간 lease heartbeat가 없었습니다.
+
+### Change Scope
+
+- production은 Rebuild 전용 ledger/service와 아직 merge되지 않은 V6 migration만 수정했습니다.
+- `DltReplayService`, 정상 ranking consumer production 코드, 공통 Redis applied-event marker는 수정하지 않았습니다.
+- P2 manual QA의 모호한 표현을 “동일 Rebuild 재실행”으로 정확히 고쳤습니다.
+
+### Reverification
+
+- `*RankingRebuild*` — PASS, 23/23, BUILD SUCCESSFUL in 2m 31s.
+- clean `*Ranking*` + `*PopularMenu*` — PASS, 46/46, BUILD SUCCESSFUL in 3m 2s.
+- 전체 clean test — PASS, 102/102, BUILD SUCCESSFUL in 3m 21s.
+- Level 5 최초 runner — input/unique/conflict 1/1/0, run COMPLETED, offset current=end=1, lag 0.
+- Level 5 crash 조성 뒤 recovery — input/unique/conflict 0/0/0, run 총수 1·같은 runId, offset 0→1, ledger 복구, score 1.
+- secret pattern 0, 1MB 초과 0, forbidden production scope 0, Compose/runner cleanup 완료.
+
+### Next Attempt
+
+없음. Review 재검증과 독립 QA, 최신 CI는 GitHub 정본에서 후속 확인합니다.

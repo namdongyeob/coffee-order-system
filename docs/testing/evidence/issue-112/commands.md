@@ -2,7 +2,7 @@
 
 Issue: #112
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
-Execution head: f33b054
+Execution head: b3753c8
 
 | 구분 | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
@@ -12,13 +12,16 @@ Execution head: f33b054
 | conflict/pending GREEN | 같은 focused 2 tests 재실행 | PASS, BUILD SUCCESSFUL in 1m 35s |
 | nanos RED | nanoseconds orderedAt 동일 재실행 focused test | RED, EVENT_ID_PAYLOAD_CONFLICT 재현 |
 | nanos GREEN | 저장된 run-event fingerprint 사용 후 같은 focused test | PASS, BUILD SUCCESSFUL in 1m 33s |
-| Rebuild bundle | `Push-Location U:\; .\gradlew.bat test --no-daemon --max-workers=1 --tests '*RankingRebuildEventTest' --tests '*RankingRebuildLedgerSchemaTest' --tests '*RankingRebuildServiceIntegrationTest'` | PASS, integration 14 포함, BUILD SUCCESSFUL in 1m 33s |
-| 관련 clean bundle | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*'` | PASS, 43/43, failures/errors/skipped 0, BUILD SUCCESSFUL in 2m 19s |
-| 전체 | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 99/99, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 15s |
+| Review crash RED | swap mark failure, partial offset crash, incomplete compensation, 101-event heartbeat focused tests | RED, marker 없음·offset 미복구·run/events 삭제·renew 미호출을 각각 확인 |
+| Review crash GREEN | 같은 5 focused tests | PASS, swap marker/same-run offset/cascade or uncertain/heartbeat 상태 확인 |
+| Rebuild bundle | `Push-Location U:\; .\gradlew.bat test --no-daemon --max-workers=1 --tests '*RankingRebuild*' --console=plain` | PASS, 23/23, BUILD SUCCESSFUL in 2m 31s |
+| 관련 clean bundle | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --tests '*Ranking*' --tests '*PopularMenu*' --console=plain` | PASS, 46/46, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 2s |
+| 전체 | `Push-Location U:\; .\gradlew.bat clean test --no-daemon --max-workers=1 --console=plain` | PASS, 102/102, failures/errors/skipped 0, BUILD SUCCESSFUL in 3m 21s |
 | Compose | `docker compose -f docker\compose.yaml up -d --wait` | MySQL·Redis·Kafka healthy |
 | 최초 rebuild | maintenance runner 실행 뒤 MySQL ledger/run과 Redis score 조회 | ledger 1, COMMITTED/REBUILD, completed run 1, score 1, lock 0, temp key 0 |
 | 동일 재실행 | 동일 Kafka event로 runner 재실행 뒤 같은 조회 | ledger 1, distinct fingerprint 1, completed run 2, score 1, lock 0 |
-| pending 복구 | 최신 run을 SWAPPED_PENDING_LEDGER로 조성하고 ledger 행 삭제 뒤 runner 실행 | input/unique/conflict 0/0/0, run 총수 2 유지, 같은 run id로 COMMITTED backfill |
+| Level 5 최초 | Compose healthy, normal API 주문 1건 뒤 maintenance runner | input/unique/conflict 1/1/0, run/ledger/offset plan 각 1, current=end=1, lag 0, score 1 |
+| Level 5 swap-mark crash | 완료 run을 PREPARED+swap marker로 조성, ledger 삭제, normal offset 0(lag 1) 뒤 runner | input/unique/conflict 0/0/0, run 총수 1·같은 runId, offset 1/lag 0, ledger COMMITTED, marker·lock 0 |
 | Kafka group | AdminClient로 정상 consumer group member와 current/end/lag 확인 | active member 없음, current=end=1, lag 0 |
 | diff | `git diff --cached --check` | PASS, LF/CRLF 안내 외 오류 없음 |
 | 범위 | staged path와 `DltReplayService`·consumer production·Redis production pattern 비교 | 대상 변경 0개 |
