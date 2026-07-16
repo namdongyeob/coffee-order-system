@@ -1,0 +1,66 @@
+# Issue #112 Manual QA
+
+Issue: #112
+Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/112
+Date: 2026-07-16
+
+## 실제 환경
+
+- `docker/compose.yaml`의 MySQL, Kafka, Redis를 `up -d --wait`로 기동했고 세 서비스가 healthy였습니다.
+- 로컬 애플리케이션 기동 시 Flyway V1~V6 적용을 확인했습니다.
+- 사용자 6112를 10000 충전하고 메뉴 1 주문을 생성했습니다. API 결과는 orderId 1, PAID였고 DB PAID 건수는 1이었습니다.
+- Kafka processed event id는 `ae9811d8-8868-4c96-afec-95af9d279db4`, 초기 Redis 일간 ranking의 메뉴 1 score는 1이었습니다.
+
+## 최초 Rebuild
+
+- 정상 애플리케이션을 종료하고 normal consumer group active member가 없으며 current offset 1, end 1, lag 0임을 확인했습니다.
+- live ranking을 삭제하고 ledger/run이 0인 상태에서 Rebuild runner를 실행했습니다.
+- 완료 로그는 `inputRecords=1 uniqueEvents=1 conflicts=0`이었습니다.
+- ledger는 event 한 행, state `COMMITTED`, source `REBUILD`, fingerprint `78d2312376c89b6edbeea831e84b1e4916555331710930a034256be4d8259799`였습니다.
+- run 1과 run-event 1이 완료됐고 Redis score 1, rebuild lock 0, 임시 key 0이었습니다.
+
+## 동일 이벤트 재실행
+
+- 같은 Kafka 이벤트로 Rebuild runner를 다시 실행했습니다.
+- 완료 로그는 다시 `inputRecords=1 uniqueEvents=1 conflicts=0`이었습니다.
+- ledger는 여전히 한 행, distinct fingerprint 한 종류, state/source는 `COMMITTED`/`REBUILD`였습니다.
+- completed run은 2, run-event는 2가 됐지만 live Redis score는 1이어서 동일 Rebuild 재실행의 중복 집계가 없었습니다.
+- rebuild lock 0, normal group active member 없음, current=end=1, lag 0이었습니다.
+
+## Attempt 3 Pending 복구
+
+- 최신 run `344f1b8e-a813-4df9-833a-c276ceb88690`을 `SWAPPED_PENDING_LEDGER`로 변경하고 completed_at과 해당 ledger 행을 비운 상태를 조성했습니다.
+- 다음 runner 완료 로그는 `inputRecords=0 uniqueEvents=0 conflicts=0`이어서 replay와 새 swap 없이 backfill-only로 복구됐습니다.
+- ledger의 rebuild_run_id는 조성한 pending run id와 같았고 state/source는 `COMMITTED`/`REBUILD`였습니다.
+- run 총수는 2로 유지됐고 둘 다 COMPLETED, run-event 2, Redis score 1, lock 0, 임시 key 0이었습니다.
+
+## Attempt 4 실제 swap-mark·offset 복구
+
+- 새 Compose 환경에서 MySQL·Kafka·Redis healthy와 Flyway V1~V6 적용을 확인했습니다.
+- 사용자 7112 charge 200, order 201로 주문 1을 생성했고 outbox event `7f3d2d62-ef36-4af0-a3d5-94be4e80b1fe`, normal Redis score 1, current=end=1을 확인했습니다.
+- 최초 maintenance runner는 `inputRecords=1 uniqueEvents=1 conflicts=0`으로 완료됐습니다. run `d14fa4e0-e816-449a-bc74-ab6278a9904f`는 COMPLETED, ledger COMMITTED/REBUILD, durable captured end 1, score 1, marker·lock 0, lag 0이었습니다.
+- 같은 run을 `PREPARED`, event 1, ledger 0으로 조성하고 Redis swap marker를 `SWAPPED`로 기록한 뒤 normal offset을 0으로 낮춰 lag 1을 만들었습니다.
+- recovery runner는 `inputRecords=0 uniqueEvents=0 conflicts=0`으로 끝났습니다. 새 replay·swap 없이 run 총수 1과 같은 runId를 유지했고 offset 1·lag 0, ledger COMMITTED/REBUILD, score 1, marker·lock 0으로 복구했습니다.
+- heartbeat failure injection은 실제 Compose에 넣지 않았고, 짧은 5초 test lease와 101 events를 사용한 Testcontainers 통합 테스트에서 50행 batch 사이 renew 실패·pending 보존으로 검증했습니다.
+
+## 관찰 구분과 cleanup
+
+- Actuator health는 `DiskSpaceHealthIndicator`가 subst 드라이브 `U:\`의 free space를 0으로 읽어 HTTP 503을 반환했습니다. 실제 C: free space는 39,930,208,256 bytes였고 API·DB·Kafka·Redis E2E와 Rebuild 검증은 성공했습니다. 따라서 health endpoint PASS로 표현하지 않습니다.
+- Rebuild ApplicationRunner는 기능 완료 후에도 non-web process로 대기하므로 완료 로그와 DB·Redis evidence 뒤 해당 runner PID만 수동 종료했습니다. Ctrl+C 때문에 Gradle wrapper exit 1이 기록됐지만 완료 전 기능 예외나 rollback은 없었습니다.
+- 최종 `docker compose down` 뒤 project container와 network가 제거됐고 `docker ps` 잔여 container는 0개였습니다.
+
+## Attempt 6 durable artifact와 fail-closed
+
+- 최신 코드로 MySQL 8.4.5, Kafka 3.9.1, Redis 7.4.2를 healthy 기동하고 Flyway V1~V6 적용을 확인했습니다.
+- user 8112 charge 10000, orderId 1 PAID를 생성했고 outbox 발행 뒤 normal group current/end/lag `1/1/0`, Redis `popular:menus:2026-07-16` menu 1 score `1`을 확인했습니다.
+- 최초 runner는 `inputRecords=1 uniqueEvents=1 conflicts=0`으로 완료됐고 run `6734ead5-a500-4aca-bbfb-bc25ec69cb21`은 COMPLETED, ledger 1 COMMITTED/REBUILD, marker·존재 메타·backup 0으로 정리됐습니다.
+- 같은 run을 PREPARED와 intact marker/backup/날짜별 존재 메타로 조성했습니다. marker, menu 1 backup, 존재 메타의 TTL은 모두 `-1`이었습니다.
+- recovery runner는 `inputRecords=0 uniqueEvents=0 conflicts=0`으로 같은 run을 완료했습니다. run/events `1/1`, current/end/lag `1/1/0`, score `1`을 유지하고 marker·meta·backup·lock을 모두 0으로 정리했습니다.
+- 다시 같은 run을 SWAPPED_PENDING_OFFSET와 intact artifact로 조성한 뒤 원래 live가 존재했다고 기록한 날짜의 backup 1개만 삭제했습니다.
+- runner는 `rebuild recovery artifact를 완전하게 확인할 수 없어 RECOVERY_REQUIRED로 봉인했습니다`로 실패했습니다. run/events `1/1`, ledger 1 COMMITTED/REBUILD, score `1`, current/end/lag `1/1/0`은 바뀌지 않았습니다.
+- fail-closed 뒤 lock 1, marker `SWAPPED` TTL `-1`, 존재 메타 `1` TTL `-1`을 유지했고 삭제한 backup은 0이었습니다.
+- 최종 `docker compose down`으로 세 container와 network를 제거했고 `docker compose ps -a`가 비어 있음을 확인했습니다.
+
+## 후속 판정
+
+- 독립 re-review, 독립 QA, 최신 GitHub Actions CI는 아직 Dev evidence에 포함하지 않으며 Ready PR의 GitHub 정본에서 확인합니다.
