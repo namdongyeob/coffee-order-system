@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "ranking.consumer.enabled=false")
 class PopularMenuRedisIntegrationTest {
 
 	@Autowired

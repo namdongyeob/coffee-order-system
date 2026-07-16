@@ -21,10 +21,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "ranking.consumer.enabled=false")
 class RankingEventProcessorDatabaseIntegrationTest {
 
 	@Autowired
@@ -32,6 +33,9 @@ class RankingEventProcessorDatabaseIntegrationTest {
 
 	@Autowired
 	ProcessedEventRepository processedEventRepository;
+
+	@Autowired
+	KafkaListenerEndpointRegistry listenerEndpointRegistry;
 
 	@MockitoBean
 	PopularMenuRankingService rankingService;
@@ -83,6 +87,12 @@ class RankingEventProcessorDatabaseIntegrationTest {
 				.isInstanceOf(IllegalStateException.class);
 
 		assertThat(processedEventRepository.existsByEventId(event.eventId().toString())).isFalse();
+	}
+
+	@Test
+	void doesNotStartKafkaListenerInProcessorOnlyContext() {
+		assertThat(listenerEndpointRegistry.getListenerContainers())
+				.allMatch(container -> !container.isRunning());
 	}
 
 	private OrderCompletedEvent event(UUID eventId, Long menuId) {

@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "ranking.consumer.enabled=false")
 class PointChargeIntegrationTest {
 
 	private ExecutorService executorService;

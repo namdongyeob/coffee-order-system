@@ -21,7 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "ranking.consumer.enabled=false")
 @Transactional
 class OrderRepositoryQuerydslIntegrationTest {
 
