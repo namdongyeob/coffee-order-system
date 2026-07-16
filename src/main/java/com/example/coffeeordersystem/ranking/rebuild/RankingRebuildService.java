@@ -59,6 +59,8 @@ public class RankingRebuildService {
 	private static final Duration POLL_TIMEOUT = Duration.ofSeconds(30);
 	private static final String TEMP_PREFIX = "rebuild:popular:menus:";
 	private static final String LIVE_PREFIX = "popular:menus:";
+	private static final String SWAP_MARKER_PREFIX = "ranking:rebuild:swap:";
+	private static final long SWAP_MARKER_TTL_SECONDS = Duration.ofDays(31).toSeconds();
 
 	private final StringRedisTemplate redis;
 	private final JdbcTemplate jdbc;
@@ -117,16 +119,12 @@ public class RankingRebuildService {
 		String namespace = snapshot.toEpochMilli() + ":" + UUID.randomUUID();
 		Set<String> dates = datesIntersecting(lower, upper);
 		List<String> tempKeys = dates.stream().map(date -> tempKey(namespace, date)).toList();
-		boolean swapped = false;
-		boolean ledgerCompleted = false;
 		boolean keepLock = false;
-		UUID runId = null;
-		RankingRebuildOffsetManager.OffsetSnapshot previousOffsets = null;
 
 		try (AdminClient admin = adminClient()) {
 			assertNormalConsumerStopped(admin);
 			try {
-				if (ledger.recoverPending()) {
+				if (recoverIncomplete(admin, token)) {
 					return new RankingRebuildResult(Map.of(), Map.of(), 0, 0, 0);
 				}
 			} catch (RuntimeException recoveryFailure) {
@@ -134,57 +132,45 @@ public class RankingRebuildService {
 				throw recoveryFailure;
 			}
 			Map<TopicPartition, Long> capturedEnds = captureEndOffsets(admin);
-			previousOffsets = offsetManager.capture(admin, capturedEnds.keySet());
+			RankingRebuildOffsetManager.OffsetSnapshot previousOffsets =
+					offsetManager.capture(admin, capturedEnds.keySet());
 			ReplayResult replay = replay(capturedEnds, lower, upper, namespace);
 			Map<RankingRebuildCount, Long> database = databaseCounts(lower, upper);
 			if (!database.equals(replay.counts())) {
 				throw new RankingRebuildException("Kafka replay와 DB 집계가 일치하지 않습니다");
 			}
 			requireLease(token);
-			runId = UUID.randomUUID();
-			ledger.prepare(runId, replay.events().values());
-			atomicSwap(namespace, dates);
-			swapped = true;
-			ledger.markSwapped(runId);
-			Map<TopicPartition, OffsetAndMetadata> offsets = capturedEnds.entrySet().stream()
-					.collect(Collectors.toMap(Map.Entry::getKey, entry -> new OffsetAndMetadata(entry.getValue())));
-			requireLease(token);
+			UUID runId = UUID.randomUUID();
+			ledger.prepare(runId, replay.events().values(), namespace, dates, capturedEnds, previousOffsets);
 			try {
-				offsetManager.move(admin, offsets);
-				offsetManager.verify(admin, offsets);
-			} catch (Exception offsetFailure) {
-				RankingRebuildException compensated = compensateOffsetFailure(
-						admin, previousOffsets, namespace, dates, offsetFailure);
-				swapped = false;
-				throw compensated;
-			}
-			try {
-				ledger.backfillAndComplete(runId);
-				ledgerCompleted = true;
-			} catch (RuntimeException ledgerFailure) {
+				atomicSwap(namespace, dates, runId);
+			} catch (RuntimeException swapFailure) {
+				// Redis 응답 timeout은 Lua 미실행과 실행 완료를 구분할 수 없으므로 plan을 삭제하지 않습니다.
 				keepLock = true;
-				throw ledgerFailure;
+				throw swapFailure;
 			}
-			deleteBackupsAfterSuccess(namespace, dates);
+			try {
+				ledger.markSwapped(runId);
+			} catch (RuntimeException markFailure) {
+				keepLock = true;
+				throw markFailure;
+			}
+			RankingRebuildLedger.RunPlan run = ledger.findIncomplete().orElseThrow(
+					() -> new RankingRebuildException("swap된 rebuild run을 다시 조회하지 못했습니다"));
+			try {
+				completeSwappedRun(admin, run, token);
+			} catch (RunExecutionException runFailure) {
+				keepLock = runFailure.retainLock();
+				throw runFailure;
+			}
+			Map<TopicPartition, OffsetAndMetadata> offsets = run.targetOffsets();
 			return new RankingRebuildResult(
 					Map.copyOf(replay.counts()), Map.copyOf(offsets), replay.inputRecordCount(),
 					replay.uniqueEventCount(), replay.conflictCount());
 		} catch (RankingRebuildException exception) {
-			if (runId != null && !swapped) {
-				ledger.discard(runId);
-			}
-			if (swapped && ledgerCompleted) {
-				rollbackSwap(namespace, dates);
-			}
 			delete(tempKeys);
 			throw exception;
 		} catch (Exception exception) {
-			if (runId != null && !swapped) {
-				ledger.discard(runId);
-			}
-			if (swapped && ledgerCompleted) {
-				rollbackSwap(namespace, dates);
-			}
 			delete(tempKeys);
 			throw new RankingRebuildException("rebuild를 안전하게 완료하지 못했습니다", exception);
 		} finally {
@@ -194,27 +180,101 @@ public class RankingRebuildService {
 		}
 	}
 
+	private boolean recoverIncomplete(AdminClient admin, String token) {
+		RankingRebuildLedger.RunPlan run = ledger.findIncomplete().orElse(null);
+		if (run == null) {
+			return false;
+		}
+		if (RankingRebuildLedger.RECOVERY_REQUIRED.equals(run.state())) {
+			throw new RankingRebuildException("RECOVERY_REQUIRED rebuild run은 운영자 확인 전 자동 진행할 수 없습니다");
+		}
+		if (RankingRebuildLedger.PREPARED.equals(run.state())) {
+			if (!hasSwapMarker(run.runId())) {
+				String preparedNamespace = run.namespace();
+				delete(run.dates().stream().map(date -> tempKey(preparedNamespace, date)).toList());
+				ledger.cancel(run.runId());
+				return false;
+			}
+			ledger.markSwapped(run.runId());
+			run = ledger.findIncomplete().orElseThrow(
+					() -> new RankingRebuildException("swap marker가 있는 rebuild run을 다시 조회하지 못했습니다"));
+		}
+		completeSwappedRun(admin, run, token);
+		return true;
+	}
+
+	private void completeSwappedRun(AdminClient admin, RankingRebuildLedger.RunPlan run, String token) {
+		if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())
+				|| RankingRebuildLedger.OFFSET_APPLIED_PENDING_LEDGER.equals(run.state())) {
+			requireLease(token);
+			try {
+				offsetManager.move(admin, run.targetOffsets());
+				offsetManager.verify(admin, run.targetOffsets());
+			} catch (Exception offsetFailure) {
+				CompensationResult compensation = compensateOffsetFailure(admin, run, offsetFailure);
+				if (compensation.complete()) {
+					try {
+						ledger.cancel(run.runId());
+					} catch (RuntimeException cancelFailure) {
+						compensation.exception().addSuppressed(cancelFailure);
+						throw new RunExecutionException(compensation.exception().getMessage(),
+								compensation.exception(), true);
+					}
+					throw new RunExecutionException(compensation.exception().getMessage(),
+							compensation.exception(), false);
+				}
+				try {
+					ledger.markRecoveryRequired(run.runId());
+				} catch (RuntimeException stateFailure) {
+					compensation.exception().addSuppressed(stateFailure);
+				}
+				throw new RunExecutionException(compensation.exception().getMessage(),
+						compensation.exception(), true);
+			}
+			if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())) {
+				try {
+					ledger.markOffsetsApplied(run.runId());
+				} catch (RuntimeException stateFailure) {
+					throw new RunExecutionException("offset 적용 결과를 durable 상태로 기록하지 못했습니다",
+							stateFailure, true);
+				}
+				run = ledger.findIncomplete().orElseThrow(
+						() -> new RankingRebuildException("offset 적용 rebuild run을 다시 조회하지 못했습니다"));
+			}
+		}
+		if (!RankingRebuildLedger.OFFSET_APPLIED_PENDING_LEDGER.equals(run.state())) {
+			throw new RunExecutionException("복구할 수 없는 rebuild run 상태입니다: " + run.state(), null, true);
+		}
+		try {
+			ledger.backfillAndComplete(run.runId(), () -> requireLease(token));
+		} catch (RuntimeException ledgerFailure) {
+			throw new RunExecutionException(
+					"rebuild ledger backfill을 완료하지 못했습니다: " + ledgerFailure.getMessage(),
+					ledgerFailure, true);
+		}
+		deleteBackupsAfterSuccess(run.namespace(), run.dates());
+		clearSwapMarker(run.runId());
+	}
+
 	private void requireLease(String token) {
 		if (!lock.renew(token)) {
 			throw new RankingRebuildException("rebuild lock 소유권을 잃어 위험 변경 전에 중단했습니다");
 		}
 	}
 
-	private RankingRebuildException compensateOffsetFailure(
+	private CompensationResult compensateOffsetFailure(
 			AdminClient admin,
-			RankingRebuildOffsetManager.OffsetSnapshot previousOffsets,
-			String namespace,
-			Set<String> dates,
+			RankingRebuildLedger.RunPlan run,
 			Exception offsetFailure) {
 		Exception offsetRestoreFailure = null;
 		Exception redisRestoreFailure = null;
 		try {
-			offsetManager.restoreAndVerify(admin, previousOffsets);
+			offsetManager.restoreAndVerify(admin, run.previousOffsets());
 		} catch (Exception exception) {
 			offsetRestoreFailure = exception;
 		}
 		try {
-			rollbackSwap(namespace, dates);
+			rollbackSwap(run.namespace(), run.dates(), run.runId());
 		} catch (Exception exception) {
 			redisRestoreFailure = exception;
 		}
@@ -227,9 +287,11 @@ public class RankingRebuildService {
 			if (redisRestoreFailure != null) {
 				incomplete.addSuppressed(redisRestoreFailure);
 			}
-			return incomplete;
+			return new CompensationResult(incomplete, false);
 		}
-		return new RankingRebuildException("offset 이동 실패 뒤 normal offset과 live Redis를 복원했습니다", offsetFailure);
+		return new CompensationResult(
+				new RankingRebuildException("offset 이동 실패 뒤 normal offset과 live Redis를 복원했습니다", offsetFailure),
+				true);
 	}
 
 	private AdminClient adminClient() {
@@ -333,29 +395,45 @@ public class RankingRebuildService {
 		return counts;
 	}
 
-	private void atomicSwap(String namespace, Set<String> dates) {
+	private void atomicSwap(String namespace, Set<String> dates, UUID runId) {
 		List<String> sortedDates = dates.stream().sorted().toList();
 		List<String> keys = new ArrayList<>();
+		keys.add(swapMarkerKey(runId));
 		sortedDates.forEach(date -> {
 			keys.add(tempKey(namespace, date));
 			keys.add(LIVE_PREFIX + date);
 			keys.add(backupKey(namespace, date));
 		});
-		String script = "for i=1,#KEYS,3 do redis.call('DEL',KEYS[i+2]); "
-				+ "if redis.call('EXISTS',KEYS[i+1])==1 then redis.call('RENAME',KEYS[i+1],KEYS[i+2]); redis.call('EXPIRE',KEYS[i+2],3600) end; "
-				+ "if redis.call('EXISTS',KEYS[i])==1 then redis.call('RENAME',KEYS[i],KEYS[i+1]) end end return 1";
-		redis.execute(new DefaultRedisScript<>(script, Long.class), keys);
+		String script = "for i=2,#KEYS,3 do redis.call('DEL',KEYS[i+2]); "
+				+ "if redis.call('EXISTS',KEYS[i+1])==1 then redis.call('RENAME',KEYS[i+1],KEYS[i+2]); redis.call('EXPIRE',KEYS[i+2],ARGV[1]) end; "
+				+ "if redis.call('EXISTS',KEYS[i])==1 then redis.call('RENAME',KEYS[i],KEYS[i+1]) end end; "
+				+ "redis.call('SET',KEYS[1],'SWAPPED','EX',ARGV[1]); return 1";
+		redis.execute(new DefaultRedisScript<>(script, Long.class), keys, Long.toString(SWAP_MARKER_TTL_SECONDS));
 	}
 
-	private void rollbackSwap(String namespace, Set<String> dates) {
+	private void rollbackSwap(String namespace, Set<String> dates, UUID runId) {
 		List<String> keys = new ArrayList<>();
+		keys.add(swapMarkerKey(runId));
 		dates.stream().sorted().forEach(date -> {
 			keys.add(LIVE_PREFIX + date);
 			keys.add(backupKey(namespace, date));
 		});
-		String script = "for i=1,#KEYS,2 do redis.call('DEL',KEYS[i]); "
-				+ "if redis.call('EXISTS',KEYS[i+1])==1 then redis.call('RENAME',KEYS[i+1],KEYS[i]) end end return 1";
+		String script = "for i=2,#KEYS,2 do redis.call('DEL',KEYS[i]); "
+				+ "if redis.call('EXISTS',KEYS[i+1])==1 then redis.call('RENAME',KEYS[i+1],KEYS[i]) end end; "
+				+ "redis.call('DEL',KEYS[1]); return 1";
 		redis.execute(new DefaultRedisScript<>(script, Long.class), keys);
+	}
+
+	private boolean hasSwapMarker(UUID runId) {
+		return "SWAPPED".equals(redis.opsForValue().get(swapMarkerKey(runId)));
+	}
+
+	private void clearSwapMarker(UUID runId) {
+		redis.delete(swapMarkerKey(runId));
+	}
+
+	private String swapMarkerKey(UUID runId) {
+		return SWAP_MARKER_PREFIX + runId;
 	}
 
 	static Set<String> datesIntersecting(LocalDateTime lower, LocalDateTime upper) {
@@ -394,6 +472,22 @@ public class RankingRebuildService {
 	private void delete(List<String> keys) {
 		if (!keys.isEmpty()) {
 			redis.delete(keys);
+		}
+	}
+
+	private record CompensationResult(RankingRebuildException exception, boolean complete) {
+	}
+
+	private static final class RunExecutionException extends RankingRebuildException {
+		private final boolean retainLock;
+
+		private RunExecutionException(String message, Throwable cause, boolean retainLock) {
+			super(message, cause);
+			this.retainLock = retainLock;
+		}
+
+		private boolean retainLock() {
+			return retainLock;
 		}
 	}
 

@@ -23,7 +23,11 @@ class RankingRebuildLedgerSchemaTest {
 				.contains("payload_fingerprint")
 				.contains("rebuild_run_id")
 				.contains("create table ranking_rebuild_run")
-				.contains("SWAPPED_PENDING_LEDGER")
-				.contains("create table ranking_rebuild_run_event");
+				.contains("create table ranking_rebuild_run_event")
+				.contains("create table ranking_rebuild_run_offset")
+				.contains("SWAPPED_PENDING_OFFSET")
+				.contains("OFFSET_APPLIED_PENDING_LEDGER")
+				.contains("RECOVERY_REQUIRED")
+				.contains("on delete cascade");
 	}
 }

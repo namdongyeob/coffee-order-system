@@ -22,12 +22,17 @@ create table ranking_event_ledger (
 create table ranking_rebuild_run (
     run_id varchar(36) not null,
     state varchar(32) not null,
+    namespace varchar(100) not null,
+    window_start_date date not null,
+    window_end_date date not null,
     created_at datetime(6) not null,
     swapped_at datetime(6) null,
+    offsets_applied_at datetime(6) null,
     completed_at datetime(6) null,
     primary key (run_id),
     constraint chk_ranking_rebuild_run_state
-        check (state in ('PREPARED', 'SWAPPED_PENDING_LEDGER', 'COMPLETED'))
+        check (state in ('PREPARED', 'SWAPPED_PENDING_OFFSET', 'OFFSET_APPLIED_PENDING_LEDGER',
+                         'RECOVERY_REQUIRED', 'COMPLETED'))
 );
 
 create table ranking_rebuild_run_event (
@@ -42,8 +47,20 @@ create table ranking_rebuild_run_event (
     payload_fingerprint char(64) not null,
     primary key (run_id, event_id),
     constraint fk_ranking_rebuild_run_event_run
-        foreign key (run_id) references ranking_rebuild_run (run_id),
+        foreign key (run_id) references ranking_rebuild_run (run_id) on delete cascade,
     constraint chk_ranking_rebuild_run_event_type
         check (event_type = 'order.completed'),
     index idx_ranking_rebuild_run_event_event (event_id)
+);
+
+create table ranking_rebuild_run_offset (
+    run_id varchar(36) not null,
+    topic varchar(255) not null,
+    partition_id int not null,
+    captured_end bigint not null,
+    previous_present boolean not null,
+    previous_offset bigint null,
+    primary key (run_id, topic, partition_id),
+    constraint fk_ranking_rebuild_run_offset_run
+        foreign key (run_id) references ranking_rebuild_run (run_id) on delete cascade
 );

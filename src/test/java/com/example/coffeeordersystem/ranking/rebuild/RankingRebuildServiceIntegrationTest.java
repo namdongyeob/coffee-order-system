@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -37,6 +38,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -327,12 +329,12 @@ class RankingRebuildServiceIntegrationTest {
 			private boolean firstBackfill = true;
 
 			@Override
-			void backfillAndComplete(UUID runId) {
+			void backfillAndComplete(UUID runId, Runnable heartbeat) {
 				if (firstBackfill) {
 					firstBackfill = false;
 					throw new RankingRebuildException("injected ledger backfill interruption");
 				}
-				super.backfillAndComplete(runId);
+				super.backfillAndComplete(runId, heartbeat);
 			}
 		};
 
@@ -341,7 +343,7 @@ class RankingRebuildServiceIntegrationTest {
 				.hasMessageContaining("injected ledger backfill interruption");
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
 		assertThat(jdbc.queryForObject(
-				"select count(*) from ranking_rebuild_run where state = 'SWAPPED_PENDING_LEDGER'", Long.class))
+				"select count(*) from ranking_rebuild_run where state = 'OFFSET_APPLIED_PENDING_LEDGER'", Long.class))
 				.isEqualTo(1L);
 		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
 
@@ -356,6 +358,45 @@ class RankingRebuildServiceIntegrationTest {
 				Long.class, eventId.toString())).isEqualTo(1L);
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
 		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNull();
+	}
+
+	@Test
+	@Order(15)
+	void recoversSameRunWhenDatabaseMarkFailsImmediatelyAfterAtomicSwap() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(eventId, 1L, orderedAt);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		RankingRebuildLedger interruptedLedger = new RankingRebuildLedger(jdbc) {
+			@Override
+			void markSwapped(UUID runId) {
+				throw new RankingRebuildException("injected failure before DB swap mark");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, offsetManager, interruptedLedger).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("injected failure before DB swap mark");
+
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("PREPARED");
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run_event where run_id = ?", Long.class, runId)).isEqualTo(1L);
+		assertThat(redis.opsForValue().get("ranking:rebuild:swap:" + runId)).isEqualTo("SWAPPED");
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+
+		redis.delete(RankingRebuildLock.KEY);
+		RankingRebuildResult recovered = service.rebuild();
+
+		assertThat(recovered.inputRecordCount()).isZero();
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("COMPLETED");
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(1);
+		assertThat(redis.opsForValue().get("ranking:rebuild:swap:" + runId)).isNull();
 	}
 
 	@Test
@@ -399,6 +440,12 @@ class RankingRebuildServiceIntegrationTest {
 		assertThat(normalOffsets()).isEqualTo(before);
 		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
 		assertThat(redis.keys("rebuild:*" )).isEmpty();
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isZero();
+
+		RankingRebuildResult retried = service.rebuild();
+		assertThat(retried.inputRecordCount()).isEqualTo(3);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'COMPLETED'", Long.class)).isEqualTo(1L);
 	}
 
 	@Test
@@ -429,6 +476,85 @@ class RankingRebuildServiceIntegrationTest {
 		assertThatThrownBy(() -> service(rebuildLock, failedCompensation).rebuild())
 				.isInstanceOf(RankingRebuildException.class)
 				.hasMessageContaining("완전한 복원을 확인할 수 없습니다");
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'RECOVERY_REQUIRED'", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event", Long.class)).isEqualTo(4L);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+	}
+
+	@Test
+	@Order(16)
+	void partialOffsetMoveCrashResumesCapturedEndsForTheSameRun() throws Exception {
+		insertPaidOrder(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		insertPaidOrder(2L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		publish(1L, LocalDateTime.of(2026, 7, 12, 10, 0));
+		publish(2L, LocalDateTime.of(2026, 7, 12, 11, 0));
+		Map<TopicPartition, Long> capturedEnds = topicEnds();
+		RankingRebuildOffsetManager crashAfterFirstPartition = new RankingRebuildOffsetManager() {
+			@Override
+			void move(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> target)
+					throws Exception {
+				Map.Entry<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> first =
+						target.entrySet().iterator().next();
+				super.move(admin, Map.of(first.getKey(), first.getValue()));
+				throw new AssertionError("injected process crash after one partition offset");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, crashAfterFirstPartition).rebuild())
+				.isInstanceOf(AssertionError.class)
+				.hasMessageContaining("injected process crash");
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+
+		redis.delete(RankingRebuildLock.KEY);
+		RankingRebuildResult recovered = service.rebuild();
+
+		assertThat(recovered.inputRecordCount()).isZero();
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("COMPLETED");
+		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> offsets = normalOffsets();
+		capturedEnds.forEach((partition, end) -> assertThat(offsets.get(partition).offset()).isEqualTo(end));
+	}
+
+	@Test
+	@Order(17)
+	void failedLeaseRenewalBetweenLedgerBatchesKeepsRunPending() throws Exception {
+		for (long sequence = 1; sequence <= 101; sequence++) {
+			LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0).plusSeconds(sequence);
+			insertPaidOrder(1L, orderedAt);
+			publish(1L, orderedAt);
+		}
+		AtomicInteger renewCalls = new AtomicInteger();
+		RankingRebuildLock shortLease = new RankingRebuildLock(redis) {
+			@Override
+			boolean acquire(String token) {
+				return Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(KEY, token, Duration.ofSeconds(5)));
+			}
+
+			@Override
+			boolean renew(String token) {
+				if (renewCalls.incrementAndGet() == 4) {
+					return false;
+				}
+				Long renewed = redis.execute(new DefaultRedisScript<>(
+						"if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('PEXPIRE',KEYS[1],5000) else return 0 end",
+						Long.class), List.of(KEY), token);
+				return Long.valueOf(1L).equals(renewed);
+			}
+		};
+
+		assertThatThrownBy(() -> service(shortLease, offsetManager).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("lock 소유권");
+
+		assertThat(renewCalls.get()).isGreaterThanOrEqualTo(4);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'OFFSET_APPLIED_PENDING_LEDGER'", Long.class))
+				.isEqualTo(1L);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'COMPLETED'", Long.class)).isZero();
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
 	}
 
 	private RankingRebuildService service(RankingRebuildLock lock, RankingRebuildOffsetManager manager) {
@@ -449,6 +575,19 @@ class RankingRebuildServiceIntegrationTest {
 				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()))) {
 			return admin.listConsumerGroupOffsets("ranking-consumer-group")
 					.partitionsToOffsetAndMetadata().get(10, TimeUnit.SECONDS);
+		}
+	}
+
+	private Map<TopicPartition, Long> topicEnds() throws Exception {
+		try (AdminClient admin = AdminClient.create(Map.of(
+				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()))) {
+			List<TopicPartition> partitions = admin.describeTopics(List.of("order.completed")).allTopicNames()
+					.get(10, TimeUnit.SECONDS).get("order.completed").partitions().stream()
+					.map(info -> new TopicPartition("order.completed", info.partition())).toList();
+			Map<TopicPartition, OffsetSpec> latest = partitions.stream()
+					.collect(java.util.stream.Collectors.toMap(partition -> partition, partition -> OffsetSpec.latest()));
+			return admin.listOffsets(latest).all().get(10, TimeUnit.SECONDS).entrySet().stream()
+					.collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().offset()));
 		}
 	}
 
