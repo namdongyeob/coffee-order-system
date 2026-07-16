@@ -141,7 +141,9 @@ public class RankingRebuildService {
 			}
 			requireLease(token);
 			UUID runId = UUID.randomUUID();
-			ledger.prepare(runId, replay.events().values(), namespace, dates, capturedEnds, previousOffsets);
+			ledger.prepare(runId, replay.events().values(), namespace, dates, capturedEnds, previousOffsets,
+					() -> requireLease(token));
+			requireLease(token);
 			try {
 				atomicSwap(namespace, dates, runId);
 			} catch (RuntimeException swapFailure) {
@@ -204,8 +206,7 @@ public class RankingRebuildService {
 	}
 
 	private void completeSwappedRun(AdminClient admin, RankingRebuildLedger.RunPlan run, String token) {
-		if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())
-				|| RankingRebuildLedger.OFFSET_APPLIED_PENDING_LEDGER.equals(run.state())) {
+		if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())) {
 			requireLease(token);
 			try {
 				offsetManager.move(admin, run.targetOffsets());
@@ -217,6 +218,11 @@ public class RankingRebuildService {
 						ledger.cancel(run.runId());
 					} catch (RuntimeException cancelFailure) {
 						compensation.exception().addSuppressed(cancelFailure);
+						try {
+							ledger.markRecoveryRequired(run.runId());
+						} catch (RuntimeException stateFailure) {
+							compensation.exception().addSuppressed(stateFailure);
+						}
 						throw new RunExecutionException(compensation.exception().getMessage(),
 								compensation.exception(), true);
 					}
@@ -231,15 +237,26 @@ public class RankingRebuildService {
 				throw new RunExecutionException(compensation.exception().getMessage(),
 						compensation.exception(), true);
 			}
-			if (RankingRebuildLedger.SWAPPED_PENDING_OFFSET.equals(run.state())) {
+			try {
+				ledger.markOffsetsApplied(run.runId());
+			} catch (RuntimeException stateFailure) {
+				throw new RunExecutionException("offset 적용 결과를 durable 상태로 기록하지 못했습니다",
+						stateFailure, true);
+			}
+			run = ledger.findIncomplete().orElseThrow(
+					() -> new RankingRebuildException("offset 적용 rebuild run을 다시 조회하지 못했습니다"));
+		}
+		else if (RankingRebuildLedger.OFFSET_APPLIED_PENDING_LEDGER.equals(run.state())) {
+			requireLease(token);
+			try {
+				offsetManager.verify(admin, run.targetOffsets());
+			} catch (Exception verifyFailure) {
 				try {
-					ledger.markOffsetsApplied(run.runId());
+					ledger.markRecoveryRequired(run.runId());
 				} catch (RuntimeException stateFailure) {
-					throw new RunExecutionException("offset 적용 결과를 durable 상태로 기록하지 못했습니다",
-							stateFailure, true);
+					verifyFailure.addSuppressed(stateFailure);
 				}
-				run = ledger.findIncomplete().orElseThrow(
-						() -> new RankingRebuildException("offset 적용 rebuild run을 다시 조회하지 못했습니다"));
+				throw new RunExecutionException("offset 적용 상태를 확인하지 못했습니다", verifyFailure, true);
 			}
 		}
 		if (!RankingRebuildLedger.OFFSET_APPLIED_PENDING_LEDGER.equals(run.state())) {

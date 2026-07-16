@@ -534,7 +534,7 @@ class RankingRebuildServiceIntegrationTest {
 
 			@Override
 			boolean renew(String token) {
-				if (renewCalls.incrementAndGet() == 4) {
+				if (renewCalls.incrementAndGet() == 9) {
 					return false;
 				}
 				Long renewed = redis.execute(new DefaultRedisScript<>(
@@ -548,13 +548,152 @@ class RankingRebuildServiceIntegrationTest {
 				.isInstanceOf(RankingRebuildException.class)
 				.hasMessageContaining("lock 소유권");
 
-		assertThat(renewCalls.get()).isGreaterThanOrEqualTo(4);
+		assertThat(renewCalls.get()).isGreaterThanOrEqualTo(9);
 		assertThat(jdbc.queryForObject(
 				"select count(*) from ranking_rebuild_run where state = 'OFFSET_APPLIED_PENDING_LEDGER'", Long.class))
 				.isEqualTo(1L);
 		assertThat(jdbc.queryForObject(
 				"select count(*) from ranking_rebuild_run where state = 'COMPLETED'", Long.class)).isZero();
 		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+	}
+
+	@Test
+	@Order(18)
+	void partialLedgerBackfillAndOffsetVerifyFailurePreserveTheSameRecoveryPlan() throws Exception {
+		seedEvents(101);
+		RankingRebuildLedger partialBackfill = new RankingRebuildLedger(jdbc) {
+			private boolean first = true;
+
+			@Override
+			void backfillAndComplete(UUID runId, Runnable heartbeat) {
+				if (!first) {
+					super.backfillAndComplete(runId, heartbeat);
+					return;
+				}
+				first = false;
+				AtomicInteger batches = new AtomicInteger();
+				super.backfillAndComplete(runId, () -> {
+					if (batches.incrementAndGet() == 2) {
+						throw new RankingRebuildException("injected after first ledger batch");
+					}
+					heartbeat.run();
+				});
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, offsetManager, partialBackfill).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("first ledger batch");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isEqualTo(50L);
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+
+		redis.delete(RankingRebuildLock.KEY);
+		RankingRebuildOffsetManager verifyFailure = new RankingRebuildOffsetManager() {
+			@Override
+			void verify(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> expected)
+					throws Exception {
+				throw new TimeoutException("injected offset verification outage");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, verifyFailure).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("offset")
+				.hasMessageContaining("확인");
+
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event", Long.class)).isEqualTo(101L);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isEqualTo(50L);
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "1")).isEqualTo(101);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+	}
+
+	@Test
+	@Order(19)
+	void cancelFailureAfterCompleteCompensationSealsTheRunAgainstAutomaticRecovery() throws Exception {
+		LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0);
+		insertPaidOrder(1L, orderedAt);
+		publish(1L, orderedAt);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> before = normalOffsets();
+		RankingRebuildOffsetManager moveFailure = new RankingRebuildOffsetManager() {
+			@Override
+			void move(AdminClient admin, Map<TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> target)
+					throws Exception {
+				throw new TimeoutException("injected before offset move");
+			}
+		};
+		RankingRebuildLedger cancelFailure = new RankingRebuildLedger(jdbc) {
+			@Override
+			void cancel(UUID runId) {
+				throw new RankingRebuildException("injected cancel failure");
+			}
+		};
+
+		assertThatThrownBy(() -> service(rebuildLock, moveFailure, cancelFailure).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("복원했습니다");
+
+		String runId = jdbc.queryForObject("select run_id from ranking_rebuild_run", String.class);
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event", Long.class)).isEqualTo(1L);
+		assertThat(redis.opsForValue().get("ranking:rebuild:swap:" + runId)).isNull();
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+		assertThat(normalOffsets()).isEqualTo(before);
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isNotNull();
+
+		redis.delete(RankingRebuildLock.KEY);
+		assertThatThrownBy(service::rebuild)
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select state from ranking_rebuild_run where run_id = ?", String.class, runId))
+				.isEqualTo("RECOVERY_REQUIRED");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isZero();
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+	}
+
+	@Test
+	@Order(20)
+	void leaseLossDuringSecondPrepareBatchStopsBeforeSwap() throws Exception {
+		seedEvents(51);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		AtomicInteger renewCalls = new AtomicInteger();
+		RankingRebuildLock changingOwner = ownershipChangingLock(3, renewCalls);
+
+		assertThatThrownBy(() -> service(changingOwner, offsetManager).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("lock 소유권");
+
+		assertThat(renewCalls.get()).isEqualTo(3);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'PREPARED'", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event", Long.class)).isEqualTo(50L);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isZero();
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+		assertThat(redis.keys("ranking:rebuild:swap:*")).isEmpty();
+	}
+
+	@Test
+	@Order(21)
+	void ownershipChangeAfterPreparedPlanIsRecheckedImmediatelyBeforeSwap() throws Exception {
+		seedEvents(51);
+		redis.opsForZSet().add("popular:menus:2026-07-12", "77", 7);
+		AtomicInteger renewCalls = new AtomicInteger();
+		RankingRebuildLock changingOwner = ownershipChangingLock(5, renewCalls);
+
+		assertThatThrownBy(() -> service(changingOwner, offsetManager).rebuild())
+				.isInstanceOf(RankingRebuildException.class)
+				.hasMessageContaining("lock 소유권");
+
+		assertThat(renewCalls.get()).isEqualTo(5);
+		assertThat(jdbc.queryForObject(
+				"select count(*) from ranking_rebuild_run where state = 'PREPARED'", Long.class)).isEqualTo(1L);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run_event", Long.class)).isEqualTo(51L);
+		assertThat(jdbc.queryForObject("select count(*) from ranking_event_ledger", Long.class)).isZero();
+		assertThat(redis.opsForZSet().score("popular:menus:2026-07-12", "77")).isEqualTo(7);
+		assertThat(redis.keys("ranking:rebuild:swap:*")).isEmpty();
 	}
 
 	private RankingRebuildService service(RankingRebuildLock lock, RankingRebuildOffsetManager manager) {
@@ -616,6 +755,27 @@ class RankingRebuildServiceIntegrationTest {
 				6101L, 10000);
 		jdbc.update("insert into orders(user_id, menu_id, paid_amount, status, ordered_at) values (?,?,?,?,?)",
 				6101L, menuId, 4500, "PAID", orderedAt);
+	}
+
+	private void seedEvents(int count) throws Exception {
+		for (int sequence = 1; sequence <= count; sequence++) {
+			LocalDateTime orderedAt = LocalDateTime.of(2026, 7, 12, 10, 0).plusSeconds(sequence);
+			insertPaidOrder(1L, orderedAt);
+			publish(1L, orderedAt);
+		}
+	}
+
+	private RankingRebuildLock ownershipChangingLock(int failAtRenew, AtomicInteger renewCalls) {
+		return new RankingRebuildLock(redis) {
+			@Override
+			boolean renew(String token) {
+				if (renewCalls.incrementAndGet() == failAtRenew) {
+					redis.opsForValue().set(KEY, "other-owner", Duration.ofMinutes(5));
+					return false;
+				}
+				return super.renew(token);
+			}
+		};
 	}
 
 	private void publish(Long menuId, LocalDateTime orderedAt) throws Exception {

@@ -45,8 +45,10 @@ class RankingRebuildLedger {
 			String namespace,
 			Set<String> dates,
 			Map<TopicPartition, Long> capturedEnds,
-			RankingRebuildOffsetManager.OffsetSnapshot previousOffsets) {
-		for (RankingRebuildEvent event : events) {
+			RankingRebuildOffsetManager.OffsetSnapshot previousOffsets,
+			Runnable heartbeat) {
+		List<RankingRebuildEvent> eventList = List.copyOf(events);
+		for (RankingRebuildEvent event : eventList) {
 			validateExistingFingerprint(event);
 		}
 		List<LocalDate> windowDates = dates.stream().map(LocalDate::parse).sorted().toList();
@@ -55,12 +57,15 @@ class RankingRebuildLedger {
 				+ "created_at) values (?,?,?,?,?,?)",
 				runId.toString(), PREPARED, namespace, windowDates.get(0), windowDates.get(windowDates.size() - 1),
 				Timestamp.valueOf(now));
-		if (!events.isEmpty()) {
+		for (int start = 0; start < eventList.size(); start += BACKFILL_BATCH_SIZE) {
+			heartbeat.run();
+			int end = Math.min(start + BACKFILL_BATCH_SIZE, eventList.size());
+			List<RankingRebuildEvent> batch = eventList.subList(start, end);
 			jdbc.batchUpdate(
 					"insert into ranking_rebuild_run_event(run_id, event_id, event_type, order_id, user_id, menu_id, "
 							+ "paid_amount, ordered_at, payload_fingerprint) values (?,?,?,?,?,?,?,?,?)",
-					events,
-					events.size(),
+					batch,
+					batch.size(),
 					(PreparedStatement statement, RankingRebuildEvent event) -> {
 						statement.setString(1, runId.toString());
 						statement.setString(2, event.eventId().toString());
@@ -73,6 +78,7 @@ class RankingRebuildLedger {
 						statement.setString(9, event.payloadFingerprint());
 					});
 		}
+		heartbeat.run();
 		jdbc.batchUpdate(
 				"insert into ranking_rebuild_run_offset(run_id, topic, partition_id, captured_end, previous_present, "
 						+ "previous_offset) values (?,?,?,?,?,?)",
