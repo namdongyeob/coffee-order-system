@@ -23,7 +23,7 @@ Level 6 reason: 필수 API 4종과 핵심 실패 응답을 실제 HTTP 요청으
 - [x] head, 명령, threshold, p95, error rate, checks를 Issue evidence 6종에 기록했습니다.
 - [x] 앱과 이 검증이 만든 compose container·network·volume을 정리하고 orphan 0건을 확인했습니다.
 - [x] production, test, runtime 설정, workflow와 검증 스크립트를 수정하지 않았습니다.
-- [x] PR head `5aedd45dbc3d0fea25757ae13f18f0084853a653`의 GitHub Actions `quality-gates` run `29635241238`이 SUCCESS였습니다.
+- [x] PR head `4f99e3bdd28ae2b6956ea35493d6658afae35018`의 GitHub Actions `quality-gates` runs `29636123309`, `29636123353`이 모두 SUCCESS였습니다.
 
 ## Current disposition
 

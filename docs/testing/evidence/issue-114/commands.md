@@ -8,7 +8,7 @@ Execution head: e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec
 | --- | --- | --- |
 | Level 0 | `git status --porcelain=v1 -uall`; `git rev-parse HEAD` | PASS, 변경·untracked 0건, exact head `e9412ab3...` |
 | Level 5 | `docker compose -f docker/compose.yaml down -v --remove-orphans`; `docker compose -f docker/compose.yaml up -d mysql redis kafka`; `docker compose -f docker/compose.yaml ps` | PASS, MySQL·Redis·Kafka 모두 `running/healthy` |
-| Level 5 | `$env:SPRING_PROFILES_ACTIVE='local'; .\gradlew.bat bootRun --no-daemon`; `curl.exe ... /actuator/health` | PASS, Flyway 7 migrations, startup 12.262s, HTTP 200 `UP` |
+| Level 5 | `$env:SPRING_PROFILES_ACTIVE='local'; .\gradlew.bat bootRun --no-daemon`; ``curl.exe -sS --max-time 5 -w "`nHTTP_STATUS=%{http_code}`n" http://localhost:8080/actuator/health`` | PASS, Flyway 7 migrations, startup 12.262s, body status `UP`, HTTP 200 |
 | Level 6 | `GET /api/menus` | PASS, HTTP 200, seed 메뉴 4개 |
 | Level 6 | `POST /api/points/charge` user 114011 amount 10000 | PASS, HTTP 200, balance 10000 |
 | Level 6 | `POST /api/orders` user 114011 menu 1 | PASS, HTTP 201, order 1, PAID 4500 |
@@ -24,8 +24,22 @@ Execution head: e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec
 | Level 0 | 앱 PID 종료 뒤 `docker compose -f docker/compose.yaml down -v --remove-orphans`와 container·network·volume·port·process 조회 | PASS, orphan 0건 |
 | Level 0 | `python scripts/harness_gate.py --issue 114 --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md` | FAIL, BLOCKED는 PASS 행을 금지하지만 Level 5/6 YES는 PASS 행을 강제하는 하네스 모순 |
 | Level 0 | `python scripts/harness_gate.py --issue 114 --base-ref origin/main --check-links --include-worktree --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md` | PASS, Attempt 3 user-approved AC·evidence·links·PR body 정합성 |
+| Level 0 | 같은 full evidence·links·PR body preflight 재실행 | PASS, Attempt 4 exact inspect/actuator evidence·metadata 정합성 |
 
 ## 실제 HTTP 명령
+
+actuator health는 아래 완전한 명령으로 확인했습니다.
+
+```powershell
+curl.exe -sS --max-time 5 -w "`nHTTP_STATUS=%{http_code}`n" http://localhost:8080/actuator/health
+```
+
+관찰값은 다음과 같습니다.
+
+```text
+{"groups":["liveness","readiness"],"status":"UP"}
+HTTP_STATUS=200
+```
 
 메뉴와 인기 메뉴 조회는 아래 host를 사용했습니다.
 
@@ -54,6 +68,24 @@ Send-JsonPost 'INSUFFICIENT ORDER' '/api/orders' '{"userId":114012,"menuId":1}'
 Send-JsonPost 'CHARGE SUCCESS' '/api/points/charge' '{"userId":114011,"amount":10000}'
 Send-JsonPost 'ORDER SUCCESS' '/api/orders' '{"userId":114011,"menuId":1}'
 $client.Dispose()
+```
+
+## 실제 container inspect 명령과 관찰값
+
+restart, OOM, exit와 health는 `docker compose ps` 요약이 아니라 아래 실제 `docker inspect` format으로 확인했습니다.
+
+```powershell
+foreach($id in @(docker compose -f docker/compose.yaml ps -q)){
+  docker inspect $id --format '{{.Name}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{end}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restart={{.RestartCount}} started={{.State.StartedAt}}'
+}
+```
+
+관찰값은 다음과 같습니다.
+
+```text
+/docker-kafka-1 status=running health=healthy exit=0 oom=false restart=0 started=2026-07-18T06:55:13.670569915Z
+/docker-mysql-1 status=running health=healthy exit=0 oom=false restart=0 started=2026-07-18T06:55:13.662683074Z
+/docker-redis-1 status=running health=healthy exit=0 oom=false restart=0 started=2026-07-18T06:55:13.648134761Z
 ```
 
 ## 실제 DB 명령
@@ -103,3 +135,5 @@ docker compose -f docker/compose.yaml exec -T redis redis-cli ZRANGE 'popular:me
 - Attempt 2 PR body는 저장소 밖 UTF-8 no-BOM 파일로 정합화했지만 preflight FAIL 때문에 `gh pr edit`을 실행하지 않았습니다.
 - Attempt 3은 [사용자 결정](https://github.com/namdongyeob/coffee-order-system/issues/114#issuecomment-5010437517)을 evidence에 반영하며 새 runtime/k6 명령을 실행하지 않습니다.
 - Attempt 3 PR body는 UTF-8 no-BOM, `Related: #114` 1건, `Closes` 0건으로 preflight PASS했습니다.
+- Attempt 4는 Attempt 1 transcript의 exact `docker inspect`와 actuator health 명령·관찰값만 보강하며 새 runtime/test를 실행하지 않습니다.
+- Attempt 4 PR body도 UTF-8 no-BOM, `Related: #114` 1건, `Closes` 0건으로 preflight PASS했습니다.

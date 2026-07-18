@@ -52,3 +52,6 @@ Date: 2026-07-18
 - 이번 clean 실행은 exit 255를 재현하지 않았고 세 container 모두 restart 0·exit 0·OOM false였습니다. 승인된 AC 기준에서 이 관찰은 PASS입니다.
 - Attempt 2와 Attempt 3은 evidence-only correction이며 새 runtime/k6 검증을 실행하지 않았습니다.
 - Attempt 2 head `3d97b78cb4df36a1d9254465d5937362aae176b2`의 CI run `29635907901`은 당시 BLOCKED/required-Level metadata 충돌로 FAILURE였습니다. Attempt 3은 승인된 AC에 따라 PASS metadata와 preflight를 복원합니다.
+- Attempt 4에서 transcript의 exact `docker inspect`가 세 container 모두 restart 0·OOM false·exit 0·healthy를 반환했고 actuator 완전 명령이 HTTP 200 `UP`을 반환했음을 `commands.md`에 보강했습니다.
+- PR head `4f99e3bdd28ae2b6956ea35493d6658afae35018`의 CI runs `29636123309`, `29636123353`은 모두 SUCCESS입니다.
+- Attempt 4도 evidence-only correction이며 runtime/k6를 재실행하지 않았습니다.

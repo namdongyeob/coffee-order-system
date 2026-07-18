@@ -4,8 +4,8 @@ Issue: #114
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/114
 Branch: codex/issue-114-final-verification
 Current disposition: PASS
-Current Attempt: 3
-Current head: 3d97b78cb4df36a1d9254465d5937362aae176b2
+Current Attempt: 4
+Current head: 4f99e3bdd28ae2b6956ea35493d6658afae35018
 
 ## Attempt 1
 
@@ -125,4 +125,41 @@ Review에서 `exit 255` 원인 미확인과 재현 명령 누락을 정합화하
 
 ### Next Attempt
 
-없음. preflight PASS 파일로 evidence-only commit/push와 PR #127 body update를 수행하고 최신 CI를 확인합니다.
+Review에서 대체 AC 핵심인 restart/OOM과 actuator health의 exact 명령·관찰값을 `commands.md`에 보강하도록 반환했습니다.
+
+## Attempt 4
+
+### Generate
+
+- Generate start: 2026-07-18T16:45:35+09:00.
+- Review P1에 따라 Attempt 1 실제 transcript의 `docker inspect` format과 세 container 출력, actuator curl 명령과 HTTP 200 `UP` 응답을 `commands.md`에 그대로 옮깁니다.
+- production, test, script, runtime과 k6는 수정하거나 재실행하지 않고 evidence 6종과 PR body만 정합화합니다.
+
+### Evaluate
+
+- 실제 transcript의 `docker inspect`는 Kafka·MySQL·Redis 각각 `status=running`, `health=healthy`, `exit=0`, `oom=false`, `restart=0`을 반환했습니다.
+- 실제 actuator 명령은 ``curl.exe -sS --max-time 5 -w "`nHTTP_STATUS=%{http_code}`n" http://localhost:8080/actuator/health``이며 body `{"groups":["liveness","readiness"],"status":"UP"}`와 `HTTP_STATUS=200`을 반환했습니다.
+- PR head `4f99e3bdd28ae2b6956ea35493d6658afae35018`의 `quality-gates` runs `29636123309`, `29636123353`은 모두 SUCCESS입니다.
+- 새 runtime 관찰이나 추정값은 추가하지 않았습니다.
+
+### Failure Cause
+
+- Attempt 3 `commands.md`는 요약 표의 `docker compose ps`와 `curl.exe ... /actuator/health` placeholder만 보여 대체 AC의 restart/OOM 및 health 근거를 독립적으로 재현하기에 부족했습니다.
+- transcript에는 필요한 exact 명령과 출력이 존재하므로 BLOCKED 전환 없이 evidence를 보강합니다.
+
+### Change Scope
+
+- `docs/testing/evidence/issue-114/**` 6개 파일과 PR body만 수정합니다.
+- production, test, build, runtime 설정, workflow, k6와 repository script는 변경하거나 재실행하지 않습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-18T16:47:31+09:00.
+- Current disposition `PASS`, Current Attempt `4`, Current head와 `verification.md` head `4f99e3bdd28ae2b6956ea35493d6658afae35018`, metrics retry `3`을 일치시킵니다.
+- Review finding 4건, current-head CI SUCCESS와 exact runtime transcript 인용을 반영합니다.
+- `python scripts/harness_gate.py --issue 114 --base-ref origin/main --check-links --include-worktree --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md`: PASS.
+- 같은 UTF-8 no-BOM body의 `Related: #114` 1건, `Closes` 0건과 금지 범위 변경 0건을 확인했습니다.
+
+### Next Attempt
+
+없음. preflight PASS 파일로 evidence-only commit/push와 PR #127 body update를 수행합니다.
