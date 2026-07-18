@@ -24,6 +24,8 @@ Date: 2026-07-18
 - `processed_event`를 Redis exactly-once의 단독 근거로 오해하지 않도록 ranking ledger·Lua marker와 책임을 분리했습니다.
 - retention이 모든 ledger나 Redis marker를 SCAN 삭제한다고 표현하지 않고, 오래된 적격 `COMMITTED` DB 행의 bounded cleanup과 pending 보존을 명시했습니다.
 - Notion Sites 공개 URL을 추측하지 않고 실제 제공된 Anyone-on-web URL만 사용했습니다.
+- Review 뒤 `ranking_rebuild_run_event.event_type` check를 Flyway V6와 ERD에서 다시 대조했습니다.
+- Redis 복구는 DB에서 재생하는 것이 아니라 Kafka replay로 temp ZSET을 만들고 DB 주문 집계로 검증한다는 경계를 README와 API에서 일치시켰습니다.
 
 ## Cleanup receipt
 

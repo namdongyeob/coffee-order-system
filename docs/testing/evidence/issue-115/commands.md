@@ -14,8 +14,11 @@ Execution head: 96ae18340258a9bba09f591572806ce687f0347d
 | Level 0 | Notion TIL URL 5개 `Invoke-WebRequest -Method Head` | PASS, 모두 HTTP 200 |
 | Level 0 | `gh repo view ... --json visibility,url`, non-merge commit count | PASS, PUBLIC, 235 commits로 제출 기준 10개 이상 |
 | Level 0 | `git diff --check`, 변경 파일 allowlist | PASS, whitespace error 0, production/test 변경 0 |
+| Level 0 | Review P1 ERD V6 check 제약·Redis rebuild 설명 수정 뒤 links-only | PASS |
+| Level 0 | Review P1 수정 뒤 `python -m unittest scripts.tests.test_harness_gate` | PASS, 130 tests in 1.097s |
 
 ## 환경 메모
 
 - Codex 실행 환경은 filesystem unrestricted, approval policy `never`였습니다.
 - 문서 전용 변경이라 Level 1 전체 Gradle 회귀, Level 3~7 runtime 검증은 반복하지 않았습니다. 최신 main의 Level 5·6·7 근거는 Issue #114입니다.
+- Attempt 2는 Review P1 두 건의 문서만 수정해 links-only와 문서 하네스만 재실행했습니다.

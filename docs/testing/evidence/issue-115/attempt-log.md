@@ -4,8 +4,8 @@ Issue: #115
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/115
 Branch: codex/issue-115-final-docs
 Current disposition: PASS
-Current Attempt: 1
-Current head: 96ae18340258a9bba09f591572806ce687f0347d
+Current Attempt: 2
+Current head: 02d876207827896bb1cbb2d627f3a9710d765204
 
 ## Attempt 1
 
@@ -35,4 +35,34 @@ Current head: 96ae18340258a9bba09f591572806ce687f0347d
 
 ### Next Attempt
 
-없음. 독립 Combined Verifier와 최신 PR-head CI를 확인합니다.
+Review P1 두 건을 원래 Dev가 한 번 수정합니다.
+
+## Attempt 2
+
+### Generate
+
+- ERD에 Flyway V6의 `chk_ranking_rebuild_run_event_type` 제약을 명시했습니다.
+- Redis 복구 설명을 Kafka replay temp ZSET 재구성 후 DB 주문 집계 검증으로 정정했습니다.
+
+### Evaluate
+
+- links-only gate, 문서 하네스 130건, diff check가 PASS했습니다.
+
+### Failure Cause
+
+- ERD 제약 목록에서 rebuild event type check가 누락됐습니다.
+- README와 API의 요약 표현이 Redis 복구 원천을 DB로 오해할 수 있게 작성됐습니다.
+
+### Change Scope
+
+- `README.md`, `docs/api/api-spec.md`, `docs/db/erd.md`, Issue #115 evidence만 수정했습니다.
+
+### Reverification
+
+- `python scripts/harness_gate.py --links-only --base-ref origin/main --include-worktree`: PASS.
+- `python -m unittest scripts.tests.test_harness_gate`: PASS, 130 tests.
+- `git diff --check`: PASS.
+
+### Next Attempt
+
+없음. fresh Combined Verifier와 최신 PR-head CI를 확인합니다.
