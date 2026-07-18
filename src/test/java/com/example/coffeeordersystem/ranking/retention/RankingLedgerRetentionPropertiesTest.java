@@ -43,6 +43,31 @@ class RankingLedgerRetentionPropertiesTest {
 				.hasMessageContaining("kafka-retention");
 	}
 
+	@Test
+	void disabledCleanupStillRejectsUnsafeCoreRetentionSettings() {
+		RankingLedgerRetentionProperties shorterMarker = propertiesWithCoreSettings(
+				Duration.ofDays(30), Duration.ofDays(29));
+		RankingLedgerRetentionProperties zeroMarker = propertiesWithCoreSettings(
+				Duration.ofDays(30), Duration.ZERO);
+
+		assertThatThrownBy(() -> new RankingLedgerRetentionPolicy(shorterMarker, Clock.systemUTC()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("redis-marker-ttl");
+		assertThatThrownBy(() -> new RankingLedgerRetentionPolicy(zeroMarker, Clock.systemUTC()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("redis-marker-ttl");
+	}
+
+	@Test
+	void rejectsSubSecondMarkerTtlBeforeRedisCanReceiveExZero() {
+		RankingLedgerRetentionProperties subSecondMarker = propertiesWithCoreSettings(
+				Duration.ofMillis(500), Duration.ofMillis(500));
+
+		assertThatThrownBy(() -> new RankingLedgerRetentionPolicy(subSecondMarker, Clock.systemUTC()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("redis-marker-ttl must be at least 1s");
+	}
+
 	private RankingLedgerRetentionProperties properties(
 			Duration ledgerRetention,
 			Duration markerTtl,
@@ -75,6 +100,20 @@ class RankingLedgerRetentionPropertiesTest {
 				enabled,
 				Duration.ofDays(30),
 				Duration.ofDays(30),
+				null,
+				null,
+				null,
+				100,
+				Duration.ofHours(1));
+	}
+
+	private RankingLedgerRetentionProperties propertiesWithCoreSettings(
+			Duration ledgerRetention,
+			Duration markerTtl) {
+		return new RankingLedgerRetentionProperties(
+				false,
+				ledgerRetention,
+				markerTtl,
 				null,
 				null,
 				null,

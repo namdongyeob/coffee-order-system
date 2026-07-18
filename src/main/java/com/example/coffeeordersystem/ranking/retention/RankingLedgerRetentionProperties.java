@@ -15,14 +15,16 @@ public record RankingLedgerRetentionProperties(
 		Duration fixedDelay) {
 
 	public static final int MAX_BATCH_SIZE = 1_000;
+	private static final Duration MINIMUM_REDIS_MARKER_TTL = Duration.ofSeconds(1);
 
 	public void validate() {
 		requirePositive("ledger-retention", ledgerRetention);
 		requirePositive("redis-marker-ttl", redisMarkerTtl);
-		requirePositive("kafka-retention", kafkaRetention);
-		requirePositive("dlt-retention", dltRetention);
-		requirePositive("maximum-rebuild-recovery-window", maximumRebuildRecoveryWindow);
 		requirePositive("fixed-delay", fixedDelay);
+		if (redisMarkerTtl.compareTo(MINIMUM_REDIS_MARKER_TTL) < 0) {
+			throw new IllegalStateException(
+					"ranking.ledger.cleanup.redis-marker-ttl must be at least 1s");
+		}
 		if (batchSize < 1 || batchSize > MAX_BATCH_SIZE) {
 			throw new IllegalStateException(
 					"ranking.ledger.cleanup.batch-size must be between 1 and " + MAX_BATCH_SIZE);
@@ -31,6 +33,12 @@ public record RankingLedgerRetentionProperties(
 			throw new IllegalStateException(
 					"ranking.ledger.cleanup.redis-marker-ttl must be >= ledger-retention");
 		}
+		if (!enabled) {
+			return;
+		}
+		requirePositive("kafka-retention", kafkaRetention);
+		requirePositive("dlt-retention", dltRetention);
+		requirePositive("maximum-rebuild-recovery-window", maximumRebuildRecoveryWindow);
 		requireCovered("kafka-retention", kafkaRetention);
 		requireCovered("dlt-retention", dltRetention);
 		requireCovered("maximum-rebuild-recovery-window", maximumRebuildRecoveryWindow);

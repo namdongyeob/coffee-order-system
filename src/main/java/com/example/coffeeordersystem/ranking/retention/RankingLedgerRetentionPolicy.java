@@ -9,9 +9,7 @@ public class RankingLedgerRetentionPolicy {
 	private final Clock clock;
 
 	public RankingLedgerRetentionPolicy(RankingLedgerRetentionProperties properties, Clock clock) {
-		if (properties.enabled()) {
-			properties.validate();
-		}
+		properties.validate();
 		this.properties = properties;
 		this.clock = clock;
 	}
