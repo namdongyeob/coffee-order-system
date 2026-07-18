@@ -29,9 +29,10 @@ public record RankingLedgerRetentionProperties(
 			throw new IllegalStateException(
 					"ranking.ledger.cleanup.batch-size must be between 1 and " + MAX_BATCH_SIZE);
 		}
-		if (redisMarkerTtl.compareTo(ledgerRetention) < 0) {
+		Duration effectiveRedisMarkerTtl = Duration.ofSeconds(redisMarkerTtl.toSeconds());
+		if (effectiveRedisMarkerTtl.compareTo(ledgerRetention) < 0) {
 			throw new IllegalStateException(
-					"ranking.ledger.cleanup.redis-marker-ttl must be >= ledger-retention");
+					"ranking.ledger.cleanup.redis-marker-ttl after EX seconds conversion must be >= ledger-retention");
 		}
 		if (!enabled) {
 			return;

@@ -68,6 +68,16 @@ class RankingLedgerRetentionPropertiesTest {
 				.hasMessageContaining("redis-marker-ttl must be at least 1s");
 	}
 
+	@Test
+	void rejectsMarkerWhoseEffectiveRedisExTtlIsShorterThanLedgerRetention() {
+		RankingLedgerRetentionProperties truncatedMarker = propertiesWithCoreSettings(
+				Duration.ofMillis(1_500), Duration.ofMillis(1_500));
+
+		assertThatThrownBy(() -> new RankingLedgerRetentionPolicy(truncatedMarker, Clock.systemUTC()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("after EX seconds conversion");
+	}
+
 	private RankingLedgerRetentionProperties properties(
 			Duration ledgerRetention,
 			Duration markerTtl,
