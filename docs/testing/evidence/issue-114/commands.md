@@ -23,6 +23,7 @@ Execution head: e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec
 | Level 7 | `k6 inspect k6/order-spike.js`; `k6 run --summary-export %TEMP%\coffee-order-issue-114\spike-summary.json k6/order-spike.js` | PASS, safe 8 VU, p95 72.04ms < 2000ms, HTTP/order error 0%, checks 815/815 |
 | Level 0 | 앱 PID 종료 뒤 `docker compose -f docker/compose.yaml down -v --remove-orphans`와 container·network·volume·port·process 조회 | PASS, orphan 0건 |
 | Level 0 | `python scripts/harness_gate.py --issue 114 --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md` | FAIL, BLOCKED는 PASS 행을 금지하지만 Level 5/6 YES는 PASS 행을 강제하는 하네스 모순 |
+| Level 0 | `python scripts/harness_gate.py --issue 114 --base-ref origin/main --check-links --include-worktree --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md` | PASS, Attempt 3 user-approved AC·evidence·links·PR body 정합성 |
 
 ## 실제 HTTP 명령
 
@@ -99,4 +100,6 @@ docker compose -f docker/compose.yaml exec -T redis redis-cli ZRANGE 'popular:me
 - 전체 Gradle 회귀는 실행하지 않았습니다. 최신 PR-head GitHub Actions `quality-gates`가 최종 Level 1을 소유합니다.
 - Attempt 2에서 새 HTTP/DB/Kafka/Redis/runtime/k6 명령은 실행하지 않았습니다. 위 상세 명령은 Attempt 1 tool transcript에서 실제 사용 문자열만 옮겼습니다.
 - 이전 컨테이너 `exit 255` 당시의 container ID, inspect/log/resource 명령 출력은 남아 있지 않아 원인 재현 명령으로 기록할 수 없습니다.
-- PR body는 저장소 밖 UTF-8 no-BOM 파일로 정합화했지만 preflight FAIL 때문에 `gh pr edit`을 실행하지 않았습니다.
+- Attempt 2 PR body는 저장소 밖 UTF-8 no-BOM 파일로 정합화했지만 preflight FAIL 때문에 `gh pr edit`을 실행하지 않았습니다.
+- Attempt 3은 [사용자 결정](https://github.com/namdongyeob/coffee-order-system/issues/114#issuecomment-5010437517)을 evidence에 반영하며 새 runtime/k6 명령을 실행하지 않습니다.
+- Attempt 3 PR body는 UTF-8 no-BOM, `Related: #114` 1건, `Closes` 0건으로 preflight PASS했습니다.

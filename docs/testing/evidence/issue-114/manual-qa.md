@@ -48,6 +48,7 @@ Date: 2026-07-18
 - fresh Review에서 전체 PASS를 막는 P1 2건과 metadata P2 1건을 발견했습니다. independent QA는 pending입니다.
 - verified production head는 `e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec`입니다. evidence-only commit 뒤 PR head와의 차이는 이 evidence 디렉터리뿐이며 runtime 코드는 바뀌지 않습니다.
 - 첫 명령 실행 전 과거 exited container가 이미 존재하지 않아 이전 실행의 `exit 255` 원인 로그는 회수할 수 없었습니다. Issue #114과 직접 연결 Issue의 본문·댓글, repository evidence와 Git history에도 동시대 로그·resource snapshot이 없습니다.
-- 이번 clean 실행은 exit 255를 재현하지 않았고 세 container 모두 restart 0·exit 0·OOM false였습니다. 이 현재 관찰은 과거 `exit 255` 원인 확인을 대체하지 않으므로 Issue 판정은 BLOCKED입니다.
-- Attempt 2는 evidence-only correction이며 새 runtime/k6 검증을 실행하지 않았습니다.
-- 저장소 하네스는 Level 5/6 required YES에 PASS 행을 요구하면서 BLOCKED disposition에는 PASS 행을 금지합니다. 허용 범위에 harness script가 없어 preflight PASS를 만들 수 없고 PR body update는 fail-closed로 보류했습니다.
+- 사용자가 [Issue #114 comment 5010437517](https://github.com/namdongyeob/coffee-order-system/issues/114#issuecomment-5010437517)에서 역사적 원인 확인을 이번 clean 실행의 비재현·health·restart 0·exit 0·OOM false evidence로 대체했습니다.
+- 이번 clean 실행은 exit 255를 재현하지 않았고 세 container 모두 restart 0·exit 0·OOM false였습니다. 승인된 AC 기준에서 이 관찰은 PASS입니다.
+- Attempt 2와 Attempt 3은 evidence-only correction이며 새 runtime/k6 검증을 실행하지 않았습니다.
+- Attempt 2 head `3d97b78cb4df36a1d9254465d5937362aae176b2`의 CI run `29635907901`은 당시 BLOCKED/required-Level metadata 충돌로 FAILURE였습니다. Attempt 3은 승인된 AC에 따라 PASS metadata와 preflight를 복원합니다.

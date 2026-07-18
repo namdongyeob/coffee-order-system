@@ -3,9 +3,9 @@
 Issue: #114
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/114
 Branch: codex/issue-114-final-verification
-Current disposition: BLOCKED
-Current Attempt: 2
-Current head: 5aedd45dbc3d0fea25757ae13f18f0084853a653
+Current disposition: PASS
+Current Attempt: 3
+Current head: 3d97b78cb4df36a1d9254465d5937362aae176b2
 
 ## Attempt 1
 
@@ -87,4 +87,42 @@ Review에서 `exit 255` 원인 미확인과 재현 명령 누락을 정합화하
 
 ### Next Attempt
 
-이전 `exit 255` 시점의 container ID와 동시대 `docker inspect`/`docker logs`/resource snapshot을 제공해 원인을 확인하거나, 해당 artifact가 영구 소실된 조건에서 AC를 재정의하는 사람 결정을 제공합니다. BLOCKED와 required Level PASS의 하네스 모순은 별도 정책 결정 또는 script Issue에서 해소해야 PR body를 갱신할 수 있습니다.
+사용자에게 역사적 artifact 소실 조건에서 AC 대체 결정을 요청합니다.
+
+## Attempt 3
+
+### Generate
+
+- Generate start: 2026-07-18T16:36:23+09:00.
+- 사용자가 역사적 `exit 255` root-cause AC를 현재 clean 실행의 non-reproduction, health, restart 0, exit 0, OOM false evidence로 대체하는 것을 승인했습니다.
+- 결정 정본은 [Issue #114 comment 5010437517](https://github.com/namdongyeob/coffee-order-system/issues/114#issuecomment-5010437517)입니다.
+- production, test, script, runtime과 k6는 수정하거나 재실행하지 않고 evidence 6종과 PR body만 정합화합니다.
+
+### Evaluate
+
+- Attempt 1의 compose 3종 `healthy`, restart 0, exit 0, OOM false와 앱 HTTP 200 UP 관찰이 승인된 대체 AC를 충족합니다.
+- Attempt 1의 HTTP·DB·Kafka·Redis·k6 실측과 cleanup receipt는 그대로 유지하고 새로운 결과를 만들지 않았습니다.
+- PR head `5aedd45dbc3d0fea25757ae13f18f0084853a653`의 run `29635241238`은 SUCCESS였습니다.
+- Attempt 2 BLOCKED evidence head `3d97b78cb4df36a1d9254465d5937362aae176b2`의 run `29635907901`은 required Level 5/6 PASS 누락으로 FAILURE였습니다. production/test 실패가 아니라 당시 의도된 BLOCKED metadata의 하네스 결과입니다.
+
+### Failure Cause
+
+- 현재 blocker는 없습니다. 역사적 `exit 255` 동시대 artifact가 없다는 사실은 유지되지만 사용자 결정으로 해당 root-cause 요구를 현재 clean non-reproduction evidence로 대체했습니다.
+- Review finding 3건은 Attempt 2에서 수정됐고 Attempt 3은 추가 Review finding 없이 정책 결정을 반영합니다.
+
+### Change Scope
+
+- `docs/testing/evidence/issue-114/**` 6개 파일과 PR body만 수정합니다.
+- production, test, build, runtime 설정, workflow, k6와 repository script는 변경하거나 재실행하지 않습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-18T16:38:49+09:00.
+- Current disposition `PASS`, Current Attempt `3`, Current head와 `verification.md` head `3d97b78cb4df36a1d9254465d5937362aae176b2`, metrics retry `2`를 일치시킵니다.
+- 모든 AC checkbox와 required Level 5/6 PASS를 복원하고 Review finding 3건, 이전 CI SUCCESS와 현재 BLOCKED-head CI FAILURE를 구분합니다.
+- `python scripts/harness_gate.py --issue 114 --base-ref origin/main --check-links --include-worktree --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md`: PASS.
+- 같은 UTF-8 no-BOM body의 `Related: #114` 1건, `Closes` 0건과 branch gate를 확인했습니다.
+
+### Next Attempt
+
+없음. preflight PASS 파일로 evidence-only commit/push와 PR #127 body update를 수행하고 최신 CI를 확인합니다.
