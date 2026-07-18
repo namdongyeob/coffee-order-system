@@ -2,7 +2,7 @@
 
 Issue: #125
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/125
-Execution head: da96594416d5286ea9a7e2675c5f5d316a2e5470
+Execution head: 2c1c378dc50380119f2728daa4859f982a5cae62
 
 | Level | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
@@ -17,6 +17,10 @@ Execution head: da96594416d5286ea9a7e2675c5f5d316a2e5470
 | Level 1 | Attempt 2 properties RED→GREEN focused | PASS, disabled unknown 허용·enabled unknown startup 거부 |
 | Level 1·3 | `W:\gradlew.bat test --tests "...RankingLedgerRetentionPropertiesTest" --tests "...RankingLedgerRetentionConfigurationTest" --tests "...cleanupIndexHasStateCommittedAtOrderAndExplainUsesIt" --no-daemon` | PASS, current production head targeted 6 tests, 1m |
 | Level 3 | `EXPLAIN ` + production `RankingLedgerCleanupRepository.CANDIDATE_SQL` | PASS, production의 `FORCE INDEX (idx_ranking_event_ledger_cleanup)`, `type=range` |
+| Level 1 | `gh run view 29633092590 --log-failed` | FAIL 원인 확인, 141 tests 중 cleanup 동시성 1건이 disabled 설정의 null `kafka-retention` 검증에서 실패 |
+| Level 1·3 | CI 실패 동시성 테스트 단독 로컬 재현 | RED, CI와 동일 `ranking.ledger.cleanup.kafka-retention must be a known positive duration` |
+| Level 1 | Attempt 3 disabled core·sub-second marker 회귀 테스트 | RED, 신규 2건 assertion failure → GREEN |
+| Level 1·3 | `Set-Location W:\; .\gradlew.bat test --tests "...RankingLedgerRetentionPropertiesTest" --tests "...RankingLedgerRetentionConfigurationTest" --tests "...concurrentInvocationsKeepEachBatchBoundedWithoutDuplicateDeleteErrors" --no-daemon --console=plain` | PASS, production head focused 8 tests, `BUILD SUCCESSFUL in 1m 1s` |
 | Level 0 | 전체 회귀 뒤 Java PID·Testcontainers 조회 | PASS, 잔여 0 |
 
 ## 환경 메모
@@ -25,3 +29,5 @@ Execution head: da96594416d5286ea9a7e2675c5f5d316a2e5470
 - 장기 전체 회귀는 Test Executor PID `27552`, Gradle daemon PID `14312`, CPU 증가와 공유 Testcontainers 4개를 확인하고 재시작하지 않았습니다.
 - Codex CLI `0.144.4`, 모델 `GPT-5` 계열, reasoning effort는 실행 환경에서 미노출, filesystem unrestricted, approval policy `never`로 관찰했습니다.
 - Attempt 2에서는 전체 139 회귀와 Level 5를 반복하지 않았습니다. production 변경 이후 전체 회귀는 최신 PR head GitHub CI가 소유합니다.
+- Attempt 3 첫 두 로컬 명령은 `W:\gradlew.bat`만 호출해 실제 working directory가 한글 경로로 남아 test class loading에 실패했습니다. `Set-Location W:\`로 process working directory까지 전환한 뒤 애플리케이션 RED와 GREEN을 재현했습니다.
+- Attempt 3에서는 전체 141 회귀와 Level 5를 반복하지 않았습니다. 최종 전체 회귀는 최신 PR head GitHub CI가 소유합니다.

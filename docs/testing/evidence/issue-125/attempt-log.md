@@ -4,8 +4,8 @@ Issue: #125
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/125
 Branch: codex/issue-125-ranking-ledger-retention
 Current disposition: PASS
-Current Attempt: 2
-Current head: da96594416d5286ea9a7e2675c5f5d316a2e5470
+Current Attempt: 3
+Current head: 2c1c378dc50380119f2728daa4859f982a5cae62
 
 ## Attempt 1
 
@@ -80,4 +80,40 @@ Current head: da96594416d5286ea9a7e2675c5f5d316a2e5470
 
 ### Next Attempt
 
-없음. Attempt 2 evidence/preflight 뒤 fresh Review·QA·CI를 다시 확인합니다.
+- Review가 반환한 disabled core 검증과 sub-second Redis `EX 0` P1 두 건을 사용자 승인 추가 Attempt에서 처리합니다.
+
+## Attempt 3
+
+### Generate
+
+- Generate start: 2026-07-18T15:13:56+09:00.
+- cleanup enabled 여부와 무관한 ledger/marker/fixed delay/batch core 안전성은 항상 검증하고, Kafka·DLT·최대 rebuild recovery window는 enabled일 때만 필수 검증하도록 경계를 분리했습니다.
+- 초 단위 Redis `EX` 계약에 맞춰 양수이지만 1초 미만인 marker TTL은 application startup에서 fail-closed하도록 최소값을 추가했습니다.
+
+### Evaluate
+
+- `gh run view 29633092590 --log-failed`에서 141건 중 cleanup 동시성 1건이 `kafka-retention must be a known positive duration`으로 실패한 것을 확인했습니다.
+- 같은 동시성 테스트 하나를 로컬에서 동일 stack과 message로 재현했습니다. disabled 설정의 `cleanupOneBatch()`가 외부 window까지 무조건 검증한 것이 직접 원인이었습니다.
+- 두 P1 테스트는 production 수정 전 5건 중 신규 2건이 assertion RED였고, 수정 후 properties·configuration·동시성 focused 8건이 PASS했습니다.
+
+### Failure Cause
+
+- Policy가 `enabled=false`이면 `validate()` 전체를 건너뛰어 marker TTL 0·ledger보다 짧은 값·sub-second 값도 기동할 수 있었습니다.
+- 반대로 `validate()` 내부는 외부 window를 무조건 요구해 disabled cleanup을 직접 호출하는 동시성 테스트와 core-only 설정이 실패했습니다.
+- `Duration.toSeconds()`는 양수 sub-second marker를 0으로 내림해 Lua `SET ... EX 0`이 실패할 수 있으므로, 기존 초 단위 계약의 최소 1초를 core 경계에서 보장해야 했습니다.
+
+### Change Scope
+
+- `RankingLedgerRetentionPolicy`, `RankingLedgerRetentionProperties`, 직접 properties 테스트와 Issue #125 evidence만 수정했습니다.
+- cleanup SQL/transaction/predicate, scheduler, Redis Lua, normal/DLT/rebuild 상태 전이와 다른 production/test/docs는 변경하지 않았습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-18T15:18:03+09:00.
+- properties 5건, configuration context 2건, CI 실패 동시성 1건의 focused 8건: PASS, `BUILD SUCCESSFUL in 1m 1s`.
+- verified production head는 `2c1c378dc50380119f2728daa4859f982a5cae62`입니다.
+- 전체 141 회귀는 로컬에서 재실행하지 않았고 evidence-only commit 뒤 최신 PR head GitHub CI가 소유합니다.
+
+### Next Attempt
+
+없음. Attempt 3 evidence/preflight 뒤 fresh Review·QA와 최신 PR-head CI를 다시 확인합니다.
