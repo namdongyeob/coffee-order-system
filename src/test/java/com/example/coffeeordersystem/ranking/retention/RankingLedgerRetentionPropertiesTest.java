@@ -3,6 +3,7 @@ package com.example.coffeeordersystem.ranking.retention;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Clock;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +31,18 @@ class RankingLedgerRetentionPropertiesTest {
 				.doesNotThrowAnyException();
 	}
 
+	@Test
+	void disabledCleanupAllowsUnknownExternalWindowsButEnabledCleanupRejectsThem() {
+		RankingLedgerRetentionProperties disabled = propertiesWithUnknownExternalWindows(false);
+		RankingLedgerRetentionProperties enabled = propertiesWithUnknownExternalWindows(true);
+
+		assertThatCode(() -> new RankingLedgerRetentionPolicy(disabled, Clock.systemUTC()))
+				.doesNotThrowAnyException();
+		assertThatThrownBy(() -> new RankingLedgerRetentionPolicy(enabled, Clock.systemUTC()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("kafka-retention");
+	}
+
 	private RankingLedgerRetentionProperties properties(
 			Duration ledgerRetention,
 			Duration markerTtl,
@@ -53,6 +66,18 @@ class RankingLedgerRetentionPropertiesTest {
 				kafkaRetention,
 				Duration.ofDays(30),
 				Duration.ofDays(30),
+				100,
+				Duration.ofHours(1));
+	}
+
+	private RankingLedgerRetentionProperties propertiesWithUnknownExternalWindows(boolean enabled) {
+		return new RankingLedgerRetentionProperties(
+				enabled,
+				Duration.ofDays(30),
+				Duration.ofDays(30),
+				null,
+				null,
+				null,
 				100,
 				Duration.ofHours(1));
 	}

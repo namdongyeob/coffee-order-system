@@ -132,14 +132,11 @@ class RankingLedgerCleanupIntegrationTest {
 		assertThat(columns).containsExactly("state", "committed_at");
 
 		Map<String, Object> plan = jdbc.queryForList(
-				"explain select ledger.event_id from ranking_event_ledger ledger "
-						+ "force index (idx_ranking_event_ledger_cleanup) "
-						+ "left join ranking_rebuild_run rebuild on rebuild.run_id = ledger.rebuild_run_id "
-						+ "where ledger.state = 'COMMITTED' and ledger.committed_at is not null "
-						+ "and ledger.committed_at < ? "
-						+ "and (ledger.rebuild_run_id is null or rebuild.state = 'COMPLETED') "
-						+ "order by ledger.committed_at, ledger.event_id limit 100",
-				Timestamp.from(CUTOFF)).stream()
+				"explain " + RankingLedgerCleanupRepository.CANDIDATE_SQL,
+				"COMMITTED",
+				Timestamp.from(CUTOFF),
+				"COMPLETED",
+				100).stream()
 				.filter(row -> "ledger".equals(row.get("table")))
 				.findFirst()
 				.orElseThrow();
