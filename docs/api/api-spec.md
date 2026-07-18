@@ -82,7 +82,7 @@ Base path는 `/api`입니다. 성공 응답은 envelope 없이 리소스 JSON을
 
 - 성공: `200 OK`
 - 정렬: 주문 수 내림차순, 동률이면 메뉴 ID 오름차순입니다.
-- Redis는 DB와 Kafka에서 다시 만들 수 있는 파생 데이터입니다. 복구는 [Kafka replay 복구 전략](../architecture/recovery-strategy.md)과 [ADR-008 ranking ledger](../adr/ADR-008-ranking-recovery-ledger.md)를 따릅니다.
+- Redis는 파생 데이터입니다. Kafka replay로 temp ZSET을 다시 만들고 DB 주문 집계와 비교한 뒤 live ZSET을 교체합니다. 복구는 [Kafka replay 복구 전략](../architecture/recovery-strategy.md)과 [ADR-008 ranking ledger](../adr/ADR-008-ranking-recovery-ledger.md)를 따릅니다.
 
 ## 에러 응답
 

@@ -119,6 +119,7 @@ ranking_rebuild_run ─────┘ (완료된 rebuild event만 연결)
 - `orders.menu_id → menu.id`, `orders.user_id → user_point.user_id` 외래 키가 있습니다.
 - `ranking_event_ledger.state`는 `RESERVED`, `REDIS_APPLIED`, `COMMITTED`; `source`는 `NORMAL_CONSUMER`, `DLT_REPLAY`, `REBUILD`; `event_type`은 `order.completed`만 허용합니다.
 - `ranking_rebuild_run.state`는 `PREPARED`, `SWAPPED_PENDING_OFFSET`, `OFFSET_APPLIED_PENDING_LEDGER`, `RECOVERY_REQUIRED`, `COMPLETED`만 허용합니다.
+- `ranking_rebuild_run_event.event_type`은 `chk_ranking_rebuild_run_event_type` 제약으로 `order.completed`만 허용합니다.
 - `ranking_rebuild_run_event`와 `ranking_rebuild_run_offset`은 run 삭제 시 함께 삭제됩니다.
 - 실제 인덱스는 `orders(status, ordered_at)`, `orders(ordered_at, menu_id)`, `outbox_event(published_at, id)`, `ranking_event_ledger(rebuild_run_id)`, `ranking_event_ledger(state, committed_at)`, `ranking_rebuild_run_event(event_id)`입니다.
 
