@@ -399,6 +399,16 @@ def attempt_reconciliation_state(markdown: str) -> tuple[dict[str, str] | None, 
     return {"disposition": disposition, "attempt": attempt, "head": head.lower()}, errors
 
 
+def latest_failure_cause(markdown: str) -> str | None:
+    """Return the latest Attempt's Failure Cause body."""
+    matches = re.findall(
+        r"^### Failure Cause\s*$\s*(.*?)(?=^### |\Z)",
+        markdown,
+        re.MULTILINE | re.DOTALL,
+    )
+    return matches[-1].strip() if matches else None
+
+
 def verification_reconciliation_state(markdown: str) -> tuple[dict[str, str] | None, list[str]]:
     """Read the verification metadata paired with the current Attempt state."""
     errors: list[str] = []
@@ -526,6 +536,17 @@ def validate_evidence_reconciliation(
     has_pass = any(issue_pattern.search(row["Issue"]) and row["결과"] == "PASS" for row in rows)
     unchecked = re.findall(r"^- \[ \] .+", acceptance, re.MULTILINE)
     checked = re.findall(r"^- \[[xX]\] .+", acceptance, re.MULTILINE)
+    failure_cause = latest_failure_cause(attempt_log)
+    normalized_failure_cause = re.sub(r"^[\s*-]+|[\s.]+$", "", failure_cause or "").casefold()
+    if attempt_state["disposition"] == "BLOCKED" and normalized_failure_cause in {
+        "",
+        "none",
+        "n/a",
+        "unknown",
+        "없음",
+        "미정",
+    }:
+        errors.append("attempt-log.md BLOCKED Current disposition requires an exact latest Failure Cause blocker.")
     if attempt_state["disposition"] == "BLOCKED" and has_pass:
         errors.append("evidence reconciliation: BLOCKED Current disposition cannot include PASS verification.")
     if attempt_state["disposition"] == "PASS" and not has_pass:
@@ -631,9 +652,12 @@ def _verification_rows(markdown: str) -> tuple[list[dict[str, str]], list[str]]:
 
 
 def validate_verification_log(
-    markdown: str, issue: int, required_levels: tuple[int, ...] = ()
+    markdown: str,
+    issue: int,
+    required_levels: tuple[int, ...] = (),
+    required_result: str = "PASS",
 ) -> list[str]:
-    """Validate every log row and required PASS evidence for one Issue."""
+    """Validate every log row and required terminal evidence for one Issue."""
     rows, errors = _verification_rows(markdown)
     issue_pattern = re.compile(rf"\bIssue\s*#\s*{issue}\b", re.IGNORECASE)
     issue_rows = [row for row in rows if issue_pattern.search(row["Issue"])]
@@ -646,14 +670,14 @@ def validate_verification_log(
 
     for level in required_levels:
         expected_level = f"Level {level}"
-        has_required_pass = any(
-            row["Level"] == expected_level and row["결과"] == "PASS"
+        has_required_result = any(
+            row["Level"] == expected_level and row["결과"] == required_result
             for row in issue_rows
         )
-        if not has_required_pass:
+        if not has_required_result:
             errors.append(
-                f"verification-log.md: Issue #{issue} required {expected_level} PASS is missing; "
-                f"add a row with the same Issue, Level '{expected_level}', and result 'PASS'."
+                f"verification-log.md: Issue #{issue} required {expected_level} {required_result} is missing; "
+                f"add a row with the same Issue, Level '{expected_level}', and result '{required_result}'."
             )
     return errors
 
@@ -724,7 +748,19 @@ def validate_issue_evidence(
         required_levels = set(required_verification_levels(acceptance))
         if changed_paths_for_level is not None:
             required_levels.update(required_path_levels_needing_pass(changed_paths_for_level, acceptance))
-        errors.extend(validate_verification_log(verification, issue, tuple(sorted(required_levels))))
+        required_result = (
+            "PARTIAL"
+            if _single_metadata_value(attempt_log, "Current disposition") == "BLOCKED"
+            else "PASS"
+        )
+        errors.extend(
+            validate_verification_log(
+                verification,
+                issue,
+                tuple(sorted(required_levels)),
+                required_result,
+            )
+        )
         if acceptance and metrics and attempt_log:
             errors.extend(validate_evidence_reconciliation(acceptance, attempt_log, metrics, verification, issue))
 

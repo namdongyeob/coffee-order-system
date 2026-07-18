@@ -329,6 +329,60 @@ class EvidenceValidationTest(unittest.TestCase):
 
 			self.assertTrue(any("BLOCKED" in error and "PASS" in error for error in errors))
 
+	def test_blocked_required_levels_accept_partial_rows_with_exact_blocker(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			acceptance = (
+				VALID_ACCEPTANCE
+				.replace("- [x] harness evidence reconciliation fixture", "- [ ] harness evidence reconciliation fixture")
+				.replace("Level 5 required: NO", "Level 5 required: YES")
+				.replace("Level 6 required: NO", "Level 6 required: YES")
+			)
+			write_issue_evidence(
+				root,
+				acceptance,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 5 | PARTIAL | 앱 기동 시도 | `command-5` | Docker 권한 거부로 health 미확인 |",
+					"| 2026-07-13 | Issue #23 | Level 6 | PARTIAL | HTTP 시도 | `command-6` | 앱 미기동으로 요청 미실행 |",
+				),
+			)
+			attempt = root / "docs" / "testing" / "evidence" / "issue-23" / "attempt-log.md"
+			attempt.write_text(
+				VALID_ATTEMPT
+				.replace("Current disposition: PASS", "Current disposition: BLOCKED")
+				.replace("- PASS", "- BLOCKED", 1)
+				.replace("- 없음", "- Docker daemon access denied; Level 5/6 cannot complete."),
+				encoding="utf-8",
+			)
+
+			self.assertEqual([], harness_gate.validate_issue_evidence(root, 23))
+
+	def test_blocked_required_level_rejects_missing_partial_and_exact_blocker(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			root = Path(temp_dir)
+			acceptance = (
+				VALID_ACCEPTANCE
+				.replace("- [x] harness evidence reconciliation fixture", "- [ ] harness evidence reconciliation fixture")
+				.replace("Level 5 required: NO", "Level 5 required: YES")
+			)
+			write_issue_evidence(
+				root,
+				acceptance,
+				verification_log(
+					"| 2026-07-13 | Issue #23 | Level 0 | PARTIAL | harness | `command` | blocker details omitted |"
+				),
+			)
+			attempt = root / "docs" / "testing" / "evidence" / "issue-23" / "attempt-log.md"
+			attempt.write_text(
+				VALID_ATTEMPT.replace("Current disposition: PASS", "Current disposition: BLOCKED"),
+				encoding="utf-8",
+			)
+
+			errors = harness_gate.validate_issue_evidence(root, 23)
+
+			self.assertTrue(any("required Level 5 PARTIAL" in error for error in errors))
+			self.assertTrue(any("Failure Cause blocker" in error for error in errors))
+
 	def test_matching_pass_attempt_verification_and_metrics_pass(self):
 		with tempfile.TemporaryDirectory() as temp_dir:
 			root = Path(temp_dir)
