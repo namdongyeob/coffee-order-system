@@ -1,0 +1,21 @@
+# Commands
+
+- Execution head: `f7090b250a541b964d061ade245e4c15a6a22d44`
+- `python -m unittest scripts.tests.test_harness_gate.EvidenceValidationTest.test_blocked_required_levels_accept_partial_rows_with_exact_blocker scripts.tests.test_harness_gate.EvidenceValidationTest.test_blocked_required_level_rejects_missing_partial_and_exact_blocker`
+  - 목적: 기존 모순 재현과 정확한 blocker 누락 실패를 TDD RED로 확인.
+  - 결과: 변경 전 2 tests FAIL, 변경 후 PASS.
+- `python -m unittest scripts.tests.test_harness_gate.EvidenceValidationTest.test_blocked_required_levels_accept_partial_rows_with_exact_blocker scripts.tests.test_harness_gate.EvidenceValidationTest.test_blocked_required_level_rejects_missing_partial_and_exact_blocker scripts.tests.test_harness_gate.EvidenceValidationTest.test_blocked_current_disposition_rejects_pass_verification scripts.tests.test_harness_gate.VerificationLogValidationTest.test_required_level_fails_when_pass_is_missing scripts.tests.test_harness_gate.VerificationLogValidationTest.test_required_level_rejects_wrong_issue_wrong_level_and_partial scripts.tests.test_harness_gate.VerificationLogValidationTest.test_required_level_6_rejects_missing_wrong_issue_wrong_level_and_partial`
+  - 목적: BLOCKED 계약과 PASS fail-closed 회귀 확인.
+  - 결과: 6 tests PASS.
+- `python -m unittest discover -s scripts/tests -p "test_*.py"`
+  - 목적: 하네스 전체 회귀.
+  - 결과: 162 tests PASS.
+- `python scripts/harness_gate.py --issue 128 --pr-body-file <temporary UTF-8 body>`
+  - 목적: Issue evidence와 PR 본문 preflight.
+  - 결과: PASS.
+- `python scripts/harness_gate.py --issue 128 --check-links --include-worktree`
+  - 목적: Issue repository harness와 변경 Markdown 링크 검사.
+  - 결과: PASS.
+- `git diff --check`
+  - 목적: whitespace 검사.
+  - 결과: PASS.
