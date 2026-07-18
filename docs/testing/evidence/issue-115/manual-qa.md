@@ -15,7 +15,7 @@ Date: 2026-07-18
 - README에서 요구사항, 범위, API, ERD, ADR-001~008, 운영, 테스트, Issue #114 evidence로 이동하는 내부 링크를 확인했습니다.
 - ERD의 9개 테이블과 V1~V7의 primary/unique/check/foreign key/index를 대조했습니다.
 - Outbox는 발행 대기, `processed_event`는 consumer 호환 이력, `ranking_event_ledger`는 Redis projection 복구 원장이라는 서로 다른 책임을 명시했습니다.
-- TIL 5개는 Coordinator가 Notion Share UI에서 상속된 `Anyone on the web with link / Can view`를 확인한 URL이며, 이 worktree에서 모두 HTTP 200임을 재확인했습니다.
+- 단일 통합 트러블슈팅 페이지는 Coordinator가 Notion Share UI에서 상속된 `Anyone on the web with link / Can view`를 확인한 URL이며, 이 worktree에서 HTTP 200임을 재확인했습니다.
 - GitHub repository visibility가 `PUBLIC`이고 커밋 이력이 10개 이상임을 확인했습니다.
 
 ## Adversarial QA
@@ -35,4 +35,4 @@ Date: 2026-07-18
 ## 미검증 항목과 남은 위험
 
 - 독립 Combined Verifier와 최신 PR-head GitHub CI는 PR 생성 뒤 pending입니다.
-- Notion URL은 HTTP 200과 Share UI 확인 근거를 사용했으며 익명 브라우저의 전체 본문 렌더링은 이 Dev 세션에서 반복하지 않았습니다.
+- 통합 트러블슈팅 URL은 HTTP 200과 Share UI 확인 근거를 사용했으며 익명 브라우저의 전체 본문 렌더링은 이 Dev 세션에서 반복하지 않았습니다.

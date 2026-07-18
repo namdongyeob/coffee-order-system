@@ -2,7 +2,7 @@
 
 Issue: #115
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/115
-Execution head: 96ae18340258a9bba09f591572806ce687f0347d
+Execution head: 9b0776208dcbc2aeb1e0fe9bc860699f51d031e2
 
 | Level | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
@@ -16,9 +16,17 @@ Execution head: 96ae18340258a9bba09f591572806ce687f0347d
 | Level 0 | `git diff --check`, 변경 파일 allowlist | PASS, whitespace error 0, production/test 변경 0 |
 | Level 0 | Review P1 ERD V6 check 제약·Redis rebuild 설명 수정 뒤 links-only | PASS |
 | Level 0 | Review P1 수정 뒤 `python -m unittest scripts.tests.test_harness_gate` | PASS, 130 tests in 1.097s |
+| Level 0 | 사용자 정정 뒤 단일 통합 트러블슈팅 URL `Invoke-WebRequest -Method Head` | PASS, HTTP 200 |
+| Level 0 | 사용자 정정 뒤 `python scripts/harness_gate.py --links-only --base-ref origin/main --include-worktree` | PASS |
+| Level 0 | 사용자 정정 뒤 `python -m unittest scripts.tests.test_harness_gate` | PASS, 134 tests in 1.112s |
+| Level 0 | 사용자 정정 뒤 `git diff --check`, 변경 파일 allowlist | PASS, whitespace error 0, README·Issue #115 evidence만 변경 |
+| Level 0 | 최초 PR-head CI run `29638246508` | FAIL, Attempt 3 content head reconciliation 누락 탐지 |
+| Level 0 | Attempt 3 content head를 `9b0776208dcbc2aeb1e0fe9bc860699f51d031e2`로 정정 뒤 동일 gate 재실행 | PASS, evidence-only 후속 수정 |
 
 ## 환경 메모
 
 - Codex 실행 환경은 filesystem unrestricted, approval policy `never`였습니다.
 - 문서 전용 변경이라 Level 1 전체 Gradle 회귀, Level 3~7 runtime 검증은 반복하지 않았습니다. 최신 main의 Level 5·6·7 근거는 Issue #114입니다.
 - Attempt 2는 Review P1 두 건의 문서만 수정해 links-only와 문서 하네스만 재실행했습니다.
+- Attempt 3은 산출물 유형과 링크만 정정해 links-only, 문서 하네스, 외부 링크와 diff scope만 재검증했습니다.
+- 최초 CI의 metadata P1은 README를 변경한 content commit을 Attempt 3 정본 SHA로 기록해 수정했습니다.
