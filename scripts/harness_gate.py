@@ -399,14 +399,21 @@ def attempt_reconciliation_state(markdown: str) -> tuple[dict[str, str] | None, 
     return {"disposition": disposition, "attempt": attempt, "head": head.lower()}, errors
 
 
-def latest_failure_cause(markdown: str) -> str | None:
-    """Return the latest Attempt's Failure Cause body."""
-    matches = re.findall(
-        r"^### Failure Cause\s*$\s*(.*?)(?=^### |\Z)",
+def current_attempt_failure_cause(markdown: str, attempt: str) -> str | None:
+    """Return only the machine-selected current Attempt's Failure Cause body."""
+    attempt_match = re.search(
+        rf"^## Attempt {re.escape(attempt)}[ \t]*\r?\n(.*?)(?=^## Attempt [1-9]\d*[ \t]*$|\Z)",
         markdown,
         re.MULTILINE | re.DOTALL,
     )
-    return matches[-1].strip() if matches else None
+    if attempt_match is None:
+        return None
+    failure_match = re.search(
+        r"^### Failure Cause[ \t]*\r?\n(.*?)(?=^### |\Z)",
+        attempt_match.group(1),
+        re.MULTILINE | re.DOTALL,
+    )
+    return failure_match.group(1).strip() if failure_match else None
 
 
 def verification_reconciliation_state(markdown: str) -> tuple[dict[str, str] | None, list[str]]:
@@ -536,7 +543,7 @@ def validate_evidence_reconciliation(
     has_pass = any(issue_pattern.search(row["Issue"]) and row["결과"] == "PASS" for row in rows)
     unchecked = re.findall(r"^- \[ \] .+", acceptance, re.MULTILINE)
     checked = re.findall(r"^- \[[xX]\] .+", acceptance, re.MULTILINE)
-    failure_cause = latest_failure_cause(attempt_log)
+    failure_cause = current_attempt_failure_cause(attempt_log, attempt_state["attempt"])
     normalized_failure_cause = re.sub(r"^[\s*-]+|[\s.]+$", "", failure_cause or "").casefold()
     if attempt_state["disposition"] == "BLOCKED" and normalized_failure_cause in {
         "",
