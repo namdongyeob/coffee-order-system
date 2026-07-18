@@ -1,8 +1,8 @@
 // 주문 완료 시 일별 Redis 인기 메뉴 score를 증가시킵니다.
 package com.example.coffeeordersystem.ranking.service;
 
+import com.example.coffeeordersystem.ranking.retention.RankingLedgerRetentionProperties;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -23,7 +23,6 @@ public class PopularMenuRankingService {
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 	private static final String KEY_PREFIX = "popular:menus:";
 	private static final String APPLIED_EVENT_KEY_PREFIX = "ranking:applied-event:";
-	private static final Duration APPLIED_EVENT_TTL = Duration.ofDays(30);
 
 	private static final DefaultRedisScript<Long> APPLY_FINGERPRINT_ONCE_SCRIPT = new DefaultRedisScript<>(
 			"local existing = redis.call('GET', KEYS[2]) "
@@ -34,13 +33,14 @@ public class PopularMenuRankingService {
 			Long.class);
 
 	private final StringRedisTemplate redisTemplate;
+	private final RankingLedgerRetentionProperties retentionProperties;
 
 	public void apply(String eventId, String fingerprint, Long menuId, LocalDateTime orderedAt) {
 		PopularMenuRankingEntry entry = PopularMenuRankingEntry.from(menuId, orderedAt);
 		Long result = redisTemplate.execute(
 				APPLY_FINGERPRINT_ONCE_SCRIPT,
 				List.of(entry.key(), APPLIED_EVENT_KEY_PREFIX + eventId),
-				entry.member(), fingerprint, Long.toString(APPLIED_EVENT_TTL.toSeconds()));
+				entry.member(), fingerprint, Long.toString(retentionProperties.redisMarkerTtl().toSeconds()));
 		if (Long.valueOf(-1L).equals(result)) {
 			throw new IllegalStateException("EVENT_ID_PAYLOAD_CONFLICT eventId=" + eventId);
 		}
