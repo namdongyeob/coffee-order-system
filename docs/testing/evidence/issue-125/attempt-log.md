@@ -4,8 +4,8 @@ Issue: #125
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/125
 Branch: codex/issue-125-ranking-ledger-retention
 Current disposition: PASS
-Current Attempt: 3
-Current head: 2c1c378dc50380119f2728daa4859f982a5cae62
+Current Attempt: 4
+Current head: d976fe6b56e95061382edddbc209e1405af14e62
 
 ## Attempt 1
 
@@ -116,4 +116,38 @@ Current head: 2c1c378dc50380119f2728daa4859f982a5cae62
 
 ### Next Attempt
 
-없음. Attempt 3 evidence/preflight 뒤 fresh Review·QA와 최신 PR-head CI를 다시 확인합니다.
+- 설정 Duration 비교와 Redis `EX` 정수 초 실효 TTL이 달라지는 마지막 P1을 사용자 승인 Attempt 4에서 처리합니다.
+
+## Attempt 4
+
+### Generate
+
+- Generate start: 2026-07-18T15:30:00+09:00 (minute precision).
+- Redis marker의 설정 Duration 대신 production `toSeconds()`와 같은 정수 초 실효 Duration을 ledger retention과 비교하도록 core 검증을 수정했습니다.
+- `ledger-retention=1500ms`, `redis-marker-ttl=1500ms`처럼 설정상 같지만 Redis `EX`에서는 1초가 되는 값을 fail-closed합니다.
+
+### Evaluate
+
+- production 수정 전 properties 6건 중 신규 1500ms/1500ms 회귀 1건만 assertion RED였고 기존 core 5건은 유지됐습니다.
+- 최소 수정 후 신규 회귀를 포함한 properties focused 6건이 failures/errors/skipped 0으로 PASS했습니다.
+
+### Failure Cause
+
+- 이전 검증은 원래 `Duration`끼리 비교했지만 Redis 적용 경로는 `toSeconds()`로 소수 초를 내림하므로 설정상 marker와 실제 marker 보호 시간이 달랐습니다.
+- 1초 미만 차단만으로는 1500ms처럼 1초 이상이면서 fractional second인 값을 막지 못했습니다.
+
+### Change Scope
+
+- `RankingLedgerRetentionProperties`, 직접 properties 테스트와 Issue #125 evidence만 수정했습니다.
+- `PopularMenuRankingService`, Redis Lua, Policy, cleanup, 다른 production/test/docs는 변경하지 않았습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-18T15:32:56+09:00.
+- `RankingLedgerRetentionPropertiesTest` focused 6건: PASS, failures/errors/skipped 0, `BUILD SUCCESSFUL in 25s`.
+- verified production head는 `d976fe6b56e95061382edddbc209e1405af14e62`입니다.
+- 전체 141 회귀와 Level 5는 로컬에서 재실행하지 않았고 evidence-only commit 뒤 최신 PR head GitHub CI가 소유합니다.
+
+### Next Attempt
+
+없음. Attempt 4 evidence/preflight 뒤 fresh Review·QA와 최신 PR-head CI를 다시 확인합니다.

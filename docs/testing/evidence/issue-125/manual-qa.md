@@ -14,6 +14,7 @@ Date: 2026-07-18
 
 - fixed Clock 단일 read, 양수 기간, batch `1..1000`, marker/Kafka/DLT/rebuild window 비교를 단위 테스트로 확인했습니다.
 - Attempt 3에서 cleanup disabled도 core retention 안전성을 검증하고, 1초 미만 marker TTL이 Redis Lua의 `EX 0` 인자로 내려가기 전에 거부됨을 확인했습니다.
+- Attempt 4에서 1500ms marker가 Redis `EX` 적용 시 1초로 내림되는 실효값을 기준으로 ledger 1500ms보다 짧다고 판정해 기동 전에 거부함을 확인했습니다.
 - MySQL 8.4에서 cutoff 1μs 전·정확히 cutoff·이후, 상태별 보존, rebuild 상태별 보존, batch·재실행·동시 실행과 mutation-time predicate 재확인을 확인했습니다.
 - Redis 7.4에서 구성한 marker TTL이 실제 key TTL에 반영됨을 확인했습니다.
 - 기존 bilateral DLT↔rebuild, normal ledger, Kafka DLT 회귀를 그대로 통과했습니다.
@@ -37,6 +38,7 @@ Date: 2026-07-18
 - EXPLAIN은 별도 테스트 전용 query가 아니라 production `CANDIDATE_SQL`에 `explain`만 앞에 붙여 실행했습니다.
 - Attempt 3에서 disabled 설정의 외부 window는 선택 상태를 유지하면서 marker TTL 0·ledger보다 짧은 값·sub-second 값은 Policy 생성 시 거부했습니다.
 - 실패한 GitHub CI 동시성 테스트를 로컬에서 같은 `kafka-retention` 예외로 재현한 뒤, 외부 window 검증 분리 후 같은 테스트가 예외 없이 PASS함을 확인했습니다.
+- fractional-second marker 설정은 production `toSeconds()`와 같은 변환으로 실효 TTL을 만든 뒤 ledger retention과 비교하므로 설정값만 같은 1500ms/1500ms도 안전하다고 오판하지 않습니다.
 
 ## Cleanup receipt
 
@@ -50,4 +52,4 @@ Date: 2026-07-18
 - Level 6은 HTTP 계약이 없는 내부 scheduler라 Issue 결정대로 실행하지 않았습니다.
 - 운영 Kafka/DLT effective retention은 배포 환경 topic/broker 설정을 운영자가 확인해 config에 입력하는 경로입니다. 실제 운영 cluster 값은 이 로컬 검증에서 확인하지 않았습니다.
 - 독립 Review, independent QA와 최신 PR-head CI는 draft PR 뒤 pending입니다.
-- evidence의 verified production head는 `2c1c378`이고 evidence-only commit 뒤 PR head와 의도적으로 다릅니다. 두 head의 코드 차이는 없으며 최신 evidence-only PR head 전체 회귀는 CI pending입니다.
+- evidence의 verified production head는 `d976fe6`이고 evidence-only commit 뒤 PR head와 의도적으로 다릅니다. 두 head의 코드 차이는 없으며 최신 evidence-only PR head 전체 회귀는 CI pending입니다.

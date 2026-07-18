@@ -1,7 +1,7 @@
 # 검증 로그
 
-Attempt: 3
-Head: 2c1c378dc50380119f2728daa4859f982a5cae62
+Attempt: 4
+Head: d976fe6b56e95061382edddbc209e1405af14e62
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -14,5 +14,6 @@ Head: 2c1c378dc50380119f2728daa4859f982a5cae62
 | 2026-07-18 | Issue #125 ranking ledger retention Attempt 2 | Level 3 | PASS | production 후보 SQL과 동일한 EXPLAIN | `commands.md` | cleanup index force, range 접근 |
 | 2026-07-18 | Issue #125 ranking ledger retention Attempt 3 | Level 1 | PASS | disabled core safety, sub-second marker fail-closed, enabled external window context | `commands.md` | focused properties/configuration 7건 |
 | 2026-07-18 | Issue #125 ranking ledger retention Attempt 3 | Level 3 | PASS | 실패 CI cleanup 동시성 직접 재현 후 회귀 | `commands.md` | focused 동시성 1건 |
+| 2026-07-18 | Issue #125 ranking ledger retention Attempt 4 | Level 1 | PASS | Redis `EX` 정수 초 실효 marker TTL과 ledger retention 비교 | `commands.md` | focused properties 6건 |
 
-Level 5 required: YES, Level 6 required: NO. Level 6은 HTTP 경로가 없어 실행하지 않았습니다. Attempt 3는 두 P1과 실패 CI 직접 원인만 targeted 재실행했고 전체 141 회귀는 최신 evidence-only PR head CI가 소유합니다. 독립 Review·QA와 CI는 후속 확인합니다.
+Level 5 required: YES, Level 6 required: NO. Level 6은 HTTP 경로가 없어 실행하지 않았습니다. Attempt 4는 마지막 1500ms P1과 기존 core validation만 targeted 재실행했고 전체 141 회귀는 최신 evidence-only PR head CI가 소유합니다. 독립 Review·QA와 CI는 후속 확인합니다.

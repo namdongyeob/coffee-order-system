@@ -2,7 +2,7 @@
 
 Issue: #125
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/125
-Execution head: 2c1c378dc50380119f2728daa4859f982a5cae62
+Execution head: d976fe6b56e95061382edddbc209e1405af14e62
 
 | Level | 명령 또는 확인 | 결과 |
 | --- | --- | --- |
@@ -21,6 +21,8 @@ Execution head: 2c1c378dc50380119f2728daa4859f982a5cae62
 | Level 1·3 | CI 실패 동시성 테스트 단독 로컬 재현 | RED, CI와 동일 `ranking.ledger.cleanup.kafka-retention must be a known positive duration` |
 | Level 1 | Attempt 3 disabled core·sub-second marker 회귀 테스트 | RED, 신규 2건 assertion failure → GREEN |
 | Level 1·3 | `Set-Location W:\; .\gradlew.bat test --tests "...RankingLedgerRetentionPropertiesTest" --tests "...RankingLedgerRetentionConfigurationTest" --tests "...concurrentInvocationsKeepEachBatchBoundedWithoutDuplicateDeleteErrors" --no-daemon --console=plain` | PASS, production head focused 8 tests, `BUILD SUCCESSFUL in 1m 1s` |
+| Level 1 | Attempt 4 `ledger-retention=1500ms`, `redis-marker-ttl=1500ms` | RED, 설정 Duration 비교는 통과하지만 Redis `EX` 실효 TTL 1초가 ledger보다 짧은 신규 assertion 1건 실패 |
+| Level 1 | `Set-Location W:\; .\gradlew.bat test --tests "...RankingLedgerRetentionPropertiesTest" --no-daemon --console=plain` | PASS, production head focused 6 tests, failures/errors/skipped 0, `BUILD SUCCESSFUL in 25s` |
 | Level 0 | 전체 회귀 뒤 Java PID·Testcontainers 조회 | PASS, 잔여 0 |
 
 ## 환경 메모
@@ -31,3 +33,4 @@ Execution head: 2c1c378dc50380119f2728daa4859f982a5cae62
 - Attempt 2에서는 전체 139 회귀와 Level 5를 반복하지 않았습니다. production 변경 이후 전체 회귀는 최신 PR head GitHub CI가 소유합니다.
 - Attempt 3 첫 두 로컬 명령은 `W:\gradlew.bat`만 호출해 실제 working directory가 한글 경로로 남아 test class loading에 실패했습니다. `Set-Location W:\`로 process working directory까지 전환한 뒤 애플리케이션 RED와 GREEN을 재현했습니다.
 - Attempt 3에서는 전체 141 회귀와 Level 5를 반복하지 않았습니다. 최종 전체 회귀는 최신 PR head GitHub CI가 소유합니다.
+- Attempt 4에서도 전체 141 회귀와 Level 5를 실행하지 않았습니다. 최신 evidence-only PR head GitHub CI가 전체 회귀를 소유합니다.
