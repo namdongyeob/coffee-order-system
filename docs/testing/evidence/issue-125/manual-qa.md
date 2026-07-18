@@ -32,6 +32,8 @@ Date: 2026-07-18
 - 두 cleanup thread가 동시에 실행돼도 각 반환값은 batch 2 이하이고 반환 삭제 합계와 DB 잔여 수가 일치했습니다. 잠금 경합 tick의 0건 종료는 다음 주기 재시도로 처리합니다.
 - 후보 선택 뒤 상태가 `REDIS_APPLIED`로 바뀐 상황을 가정해 delete predicate가 0건을 반환하고 행을 보존함을 확인했습니다.
 - external retention이 더 길면 DB/Redis 변경 전에 실패하고, Redis marker를 조회하거나 일괄 삭제하는 cleanup 의존성이 없음을 확인했습니다.
+- Attempt 2에서 외부 protection window 기본값을 모두 제거했습니다. cleanup disabled context는 외부 값 없이 기동하고 scheduler bean이 없으며, enabled context는 첫 누락 `kafka-retention`에서 기동을 거부합니다.
+- EXPLAIN은 별도 테스트 전용 query가 아니라 production `CANDIDATE_SQL`에 `explain`만 앞에 붙여 실행했습니다.
 
 ## Cleanup receipt
 
@@ -45,3 +47,4 @@ Date: 2026-07-18
 - Level 6은 HTTP 계약이 없는 내부 scheduler라 Issue 결정대로 실행하지 않았습니다.
 - 운영 Kafka/DLT effective retention은 배포 환경 topic/broker 설정을 운영자가 확인해 config에 입력하는 경로입니다. 실제 운영 cluster 값은 이 로컬 검증에서 확인하지 않았습니다.
 - 독립 Review, independent QA와 최신 PR-head CI는 draft PR 뒤 pending입니다.
+- evidence의 verified production head는 `da96594`이고 evidence-only commit 뒤 PR head와 의도적으로 다릅니다. 두 head의 코드 차이는 없으며 최신 evidence-only PR head 전체 회귀는 CI pending입니다.

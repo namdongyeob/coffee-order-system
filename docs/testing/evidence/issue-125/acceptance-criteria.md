@@ -22,11 +22,11 @@ Level 6 reason: retention은 직접 호출하는 HTTP API가 없는 내부 maint
 - [x] 동시 cleanup에서 각 batch 상한, 예외 부재, 실제 삭제 수와 잔여 수 정합성을 확인했습니다.
 - [x] cleanup은 Redis marker를 `SCAN`하거나 직접 일괄 삭제하지 않습니다.
 - [x] Redis marker TTL이 ledger retention 이상인지 fail-closed로 검증하고 실제 Redis TTL을 확인했습니다.
-- [x] Kafka, DLT 또는 최대 rebuild recovery window가 ledger retention보다 길거나 알 수 없으면 삭제 전에 fail-closed합니다.
+- [x] cleanup 기본값은 비활성이며, 활성화 시 Kafka·DLT·최대 rebuild recovery window를 명시하지 않거나 ledger retention보다 길면 startup과 삭제가 fail-closed합니다.
 - [x] V7 `(state, committed_at)` 인덱스와 MySQL `EXPLAIN`의 `range` 접근 근거가 있습니다.
 - [x] 보존 기간, batch 크기, 실행 주기, effective retention 확인과 fail-closed 운영 방법을 문서화했습니다.
 - [x] ADR-008 eventId 최대 1회 반영과 #119 DLT/Rebuild 양방향 회귀 9건을 재검증했습니다.
-- [x] Issue evidence 6종, PR body preflight 입력과 최신 PR-head CI 실행 준비를 완료했습니다.
+- [x] Issue evidence 6종의 Attempt 2 정합성, PR body preflight 입력과 최신 PR-head CI 재실행 준비를 완료했습니다.
 
 ## STRICT 후속 게이트
 

@@ -4,8 +4,8 @@ Issue: #125
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/125
 Branch: codex/issue-125-ranking-ledger-retention
 Current disposition: PASS
-Current Attempt: 1
-Current head: bd7f6e279f4746783546b73e70a7a5a92e40d7c3
+Current Attempt: 2
+Current head: da96594416d5286ea9a7e2675c5f5d316a2e5470
 
 ## Attempt 1
 
@@ -44,4 +44,40 @@ Current head: bd7f6e279f4746783546b73e70a7a5a92e40d7c3
 
 ### Next Attempt
 
-없음. 최신 head에서 독립 Review·QA·CI를 후속 확인합니다.
+- Review P1/P2를 같은 Dev의 허용된 단 한 번 수정 반환으로 처리합니다.
+
+## Attempt 2
+
+### Generate
+
+- Generate start: 2026-07-18T14:44:36+09:00.
+- Review P1에 따라 cleanup 기본값을 비활성으로 바꾸고 Kafka·DLT·최대 rebuild recovery window의 안전 가정 기본값을 제거했습니다.
+- 활성화된 cleanup은 세 외부 protection window가 명시되지 않으면 application context 생성 단계에서 fail-closed하도록 정책 경계를 수정했습니다.
+- Review P2에 따라 production 후보 SQL에 cleanup 전용 인덱스 `FORCE INDEX`를 적용하고 테스트가 같은 `CANDIDATE_SQL` 문자열을 그대로 `EXPLAIN`하도록 변경했습니다.
+
+### Evaluate
+
+- RED에서 disabled cleanup도 null `kafka-retention` 때문에 거부되는 기존 정책을 재현했고, GREEN에서 disabled는 기동 가능하지만 enabled는 같은 누락을 거부했습니다.
+- RED에서 테스트가 production 후보 SQL 상수를 찾지 못하는 컴파일 실패를 확인했고, GREEN에서 production SQL과 동일한 EXPLAIN이 cleanup 인덱스 `range` 접근을 확인했습니다.
+- targeted 설정/SQL 실행계획 6건이 PASS했습니다. 전체 139 회귀는 요청대로 재실행하지 않았고 새 GitHub CI가 소유합니다.
+
+### Failure Cause
+
+- P1 원인은 외부 effective retention에 `30d` 기본값을 제공하고 cleanup도 기본 활성화해 미확인 값을 확인된 값처럼 취급한 것입니다.
+- P2 원인은 테스트의 `FORCE INDEX`가 production SQL에 없어 실제 실행계획 근거가 아니었던 것입니다.
+
+### Change Scope
+
+- `application.properties`, retention policy/repository와 직접 테스트, Kafka·Redis runbook, Issue #125 evidence만 수정했습니다.
+- cleanup predicate, scheduler batch, Redis marker 적용, normal/DLT/rebuild 상태 전이와 다른 테스트는 변경하지 않았습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-18T14:51:37+09:00.
+- 설정 fail-closed unit/context와 production SQL EXPLAIN targeted 6건: PASS, `BUILD SUCCESSFUL in 1m`.
+- verified production head는 `da96594416d5286ea9a7e2675c5f5d316a2e5470`입니다.
+- evidence-only commit 뒤 PR head는 이 SHA와 달라지며, 그 차이는 `docs/testing/evidence/issue-125/**`뿐입니다. full regression은 새 PR head CI가 판정합니다.
+
+### Next Attempt
+
+없음. Attempt 2 evidence/preflight 뒤 fresh Review·QA·CI를 다시 확인합니다.
