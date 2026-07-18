@@ -3,9 +3,9 @@
 Issue: #114
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/114
 Branch: codex/issue-114-final-verification
-Current disposition: PASS
-Current Attempt: 1
-Current head: e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec
+Current disposition: BLOCKED
+Current Attempt: 2
+Current head: 5aedd45dbc3d0fea25757ae13f18f0084853a653
 
 ## Attempt 1
 
@@ -48,4 +48,43 @@ Current head: e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec
 
 ### Next Attempt
 
-없음. evidence commit과 PR body preflight 뒤 fresh Review·QA 및 최신 PR-head CI를 확인합니다.
+Review에서 `exit 255` 원인 미확인과 재현 명령 누락을 정합화하도록 반환했습니다.
+
+## Attempt 2
+
+### Generate
+
+- Generate start: 2026-07-18T16:25:52+09:00.
+- Review P1에 따라 Issue #114와 직접 연결 Issue #107/#109/#110/#112/#113/#119의 본문·댓글, repository evidence와 Git history에서 컨테이너 `exit 255` 동시대 로그·자원 근거를 검색했습니다.
+- Review P1에 따라 Attempt 1에서 실제 실행한 HTTP/DB/Kafka/Redis 명령의 host, JSON body, SQL, consumer group, topic과 Redis key를 `commands.md`에 옮겼습니다.
+- runtime, k6, production/test/script는 재실행하거나 수정하지 않았습니다.
+
+### Evaluate
+
+- Issue #114 댓글은 0건이고 직접 연결 Issue에도 `exit 255` 당시 로그·resource snapshot이 없습니다.
+- repository evidence에서 컨테이너 `exit 255` 기록은 Attempt 1의 “기존 artifact 없음/현재 미재현”뿐입니다. Issue #54의 exit 255는 Gradle 명령 종료 코드라 컨테이너 근거에서 제외했습니다.
+- `git log -S'exit 255'`, `git log -S'Exited (255)'`, `git log -G'container.*255|255.*container' -- docs/testing/evidence`에도 이전 동시대 근거가 없습니다.
+- PR head `5aedd45dbc3d0fea25757ae13f18f0084853a653`의 `quality-gates` run `29635241238`은 SUCCESS입니다. CI 성공은 누락된 과거 runtime artifact를 대체하지 않습니다.
+
+### Failure Cause
+
+- `exit 255`가 발생한 이전 container와 당시 `docker inspect`, `docker logs`, `docker events`, `docker stats` 또는 host resource 기록이 검증 시작 전에 이미 사라져 원인을 확인할 수 없습니다.
+- Attempt 1은 현재 clean 실행의 health·exit 0·OOM false를 과거 원인 확인처럼 취급해 전체 PASS로 닫았습니다. 미재현과 원인 확인은 다른 주장입니다.
+- Attempt 1 `commands.md`는 HTTP/DB/Kafka/Redis 결과를 요약했지만 실제 request body, SQL, consumer group과 key가 없어 독립 재현 입력이 부족했습니다.
+
+### Change Scope
+
+- `docs/testing/evidence/issue-114/**` 6개 파일과 PR body만 수정했습니다.
+- production, test, build, runtime 설정, workflow, k6와 repository script는 수정하거나 재실행하지 않았습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-18T16:30:59+09:00.
+- Current disposition `BLOCKED`, Current Attempt `2`, Current head와 `verification.md` head `5aedd45dbc3d0fea25757ae13f18f0084853a653`, metrics retry `1`을 일치시킵니다.
+- Review finding 3건과 current-head CI SUCCESS를 metrics와 evidence에 반영합니다.
+- `python scripts/harness_gate.py --issue 114 --base-ref origin/main --check-links --include-worktree --check-branch`는 branch/link 범위에서 PASS했습니다.
+- `python scripts/harness_gate.py --issue 114 --pr-body-file $env:TEMP\coffee-order-issue-114-pr-body.md`는 required Level 5/6 PASS 행 누락으로 FAIL했습니다. 같은 하네스가 BLOCKED에서 PASS 행을 금지하므로 허용된 evidence/PR body만으로 만족 가능한 상태가 없고, passing body file 없이 PR body edit은 fail-closed로 보류했습니다.
+
+### Next Attempt
+
+이전 `exit 255` 시점의 container ID와 동시대 `docker inspect`/`docker logs`/resource snapshot을 제공해 원인을 확인하거나, 해당 artifact가 영구 소실된 조건에서 AC를 재정의하는 사람 결정을 제공합니다. BLOCKED와 required Level PASS의 하네스 모순은 별도 정책 결정 또는 script Issue에서 해소해야 PR body를 갱신할 수 있습니다.

@@ -14,6 +14,7 @@ Level 6 reason: 필수 API 4종과 핵심 실패 응답을 실제 HTTP 요청으
 
 - [x] clean 상태의 production head `e9412ab3cc4ceb56de5b4ae9659a0e9e3a5d59ec`에서 검증을 시작했습니다.
 - [x] MySQL 8.4.5, Redis 7.4.2, Kafka 3.9.1 compose가 모두 `running/healthy`였습니다.
+- [ ] 이전 점검의 컨테이너 `exit 255` 원인을 당시 로그·자원 상태로 확인합니다. 검증 시작 시 기존 container가 0건이었고 Issue #114 및 직접 연결 Issue #107/#109/#110/#112/#113/#119의 본문·댓글과 repository evidence·Git history에도 동시대 근거가 없어 원인을 확인하지 못했습니다.
 - [x] local profile 애플리케이션이 기동되고 actuator health가 HTTP 200 `UP`을 반환했습니다.
 - [x] 메뉴 목록, 포인트 충전, 주문·결제, 최근 7일 인기 메뉴 Top 3를 실제 HTTP로 확인했습니다.
 - [x] 충전액 0은 HTTP 400 `INVALID_CHARGE_AMOUNT`, 1P 잔액 주문은 HTTP 409 `INSUFFICIENT_POINT`를 반환했습니다.
@@ -22,7 +23,8 @@ Level 6 reason: 필수 API 4종과 핵심 실패 응답을 실제 HTTP 요청으
 - [x] head, 명령, threshold, p95, error rate, checks를 Issue evidence 6종에 기록했습니다.
 - [x] 앱과 이 검증이 만든 compose container·network·volume을 정리하고 orphan 0건을 확인했습니다.
 - [x] production, test, runtime 설정, workflow와 검증 스크립트를 수정하지 않았습니다.
+- [x] PR head `5aedd45dbc3d0fea25757ae13f18f0084853a653`의 GitHub Actions `quality-gates` run `29635241238`이 SUCCESS였습니다.
 
-## STRICT 후속 게이트
+## Current disposition
 
-draft PR 뒤 fresh Review, independent QA와 최신 PR-head GitHub Actions `quality-gates` PASS는 Main Coordinator가 후속 확인합니다. 이 문서의 Dev runtime PASS는 해당 독립 gate나 CI를 대체하지 않습니다.
+BLOCKED. 실제 runtime 관찰과 CI는 성공했지만 `exit 255` 원인 확인 AC에 필요한 당시 artifact가 없습니다. 미재현은 원인 확인을 대체하지 않으며 추측으로 완료 처리하지 않습니다. independent QA는 후속 gate입니다.
