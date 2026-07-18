@@ -1,5 +1,35 @@
 # Kafka Redis Runbook
 
+## Ranking event ledger retention
+
+`ranking_event_ledger` cleanup은 한 scheduler tick에서 한 번의 bounded batch만 실행합니다. 기본 설정은 다음과 같습니다.
+
+| 설정 | 기본값 | 의미 |
+| --- | --- | --- |
+| `ranking.ledger.cleanup.enabled` | `true` | scheduler 활성화 여부 |
+| `ranking.ledger.cleanup.ledger-retention` | `30d` | `COMMITTED` ledger 최소 보존 기간 |
+| `ranking.ledger.cleanup.redis-marker-ttl` | `30d` | `ranking:applied-event:{eventId}` marker TTL |
+| `ranking.ledger.cleanup.kafka-retention` | `30d` | 운영자가 확인한 `order.completed` effective retention |
+| `ranking.ledger.cleanup.dlt-retention` | `30d` | 운영자가 확인한 `order.completed.DLT` effective retention |
+| `ranking.ledger.cleanup.maximum-rebuild-recovery-window` | `30d` | rebuild를 재개할 수 있는 최대 기간 |
+| `ranking.ledger.cleanup.batch-size` | `100` | 한 트랜잭션의 최대 삭제 수, 허용 범위 `1..1000` |
+| `ranking.ledger.cleanup.fixed-delay` | `1h` | 이전 실행 종료 뒤 다음 실행까지의 지연 |
+
+Kafka와 DLT의 값은 자동 추정값이 아니라 배포 시 topic의 `retention.ms`와 broker default를 Admin API 또는 `kafka-configs.sh --describe`로 확인해 effective 값으로 설정합니다. compact/delete 조합이나 topic override를 포함해 값을 알 수 없으면 cleanup을 활성화하지 않습니다. 모든 기간과 주기는 양수여야 하고 다음 계약을 만족해야 합니다.
+
+```text
+ledger retention >= max(kafka retention, DLT retention, maximum rebuild recovery window)
+redis marker TTL >= ledger retention
+```
+
+누락, 해석 실패, 범위 위반은 조용히 보정하지 않고 애플리케이션 설정 오류로 실패합니다. scheduler tick도 삭제 SQL 전에 같은 계약을 다시 검증하므로 검증 실패 시 DB ledger와 Redis marker를 0건 변경합니다. 더 긴 Kafka·DLT·rebuild window가 필요하면 ledger retention과 marker TTL을 함께 늘립니다.
+
+marker TTL은 Redis 적용 시점부터, DB retention은 더 늦은 `committed_at`부터 계산됩니다. 동일 기간이면 marker가 먼저 만료될 수 있지만 그 구간에는 아직 `COMMITTED` ledger가 남아 normal/DLT/rebuild 중복 반영을 차단합니다. ledger가 삭제 가능한 시점에는 Kafka·DLT·rebuild 보호 기간도 끝나야 하므로 두 보호 수단이 동시에 사라진 채 재처리 가능한 틈이 없습니다.
+
+삭제 대상은 `state=COMMITTED`, `committed_at < cutoff`, 독립 event 또는 `COMPLETED` rebuild event뿐입니다. `RESERVED`, `REDIS_APPLIED`, 미완료·복구 필요 rebuild event는 삭제하지 않습니다. 후보는 `(state, committed_at)` 인덱스와 `FOR UPDATE SKIP LOCKED`로 고정하고 삭제 SQL에서 predicate를 다시 확인합니다. 여러 인스턴스가 경합하면 어떤 tick은 0건으로 종료할 수 있으며 다음 주기에 재시도합니다.
+
+운영 점검은 MySQL `EXPLAIN`에서 `idx_ranking_event_ledger_cleanup`의 `range` 접근을 확인하고 scheduler의 `ranking_ledger_cleanup_completed deleted=<n>` 로그에서 `deleted <= batch-size`를 확인합니다. 이 job은 Redis key를 `SCAN`하거나 marker를 직접 일괄 삭제하지 않습니다. marker는 설정된 TTL로만 자연 만료됩니다.
+
 ## Maintenance ranking rebuild
 
 1. 일반 애플리케이션을 모두 중지하고 `ranking-consumer-group`의 active member가 없는 상태를 만듭니다.
