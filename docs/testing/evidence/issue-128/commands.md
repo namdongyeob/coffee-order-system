@@ -19,3 +19,16 @@
 - `git diff --check`
   - 목적: whitespace 검사.
   - 결과: PASS.
+
+## Attempt 2 Review remediation
+
+- Execution head: `9debd24d6030eb1412ecca826afcf323e67510a1`
+- `python -m unittest <Issue #128 focused 8 tests>`
+  - 목적: BLOCKED/PASS 계약과 현재 Attempt blocker 결합 회귀 확인.
+  - 결과: 8 tests PASS.
+- `python -m unittest discover -s scripts/tests -p "test_*.py"`
+  - 목적: 변경 후 전체 scripts harness 회귀.
+  - 결과: 164 tests PASS.
+- `python scripts/harness_gate.py --issue 128 --pr-body-file <temporary UTF-8 body> --check-links`
+  - 목적: 최신 evidence와 PR 본문 preflight 및 링크 검사.
+  - 결과: PASS.

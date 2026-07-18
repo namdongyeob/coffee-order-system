@@ -16,6 +16,7 @@
 - `BLOCKED`에 PASS 행을 넣는 기존 모순 검사는 계속 실패합니다.
 - blocker를 `없음`으로 기록하면 실패합니다.
 - 다른 Issue, 다른 Level 또는 PARTIAL로 PASS disposition을 만족시킬 수 없습니다.
+- 이전 Attempt의 blocker는 현재 Attempt의 `Failure Cause` 누락을 대신할 수 없습니다.
 
 ## Cleanup receipt
 
@@ -24,5 +25,5 @@
 
 ## Unverified items and remaining risks
 
-- 독립 Review, 독립 QA와 최신 PR head CI는 PR 생성 후 후속 gate입니다.
+- 수정된 최신 head의 독립 재Review, 독립 QA와 CI는 후속 gate입니다. 이전 head의 독립 QA 132 tests 결과는 head 변경으로 stale이며 최신 완료 근거로 사용하지 않습니다.
 - blocker 문장의 사실성은 evidence 작성자와 독립 검증 역할이 확인하며 하네스는 비어 있거나 명백한 placeholder인지만 fail-closed로 검사합니다.
