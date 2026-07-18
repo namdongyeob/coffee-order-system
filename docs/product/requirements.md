@@ -31,7 +31,11 @@
 - Kafka `OrderCompletedEvent` 발행.
 - Redis ZSET 랭킹 Consumer.
 - Consumer 멱등 처리와 DLT 이동.
-- 테스트 전략과 검증 로그.
+- Transactional Outbox 기반 Kafka 발행 재시도.
+- Kafka replay 기반 ranking rebuild와 운영자 승인 DLT 선택 재발행.
+- DB `ranking_event_ledger`와 Redis Lua marker를 통한 normal consumer·DLT·rebuild 양방향 중복 집계 방지.
+- 30일 ranking ledger bounded retention과 미완료 복구 상태 보존.
+- 테스트 전략, Issue evidence, 실제 Docker·HTTP·k6 검증.
 
 ## MVP 제외 범위
 
@@ -39,5 +43,11 @@
 - Redis Cluster.
 - Kubernetes.
 - 완전 자동 DLT 재처리.
-- Outbox 패턴 구현.
 - 복잡한 관리자 API.
+
+## 완료 근거
+
+- API와 오류 계약: [API 명세](../api/api-spec.md)
+- DB 최종 구조: [ERD와 Flyway V1~V7](../db/erd.md)
+- Kafka·Redis 복구 불변조건: [ADR-008](../adr/ADR-008-ranking-recovery-ledger.md)
+- 실제 Level 5·6와 k6: [Issue #114 evidence](../testing/evidence/issue-114/verification.md)
