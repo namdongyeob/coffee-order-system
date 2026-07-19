@@ -1,7 +1,11 @@
 # 검증 로그
 
 Attempt: 6
-Head: a23110b148d044fcaa5bb5038e56dd318a5293ce
+Head: 12aede66998c269b9768740d634f976ee5c62a49
+> [!NOTE]
+> `Head`는 실제 PR HEAD와 구분되는 소스 트리 검증 대상 커밋 SHA를 나타냅니다.
+
+
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
