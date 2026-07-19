@@ -1392,7 +1392,7 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_unchanged_repository_after_qa_needs_no_docs_commit_or_second_review(self):
 		self.assertEqual(
 			{"docs_commit_required": False, "full_review_required": False, "qa_stale": False},
-			harness_gate.post_qa_requirements(repository_changed=False, changed_paths=[]),
+			harness_gate.post_qa_requirements(repository_changed=False, changes=[]),
 		)
 
 	def test_runtime_or_policy_change_after_qa_stales_review_and_qa(self):
@@ -1400,7 +1400,10 @@ class OrchestrationContractTest(unittest.TestCase):
 			with self.subTest(path=path):
 				self.assertEqual(
 					{"docs_commit_required": False, "full_review_required": True, "qa_stale": True},
-					harness_gate.post_qa_requirements(repository_changed=True, changed_paths=[path]),
+					harness_gate.post_qa_requirements(
+						repository_changed=True,
+						changes=[harness_gate.ChangeRecord("M", path)],
+					),
 				)
 
 	def test_github_only_state_update_does_not_require_repository_commit(self):
@@ -1482,27 +1485,52 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_production_or_test_changes_are_not_docs_metadata(self):
 		for path in ("src/main/java/App.java", "src/test/java/AppTest.java"):
 			with self.subTest(path=path):
-				self.assertFalse(harness_gate.qa_remains_valid("qa", "docs", [path], 71))
+				self.assertFalse(
+					harness_gate.qa_remains_valid(
+						"qa", "docs", [harness_gate.ChangeRecord("M", path)], 71
+					)
+				)
 
 	def test_qa_remains_valid_for_issue_evidence_only_delta(self):
 		paths = [
 			"docs/testing/evidence/issue-71/commands.md",
 			"docs/testing/evidence/issue-71/verification.md",
 		]
-		self.assertTrue(harness_gate.qa_remains_valid("qa-head", "docs-head", paths, 71))
+		self.assertTrue(
+			harness_gate.qa_remains_valid(
+				"qa-head",
+				"docs-head",
+				[harness_gate.ChangeRecord("M", path) for path in paths],
+				71,
+			)
+		)
 
 	def test_qa_is_stale_for_non_docs_delta(self):
 		paths = ["docs/testing/evidence/issue-71/commands.md", "scripts/harness_gate.py"]
-		self.assertFalse(harness_gate.qa_remains_valid("qa-head", "current-head", paths, 71))
+		self.assertFalse(
+			harness_gate.qa_remains_valid(
+				"qa-head",
+				"current-head",
+				[harness_gate.ChangeRecord("M", path) for path in paths],
+				71,
+			)
+		)
 
 	def test_qa_is_current_when_head_did_not_change(self):
-		self.assertTrue(harness_gate.qa_remains_valid("same", "same", ["src/main/App.java"], 71))
+		self.assertTrue(
+			harness_gate.qa_remains_valid(
+				"same", "same", [harness_gate.ChangeRecord("M", "src/main/App.java")], 71
+			)
+		)
 
 	def test_other_issue_evidence_does_not_preserve_qa(self):
 		self.assertFalse(
-			harness_gate.qa_remains_valid(
-				"qa", "docs", ["docs/testing/evidence/issue-72/commands.md"], 71
-			)
+				harness_gate.qa_remains_valid(
+					"qa",
+					"docs",
+					[harness_gate.ChangeRecord("M", "docs/testing/evidence/issue-72/commands.md")],
+					71,
+				)
 		)
 
 	def test_qa_preservation_accepts_current_issue_raw_evidence_but_rejects_other_changes(self):
@@ -1513,7 +1541,11 @@ class OrchestrationContractTest(unittest.TestCase):
 			"docs/testing/evidence/issue-71/arbitrary.md",
 		):
 			with self.subTest(path=path):
-				self.assertTrue(harness_gate.qa_remains_valid("qa", "current", [path], 71))
+				self.assertTrue(
+					harness_gate.qa_remains_valid(
+						"qa", "current", [harness_gate.ChangeRecord("M", path)], 71
+					)
+				)
 
 		for path in (
 			"docs/testing/evidence/issue-72/commands.md",
@@ -1527,7 +1559,9 @@ class OrchestrationContractTest(unittest.TestCase):
 		):
 			with self.subTest(path=path):
 				self.assertFalse(
-					harness_gate.qa_remains_valid("qa", "current", [path], 71)
+					harness_gate.qa_remains_valid(
+						"qa", "current", [harness_gate.ChangeRecord("M", path)], 71
+					)
 				)
 
 	def test_autonomous_merge_requires_all_existing_gates(self):
@@ -1703,7 +1737,7 @@ class OrchestrationContractTest(unittest.TestCase):
 		).read_text(encoding="utf-8")
 
 		self.assertIn(
-			"machine ground truth는 최종 source SHA의 고정 GitHub Actions required job conclusion",
+			"machine ground truth는 최종 source SHA의 고정 GitHub Actions `quality-gates` conclusion",
 			policy,
 		)
 		self.assertIn("기본 merge 거버넌스는 사람 도메인 오너의 최종 merge 승인", policy)

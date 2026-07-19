@@ -6,9 +6,10 @@ on:
 
 jobs:
   quality-gates:
+    name: ${{ github.event.action == 'edited' && 'metadata-gates' || 'quality-gates' }}
     runs-on: ubuntu-latest
     concurrency:
-      group: harness-quality-${{ github.event.pull_request.number }}
+      group: harness-quality-${{ github.event.pull_request.number }}-${{ github.event.action == 'edited' && 'metadata' || 'source' }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4

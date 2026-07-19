@@ -193,6 +193,8 @@ def classify_change_impact(changes: list[ChangeRecord], issue: int) -> ChangeImp
     """Classify a diff once; unknown, mixed, rename, and delete fail closed."""
     if any(change.status[:1] in {"R", "D"} for change in changes):
         return FAIL_CLOSED_IMPACT
+    if any(change.status[:1] not in {"A", "M"} for change in changes):
+        return FAIL_CLOSED_IMPACT
     categories = {_impact_category(change.path, issue) for change in changes}
     if "unknown" in categories:
         return FAIL_CLOSED_IMPACT
@@ -276,13 +278,11 @@ def validate_role_packet(packet: dict[str, object]) -> list[str]:
 
 
 def post_qa_requirements(
-    *, repository_changed: bool, changed_paths: list[str], issue_number: int = 0
+    *, repository_changed: bool, changes: list[ChangeRecord], issue_number: int = 0
 ) -> dict[str, bool]:
     """Use the shared classifier for post-QA Review and QA validity."""
-    impact = classify_change_impact(
-        [ChangeRecord("M", path) for path in changed_paths], issue_number
-    )
-    stale = repository_changed and bool(changed_paths) and impact.invalidates_review_qa
+    impact = classify_change_impact(changes, issue_number)
+    stale = repository_changed and bool(changes) and impact.invalidates_review_qa
     return {
         "docs_commit_required": False,
         "full_review_required": stale,
@@ -371,17 +371,15 @@ def expensive_command_action(
 def qa_remains_valid(
     qa_head: str,
     current_head: str,
-    changed_paths: list[str],
+    changes: list[ChangeRecord],
     issue_number: int,
 ) -> bool:
     """Keep QA when the shared classifier says the later delta is non-semantic evidence."""
     if qa_head == current_head:
         return True
-    if not changed_paths:
+    if not changes:
         return False
-    impact = classify_change_impact(
-        [ChangeRecord("M", path) for path in changed_paths], issue_number
-    )
+    impact = classify_change_impact(changes, issue_number)
     return not impact.invalidates_review_qa
 
 
@@ -705,7 +703,7 @@ def metrics_row(markdown: str) -> list[str] | None:
 def validate_evidence_reconciliation(
     acceptance: str,
     attempt_log: str,
-    metrics: str,
+    metrics: str | None,
     verification: str,
     issue: int,
     verification_rows: list[dict[str, str]] | None = None,
@@ -714,15 +712,15 @@ def validate_evidence_reconciliation(
     attempt_state, errors = attempt_reconciliation_state(attempt_log)
     verification_state, verification_errors = verification_reconciliation_state(verification)
     errors.extend(verification_errors)
-    row = metrics_row(metrics)
-    if attempt_state is None or verification_state is None or row is None:
+    row = metrics_row(metrics) if metrics is not None else None
+    if attempt_state is None or verification_state is None:
         return errors
 
     if attempt_state["attempt"] != verification_state["attempt"]:
         errors.append("evidence reconciliation: Current Attempt and verification.md Attempt must match.")
     if attempt_state["head"] != verification_state["head"]:
         errors.append("evidence reconciliation: Current head and verification.md Head must match.")
-    if int(row[3]) != int(attempt_state["attempt"]) - 1:
+    if row is not None and int(row[3]) != int(attempt_state["attempt"]) - 1:
         errors.append("evidence reconciliation: metrics retry count must equal Current Attempt minus one.")
 
     if verification_rows is None:
@@ -1012,7 +1010,24 @@ def validate_issue_evidence(
                     verification_rows,
                 )
             )
+        elif issue >= LIGHTWEIGHT_EVIDENCE_START_ISSUE and acceptance and attempt_log:
+            errors.extend(
+                validate_evidence_reconciliation(
+                    acceptance,
+                    attempt_log,
+                    metrics or None,
+                    verification,
+                    issue,
+                    verification_rows,
+                )
+            )
         elif issue >= LIGHTWEIGHT_EVIDENCE_START_ISSUE and acceptance:
+            if metrics:
+                row = metrics_row(metrics)
+                if row is not None and int(row[3]) != 0:
+                    errors.append(
+                        "evidence reconciliation: metrics retry count requires attempt-log.md."
+                    )
             errors.extend(
                 validate_lightweight_evidence_reconciliation(
                     acceptance, verification, issue, verification_rows

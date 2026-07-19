@@ -24,7 +24,7 @@
 - Testcontainers는 필요한 검증 레벨에서만 사용합니다. Controller 계약만 확인하는 Issue에 무거운 full context 테스트를 기본값으로 두지 않습니다.
 - Dev는 변경 범위 focused test를 기본 실행합니다. DB migration, 공통 transaction, event payload, Kafka 공통 consumer 설정, security, build/test infrastructure처럼 영향 범위가 넓은 변경만 push 전 로컬 전체 회귀(Windows: `.\gradlew.bat test --no-daemon`, macOS·Linux: `./gradlew test --no-daemon`)를 실행합니다. source/test/build/runtime 변경의 전체 Level 1 회귀는 GitHub Actions 고정 `quality-gates` job이 최종 source SHA에서 판정합니다.
 - Level 1 전체 회귀 smoke는 전체 suite 상태를 기록할 뿐이며 Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다.
-- PR body `edited`와 docs/evidence-only PR은 Python 하네스·링크 검사만 실행합니다. workflow나 검증 스크립트를 바꾼 PR은 관련 scripts 전체 suite를 한 번 실행하되 source/test/build/runtime이 없으면 Gradle을 요구하지 않습니다. 한 CI run에서 링크 검사는 한 번, Gradle은 컴파일 의존성을 포함한 `test` 한 invocation만 실행합니다.
+- PR body `edited`는 source required check와 다른 `metadata-gates` 이름·concurrency에서 Python 하네스·링크 검사만 실행해 진행 중 source run을 취소하거나 그 판정을 대체하지 않습니다. docs/evidence-only와 workflow·검증 스크립트 변경도 source/test/build/runtime이 없으면 Gradle을 요구하지 않습니다. 링크 검사는 한 번, Gradle은 컴파일 의존성을 포함한 `test` 한 invocation만 실행합니다.
 - Legacy evidence 인정과 backfill은 [Evidence Guide](evidence-guide.md)의 단일 정본을 따릅니다. 이 문서는 Legacy 여부를 별도로 판정하지 않습니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 

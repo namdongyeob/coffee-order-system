@@ -58,7 +58,7 @@ python scripts/rebuild_verification_log.py --output $env:TEMP\verification-log.m
 
 ## Attempt 연결 규칙
 
-FAIL, BLOCKED 또는 재시도가 실제로 생기면 `docs/testing/evidence/attempt-log-template.md`를 복사합니다. `Current disposition`, `Current Attempt`, `Current head`와 `verification.md`의 Attempt·Head를 일치시키고, 선택 metrics가 있으면 재시도 수도 일치시킵니다. FAIL은 정확한 원인·허용 수정 범위·마지막 `Next Attempt`만 다음 역할에 전달합니다. 실패가 없는 Issue는 attempt-log를 만들지 않고 verification PASS와 모두 체크된 Acceptance Criteria로 완료를 증명합니다.
+FAIL, BLOCKED 또는 재시도가 실제로 생기면 `docs/testing/evidence/attempt-log-template.md`를 복사합니다. optional Attempt·metrics가 존재하면 disposition과 acceptance/verification 결과, Attempt·Head, retry 수를 기계적으로 reconcile하고 모순을 fail-closed 처리합니다. FAIL은 정확한 원인·허용 수정 범위·마지막 `Next Attempt`만 다음 역할에 전달합니다. 실패가 없는 Issue는 attempt-log를 만들지 않고 verification PASS와 모두 체크된 Acceptance Criteria로 완료를 증명합니다.
 
 metrics는 완료 gate가 아니며 pilot을 명시적으로 수행할 때만 [Issue metrics template](evidence/issue-metrics-template.md)을 사용합니다. Agent 수, 읽은 문서 수, `미측정` 시간과 대부분 0인 수동 카운터를 완료 근거로 사용하지 않습니다.
 

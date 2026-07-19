@@ -118,7 +118,7 @@ metrics는 완료 gate가 아니며 pilot·회고의 on-demand 집계만 [하네
 
 ## merge 거버넌스
 
-- 최종 merge gate의 `PASS`를 증명하는 유일한 machine ground truth는 최종 source SHA의 고정 GitHub Actions required job conclusion입니다. PR `edited`와 docs/evidence-only 변경은 같은 job 안에서 Python gate만 실행하고 source/test/build/runtime 변경은 단일 Gradle `test` invocation을 유지합니다. 로컬·Agent evidence는 CI를 대체하지 않으며 필요한 Level 3~6은 별도 실행합니다.
+- 최종 merge gate의 `PASS`를 증명하는 유일한 machine ground truth는 최종 source SHA의 고정 GitHub Actions `quality-gates` conclusion입니다. PR `edited`는 별도 `metadata-gates` 이름·concurrency로 source run을 취소·대체하지 않고, docs/evidence-only는 Python gate만 실행하며 source/test/build/runtime은 단일 Gradle `test` invocation을 유지합니다. 로컬·Agent evidence는 CI를 대체하지 않습니다.
 - 기본 merge 거버넌스는 사람 도메인 오너의 최종 merge 승인입니다. AI는 Review·QA·CI로 결함을 찾고 사람이 최종 merge를 승인하며, 이 기본값을 최종 팀 프로젝트로 그대로 이전합니다. 팀 저장소 전환 시 활성화할 branch rule의 구체 항목(approval 수, stale dismissal, unresolved conversation 차단)은 [팀 저장소 merge governance baseline](team-merge-governance-baseline.md)을 따릅니다.
 - 이 저장소 한정 자율 Issue 큐 실험에서만 서로 다른 Writer·Review·QA, 같은 source-tree SHA의 Review `APPROVED`·QA `PASS`, 그 source SHA의 required CI PASS와 merge 안전 조건을 모두 충족할 때 Main의 조건부 auto-merge·close를 허용합니다. 누락·FAIL·BLOCKED·stale은 mode와 무관하게 차단합니다. #137 자체는 기존 evidence 6종·preflight·fresh Review·QA·최신 CI를 소급 완화하지 않으며 새 경량 기본값은 #137 merge 뒤 Issue부터 적용합니다.
 

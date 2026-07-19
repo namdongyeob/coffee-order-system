@@ -134,6 +134,30 @@ class ImpactClassifierContractTest(unittest.TestCase):
 
 
 class StaleAndMergeContractTest(unittest.TestCase):
+    def test_post_qa_helpers_preserve_rename_and_delete_status(self):
+        for change in (
+            harness_gate.ChangeRecord("R100", "README-new.md", "README.md"),
+            harness_gate.ChangeRecord("D", "README.md"),
+        ):
+            with self.subTest(status=change.status):
+                self.assertEqual(
+                    {
+                        "docs_commit_required": False,
+                        "full_review_required": True,
+                        "qa_stale": True,
+                    },
+                    harness_gate.post_qa_requirements(
+                        repository_changed=True,
+                        changes=[change],
+                        issue_number=138,
+                    ),
+                )
+                self.assertFalse(
+                    harness_gate.qa_remains_valid(
+                        "reviewed-head", "current-head", [change], 138
+                    )
+                )
+
     def test_evidence_only_delta_preserves_review_qa_and_runtime_source_evidence(self):
         impact = harness_gate.classify_change_impact(
             [
@@ -206,6 +230,86 @@ class StaleAndMergeContractTest(unittest.TestCase):
 
 
 class LightweightEvidenceAndRuntimeContractTest(unittest.TestCase):
+    ACCEPTANCE_PASS = """# AC
+Execution mode: SOLO
+Execution mode reason: evidence-only
+- [x] done
+"""
+    ACCEPTANCE_BLOCKED = """# AC
+Execution mode: SOLO
+Execution mode reason: evidence-only
+- [ ] blocked
+"""
+    VERIFICATION_PASS = """# 검증 로그
+
+Attempt: 2
+Head: abcdef1
+
+| 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-07-19 | Issue #138 optional evidence | Level 0 | PASS | gate | command | pass |
+"""
+    ATTEMPT_BLOCKED = """# Attempt
+Issue: #138
+Issue URL: https://github.com/example/repo/issues/138
+Branch: codex/issue-138-docs
+Current disposition: BLOCKED
+Current Attempt: 2
+Current head: abcdef1
+
+## Attempt 2
+### Generate
+- change
+### Evaluate
+- blocked
+### Failure Cause
+- exact blocker
+### Change Scope
+- evidence
+### Reverification
+- partial
+### Next Attempt
+- resolve blocker
+"""
+
+    def test_optional_blocked_attempt_cannot_coexist_with_pass_completion(self):
+        errors = harness_gate.validate_evidence_reconciliation(
+            self.ACCEPTANCE_PASS,
+            self.ATTEMPT_BLOCKED,
+            None,
+            self.VERIFICATION_PASS,
+            138,
+        )
+
+        self.assertTrue(any("BLOCKED" in error for error in errors))
+
+    def test_optional_attempt_head_must_match_verification_head(self):
+        errors = harness_gate.validate_evidence_reconciliation(
+            self.ACCEPTANCE_BLOCKED,
+            self.ATTEMPT_BLOCKED.replace("Current head: abcdef1", "Current head: abcdef2"),
+            None,
+            self.VERIFICATION_PASS.replace("| PASS |", "| PARTIAL |"),
+            138,
+        )
+
+        self.assertTrue(any("head" in error.lower() for error in errors))
+
+    def test_optional_metrics_retry_count_must_match_attempt(self):
+        metrics = """# Metrics
+| 실행 모드 | Agent 수 | 작업 시간(분) | 재시도 수 | 정체 수 | Review 결함 수 | QA 결함 수 | 범위 밖 변경 파일 수 | 읽은 핵심 문서 수 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SOLO | 1 | 미측정 | 0 | 0 | 0 | 0 | 0 | 1 |
+"""
+        errors = harness_gate.validate_evidence_reconciliation(
+            self.ACCEPTANCE_BLOCKED,
+            self.ATTEMPT_BLOCKED,
+            metrics,
+            self.VERIFICATION_PASS.replace("| PASS |", "| PARTIAL |"),
+            138,
+        )
+
+        self.assertTrue(any("retry" in error.lower() for error in errors))
+
     def test_metrics_and_attempt_details_are_not_default_completion_gates_after_bootstrap(self):
         self.assertEqual(
             ("acceptance-criteria.md",), harness_gate.required_evidence_files(issue=138)
@@ -305,6 +409,14 @@ class WorkflowContractTest(unittest.TestCase):
 
     def test_required_job_is_stable_while_edited_events_skip_java(self):
         self.assertIn("quality-gates:", self.workflow)
+        self.assertIn(
+            "github.event.action == 'edited' && 'metadata-gates' || 'quality-gates'",
+            self.workflow,
+        )
+        self.assertIn(
+            "github.event.action == 'edited' && 'metadata' || 'source'",
+            self.workflow,
+        )
         self.assertIn("github.event.action != 'edited'", self.workflow)
         self.assertIn("steps.impact.outputs.requires_java_ci == 'true'", self.workflow)
 
