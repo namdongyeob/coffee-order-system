@@ -4,8 +4,8 @@ Issue: #137
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/137
 Branch: codex/issue-137-harness-lightweight
 Current disposition: PASS
-Current Attempt: 1
-Current head: cd9a8a3d8eb4e8429cfe0874561f3a6672517b80
+Current Attempt: 2
+Current head: 1d89872372e4cd3fa531f7ba304f978a03c453b6
 
 ## Attempt 1
 
@@ -40,4 +40,39 @@ Current head: cd9a8a3d8eb4e8429cfe0874561f3a6672517b80
 
 ### Next Attempt
 
-없음. draft PR 뒤 fresh Review, independent QA와 최신 CI를 확인합니다.
+edited/source concurrency 분리, rename/delete stale 보존, optional evidence 모순 차단 P1을 Attempt 2에서 수정합니다.
+
+## Attempt 2
+
+### Generate
+
+- edited run의 check 이름과 concurrency를 `metadata-gates`로 분리해 source `quality-gates`를 취소·대체하지 못하게 했습니다.
+- post-QA stale helper가 path 문자열 대신 `ChangeRecord`를 받아 rename/delete status를 분류기까지 보존하게 했습니다.
+- #138 이후 optional Attempt·metrics가 존재하면 disposition·head·retry reconciliation을 적용했습니다.
+
+### Evaluate
+
+- 세 P1별 focused fixture가 변경 전 각각 예상한 RED를 보였습니다.
+- 최소 수정 뒤 P1 fixture, 최종 focused 17개와 전체 scripts 181개가 PASS했습니다.
+
+### Failure Cause
+
+- P1 #1은 source와 edited가 동일 concurrency와 check 이름을 공유한 것이 원인이었습니다.
+- P1 #2는 helper가 name-status를 path 문자열과 합성 `M`으로 축소한 것이 원인이었습니다.
+- P1 #3은 경량 분기에서 optional Attempt가 있어도 lightweight reconciliation만 호출한 것이 원인이었습니다.
+
+### Change Scope
+
+- workflow, harness, 직접 contract tests와 관련 orchestration/test/evidence 정본만 수정했습니다.
+- production, application test, Gradle, Docker, Level 3~7과 #132는 변경하지 않았습니다.
+
+### Reverification
+
+- `python -m unittest scripts.tests.test_harness_gate_issue_137`: 17 tests PASS.
+- `python -m unittest discover -s scripts/tests -p "test_*.py"`: 181 tests PASS.
+- final evidence 상태의 repository gate와 `git diff --check`: PASS.
+- Gradle·Docker·Level 3~7은 실행하지 않았습니다.
+
+### Next Attempt
+
+없음. 새 final head에서 fresh Review·QA와 source `quality-gates` CI를 다시 확인합니다.
