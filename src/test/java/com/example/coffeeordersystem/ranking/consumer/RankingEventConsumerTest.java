@@ -1,7 +1,9 @@
 // Kafka source header의 normal·DLT replay 신뢰 경계를 검증합니다.
 package com.example.coffeeordersystem.ranking.consumer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -14,8 +16,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class RankingEventConsumerTest {
 
 	@Mock RankingEventProcessor processor;
@@ -51,5 +55,21 @@ class RankingEventConsumerTest {
 
 		verify(processor, never()).process(event);
 		verify(processor, never()).process(event, RankingEventSource.DLT_REPLAY);
+	}
+
+	@Test
+	void rebuildFenceLogIncludesSharedOwnerAndRun(CapturedOutput output) {
+		String lockOwner = "owner=REBUILD,runId=" + UUID.randomUUID();
+		doThrow(new RankingRebuildInProgressException(event.eventId().toString(), lockOwner))
+				.when(processor).process(event);
+
+		assertThatThrownBy(() -> consumer.consume(event, null, 1, 10L))
+				.isInstanceOf(RankingRebuildInProgressException.class);
+
+		assertThat(output.getOut())
+				.contains("ranking_consumer_rebuild_fenced")
+				.contains("eventId=" + event.eventId())
+				.contains("partition=1 offset=10")
+				.contains("lockOwner=" + lockOwner);
 	}
 }

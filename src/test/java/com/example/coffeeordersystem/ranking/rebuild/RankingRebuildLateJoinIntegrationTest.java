@@ -3,6 +3,8 @@ package com.example.coffeeordersystem.ranking.rebuild;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 
 import com.example.coffeeordersystem.SharedTestcontainers;
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
@@ -19,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -28,8 +31,11 @@ import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
@@ -38,6 +44,7 @@ import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 @SpringBootTest(properties = {
 		"ranking.consumer.enabled=true",
@@ -45,6 +52,7 @@ import org.springframework.test.context.DynamicPropertySource;
 		"spring.kafka.consumer.properties.max.poll.interval.ms=3000"
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@ExtendWith(OutputCaptureExtension.class)
 class RankingRebuildLateJoinIntegrationTest {
 
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
@@ -68,7 +76,8 @@ class RankingRebuildLateJoinIntegrationTest {
 	@Autowired StringRedisTemplate redis;
 	@Autowired JdbcTemplate jdbc;
 	@Autowired RankingRebuildOffsetManager offsetManager;
-	@Autowired RankingRebuildLock recoveryLock;
+	@Autowired RankingRebuildService rebuildService;
+	@MockitoSpyBean RankingRebuildLock recoveryLock;
 
 	@BeforeEach
 	void setUp() throws Exception {
@@ -89,7 +98,7 @@ class RankingRebuildLateJoinIntegrationTest {
 	}
 
 	@Test
-	void captureThenOffsetEAttemptAbortsSwapAndEventuallyCommitsExactlyOnce() throws Exception {
+	void captureThenOffsetEAttemptAbortsSwapAndEventuallyCommitsExactlyOnce(CapturedOutput output) throws Exception {
 		OrderCompletedEvent captured = event(UUID.randomUUID(), 1L, 1L);
 		insertPaidOrder(captured);
 		publish(captured);
@@ -127,6 +136,7 @@ class RankingRebuildLateJoinIntegrationTest {
 		});
 
 		assertThat(beforeSwap.await(20, TimeUnit.SECONDS)).isTrue();
+		CountDownLatch fenceAttempted = observeFailedConsumerFence(1);
 		Map<TopicPartition, Long> capturedEnds = topicEnds();
 		startNormalConsumer();
 		OrderCompletedEvent late = event(UUID.randomUUID(), 2L, 2L);
@@ -134,15 +144,21 @@ class RankingRebuildLateJoinIntegrationTest {
 		RecordMetadata lateMetadata = publish(late);
 		TopicPartition latePartition = new TopicPartition(lateMetadata.topic(), lateMetadata.partition());
 		assertThat(lateMetadata.offset()).isEqualTo(capturedEnds.get(latePartition));
+		long dltEnd = dltEnd(latePartition.partition());
 
 		try {
 			await(Duration.ofSeconds(5), () -> normalMemberCount() > 0);
-			Thread.sleep(1_500);
+			assertThat(fenceAttempted.await(10, TimeUnit.SECONDS)).isTrue();
+			String lockOwner = redis.opsForValue().get(RankingRebuildLock.KEY);
+			assertThat(lockOwner).startsWith("owner=REBUILD,runId=");
+			await(Duration.ofSeconds(5), () -> output.getOut().contains("lockOwner=" + lockOwner));
 			assertThat(jdbc.queryForObject(
 					"select count(*) from ranking_event_ledger where event_id = ?",
 					Long.class, late.eventId().toString())).isZero();
 			assertThat(redis.opsForValue().get("ranking:applied-event:" + late.eventId())).isNull();
 			assertThat(score(late)).isNull();
+			assertThat(committedOffset(latePartition)).isLessThanOrEqualTo(lateMetadata.offset());
+			assertThat(dltEnd(latePartition.partition())).isEqualTo(dltEnd);
 		} finally {
 			continueSwap.countDown();
 		}
@@ -170,22 +186,26 @@ class RankingRebuildLateJoinIntegrationTest {
 
 	@Test
 	void consumerPausesBeyondMaxPollAndRetriesOriginalOffsetAfterFenceRelease() throws Exception {
-		String token = "long-running-rebuild";
+		String token = "owner=REBUILD,runId=long-running-rebuild";
 		assertThat(recoveryLock.acquire(token)).isTrue();
+		CountDownLatch fenceAttempts = observeFailedConsumerFence(5);
 		startNormalConsumer();
 		OrderCompletedEvent event = event(UUID.randomUUID(), 3L, 3L);
 		RecordMetadata metadata = publish(event);
+		TopicPartition partition = new TopicPartition(metadata.topic(), metadata.partition());
+		long dltEnd = dltEnd(partition.partition());
 
 		try {
-			Thread.sleep(5_000);
+			assertThat(fenceAttempts.await(10, TimeUnit.SECONDS)).isTrue();
 			assertThat(normalMemberCount()).isPositive();
 			assertThat(ledgerState(event.eventId())).isNull();
 			assertThat(score(event)).isNull();
+			assertThat(committedOffset(partition)).isLessThanOrEqualTo(metadata.offset());
+			assertThat(dltEnd(partition.partition())).isEqualTo(dltEnd);
 		} finally {
 			recoveryLock.release(token);
 		}
 
-		TopicPartition partition = new TopicPartition(metadata.topic(), metadata.partition());
 		await(Duration.ofSeconds(20), () -> "COMMITTED".equals(ledgerState(event.eventId())));
 		await(Duration.ofSeconds(20), () -> committedOffset(partition) > metadata.offset());
 		assertThat(score(event)).isEqualTo(1.0);
@@ -223,6 +243,7 @@ class RankingRebuildLateJoinIntegrationTest {
 		CompletableFuture<RankingRebuildResult> rebuildResult = CompletableFuture.supplyAsync(rebuild::rebuild);
 
 		assertThat(beforeSwap.await(20, TimeUnit.SECONDS)).isTrue();
+		CountDownLatch fenceAttempted = observeFailedConsumerFence(1);
 		Map<TopicPartition, Long> capturedEnds = topicEnds();
 		startNormalConsumer();
 		OrderCompletedEvent late = event(UUID.randomUUID(), 5L, 2L);
@@ -230,9 +251,12 @@ class RankingRebuildLateJoinIntegrationTest {
 		RecordMetadata lateMetadata = publish(late);
 		TopicPartition latePartition = new TopicPartition(lateMetadata.topic(), lateMetadata.partition());
 		assertThat(lateMetadata.offset()).isEqualTo(capturedEnds.get(latePartition));
+		long dltEnd = dltEnd(latePartition.partition());
 		await(Duration.ofSeconds(5), () -> normalMemberCount() > 0);
-		Thread.sleep(1_500);
+		assertThat(fenceAttempted.await(10, TimeUnit.SECONDS)).isTrue();
 		assertThat(ledgerState(late.eventId())).isNull();
+		assertThat(committedOffset(latePartition)).isLessThanOrEqualTo(lateMetadata.offset());
+		assertThat(dltEnd(latePartition.partition())).isEqualTo(dltEnd);
 
 		stopNormalConsumer();
 		await(Duration.ofSeconds(10), () -> normalMemberCount() == 0);
@@ -251,6 +275,67 @@ class RankingRebuildLateJoinIntegrationTest {
 				"select state, source from ranking_event_ledger where event_id = ?", late.eventId().toString()))
 				.containsEntry("state", "COMMITTED")
 				.containsEntry("source", "NORMAL_CONSUMER");
+		assertThat(dltEnd(latePartition.partition())).isEqualTo(dltEnd);
+	}
+
+	@Test
+	void consumerFirstFenceOwnerBlocksRebuildThenEventCommitsExactlyOnce(CapturedOutput output) throws Exception {
+		startNormalConsumer();
+		await(Duration.ofSeconds(5), () -> normalMemberCount() > 0);
+		CountDownLatch consumerOwnsFence = new CountDownLatch(1);
+		CountDownLatch allowConsumerMutation = new CountDownLatch(1);
+		AtomicReference<String> consumerOwner = new AtomicReference<>();
+		doAnswer(invocation -> {
+			String token = invocation.getArgument(0);
+			boolean acquired = (boolean) invocation.callRealMethod();
+			if (acquired && token.startsWith("owner=CONSUMER,")) {
+				consumerOwner.set(token);
+				consumerOwnsFence.countDown();
+				if (!allowConsumerMutation.await(10, TimeUnit.SECONDS)) {
+					throw new AssertionError("consumer fence release timeout");
+				}
+			}
+			return acquired;
+		}).when(recoveryLock).acquire(anyString());
+
+		OrderCompletedEvent event = event(UUID.randomUUID(), 6L, 3L);
+		RecordMetadata metadata = publish(event);
+		TopicPartition partition = new TopicPartition(metadata.topic(), metadata.partition());
+		long dltEnd = dltEnd(partition.partition());
+		assertThat(consumerOwnsFence.await(10, TimeUnit.SECONDS)).isTrue();
+		String owner = consumerOwner.get();
+		assertThat(redis.opsForValue().get(RankingRebuildLock.KEY)).isEqualTo(owner);
+
+		try {
+			assertThatThrownBy(rebuildService::rebuild)
+					.isInstanceOf(RankingRebuildException.class)
+					.hasMessageContaining("shared recovery lock")
+					.hasMessageContaining(owner)
+					.hasMessageNotContaining("다른 rebuild");
+			assertThat(output.getOut())
+					.contains("reason=SHARED_RECOVERY_LOCK_BUSY")
+					.contains("lockOwner=" + owner);
+			assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isZero();
+			assertThat(ledgerState(event.eventId())).isNull();
+			assertThat(redis.opsForValue().get("ranking:applied-event:" + event.eventId())).isNull();
+			assertThat(score(event)).isNull();
+			assertThat(committedOffset(partition)).isLessThanOrEqualTo(metadata.offset());
+			assertThat(dltEnd(partition.partition())).isEqualTo(dltEnd);
+		} finally {
+			allowConsumerMutation.countDown();
+		}
+
+		await(Duration.ofSeconds(20), () -> "COMMITTED".equals(ledgerState(event.eventId())));
+		await(Duration.ofSeconds(20), () -> committedOffset(partition) > metadata.offset());
+		assertThat(score(event)).isEqualTo(1.0);
+		assertThat(redis.opsForValue().get("ranking:applied-event:" + event.eventId()))
+				.isEqualTo(RankingEventFingerprint.from(event));
+		assertThat(jdbc.queryForMap(
+				"select state, source from ranking_event_ledger where event_id = ?", event.eventId().toString()))
+				.containsEntry("state", "COMMITTED")
+				.containsEntry("source", "NORMAL_CONSUMER");
+		assertThat(jdbc.queryForObject("select count(*) from ranking_rebuild_run", Long.class)).isZero();
+		assertThat(dltEnd(partition.partition())).isEqualTo(dltEnd);
 	}
 
 	private OrderCompletedEvent event(UUID eventId, long orderId, long menuId) {
@@ -274,10 +359,11 @@ class RankingRebuildLateJoinIntegrationTest {
 		return metadata;
 	}
 
-	private void startNormalConsumer() {
+	private void startNormalConsumer() throws Exception {
+		int partitionCount = topicEnds().size();
 		listenerRegistry.getListenerContainers().forEach(container -> {
 			container.start();
-			ContainerTestUtils.waitForAssignment(container, 1);
+			ContainerTestUtils.waitForAssignment(container, partitionCount);
 		});
 	}
 
@@ -333,6 +419,34 @@ class RankingRebuildLateJoinIntegrationTest {
 	private AdminClient adminClient() {
 		return AdminClient.create(Map.of(
 				AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, SharedTestcontainers.kafka().getBootstrapServers()));
+	}
+
+	private CountDownLatch observeFailedConsumerFence(int attempts) {
+		CountDownLatch attempted = new CountDownLatch(attempts);
+		doAnswer(invocation -> {
+			String token = invocation.getArgument(0);
+			boolean acquired = (boolean) invocation.callRealMethod();
+			if (!acquired && token.startsWith("owner=CONSUMER,")) {
+				attempted.countDown();
+			}
+			return acquired;
+		}).when(recoveryLock).acquire(anyString());
+		return attempted;
+	}
+
+	private long dltEnd(int partition) throws Exception {
+		try (AdminClient admin = adminClient()) {
+			TopicPartition dlt = new TopicPartition(OrderEventPublisher.ORDER_COMPLETED_TOPIC + ".DLT", partition);
+			try {
+				return admin.listOffsets(Map.of(dlt, org.apache.kafka.clients.admin.OffsetSpec.latest()))
+						.all().get(10, TimeUnit.SECONDS).get(dlt).offset();
+			} catch (java.util.concurrent.ExecutionException exception) {
+				if (exception.getCause() instanceof org.apache.kafka.common.errors.UnknownTopicOrPartitionException) {
+					return 0L;
+				}
+				throw exception;
+			}
+		}
 	}
 
 	private void await(Duration timeout, BooleanSupplier condition) throws Exception {

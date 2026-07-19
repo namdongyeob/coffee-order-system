@@ -2,8 +2,14 @@
 package com.example.coffeeordersystem.ranking.consumer;
 
 public class RankingRebuildInProgressException extends RuntimeException {
+	private final String lockOwner;
 
-	public RankingRebuildInProgressException(String eventId) {
-		super("RANKING_REBUILD_FENCE_BUSY eventId=" + eventId);
+	public RankingRebuildInProgressException(String eventId, String lockOwner) {
+		super("RANKING_REBUILD_FENCE_BUSY eventId=" + eventId + " lockOwner=" + lockOwner);
+		this.lockOwner = lockOwner;
+	}
+
+	public String lockOwner() {
+		return lockOwner;
 	}
 }

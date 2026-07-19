@@ -43,8 +43,9 @@ public class RankingEventConsumer {
 			}
 			processor.process(event, RankingEventSource.DLT_REPLAY);
 		} catch (RankingRebuildInProgressException exception) {
-			log.warn("ranking_consumer_rebuild_fenced reason=RECOVERY_LOCK_BUSY eventId={} source={} partition={} offset={}",
-					event.eventId(), source, partition, offset);
+			log.warn("ranking_consumer_rebuild_fenced reason=RECOVERY_LOCK_BUSY eventId={} source={} "
+					+ "partition={} offset={} lockOwner={}",
+					event.eventId(), source, partition, offset, exception.lockOwner());
 			throw exception;
 		}
 	}

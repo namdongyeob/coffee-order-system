@@ -23,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 @ExtendWith(MockitoExtension.class)
 class RankingEventProcessorTest {
@@ -39,11 +41,18 @@ class RankingEventProcessorTest {
 	@Mock
 	RankingRebuildLock recoveryLock;
 
+	@Mock
+	StringRedisTemplate redis;
+
+	@Mock
+	ValueOperations<String, String> values;
+
 	RankingEventProcessor processor;
 
 	@BeforeEach
 	void setUp() {
-		processor = new RankingEventProcessor(processedEventRepository, rankingService, rankingEventLedger, recoveryLock);
+		processor = new RankingEventProcessor(
+				processedEventRepository, rankingService, rankingEventLedger, recoveryLock, redis);
 		when(recoveryLock.acquire(any())).thenReturn(true);
 	}
 
@@ -70,11 +79,15 @@ class RankingEventProcessorTest {
 	@Test
 	void rebuildFenceBusyStopsBeforeLedgerAndRedisMutation() {
 		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
+		String lockOwner = "owner=REBUILD,runId=" + UUID.randomUUID();
 		when(recoveryLock.acquire(any())).thenReturn(false);
+		when(redis.opsForValue()).thenReturn(values);
+		when(values.get("ranking:rebuild:lock")).thenReturn(lockOwner);
 
 		assertThatThrownBy(() -> processor.process(event))
 				.isInstanceOf(RankingRebuildInProgressException.class)
-				.hasMessageContaining(event.eventId().toString());
+				.hasMessageContaining(event.eventId().toString())
+				.hasMessageContaining(lockOwner);
 
 		verifyNoInteractions(rankingEventLedger, rankingService, processedEventRepository);
 		verify(recoveryLock, never()).release(any());

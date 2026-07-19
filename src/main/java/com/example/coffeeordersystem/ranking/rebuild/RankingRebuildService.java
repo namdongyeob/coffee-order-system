@@ -108,12 +108,21 @@ public class RankingRebuildService {
 		if (!maintenance) {
 			throw new RankingRebuildException("maintenance mode에서만 rebuild를 실행할 수 있습니다");
 		}
-		String token = UUID.randomUUID().toString();
-		if (!lock.acquire(token)) {
-			throw new RankingRebuildException("다른 rebuild가 이미 실행 중입니다");
-		}
 		UUID runId = UUID.randomUUID();
-		log.info("ranking_rebuild_fence_acquired runId={} reason=RECOVERY_LOCK_ACQUIRED", runId);
+		String token = "owner=REBUILD,runId=" + runId;
+		if (!lock.acquire(token)) {
+			String lockOwner = redis.opsForValue().get(RankingRebuildLock.KEY);
+			if (lockOwner == null) {
+				lockOwner = "owner=UNKNOWN";
+			}
+			log.warn("ranking_rebuild_fence_blocked reason=SHARED_RECOVERY_LOCK_BUSY "
+					+ "attemptedRunId={} lockOwner={}", runId, lockOwner);
+			throw new RankingRebuildException(
+					"shared recovery lock owner 작업이 이미 실행 중이어서 rebuild를 시작할 수 없습니다: attemptedRunId="
+							+ runId + " lockOwner=" + lockOwner);
+		}
+		log.info("ranking_rebuild_fence_acquired runId={} reason=RECOVERY_LOCK_ACQUIRED lockOwner={}",
+				runId, token);
 
 		Instant snapshot = configuredSnapshot == null ? Instant.now() : configuredSnapshot;
 		LocalDateTime upper = LocalDateTime.ofInstant(snapshot, SEOUL);
