@@ -4,8 +4,8 @@ Issue: #133
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/133
 Branch: codex/issue-133-ranking-ledger-docs
 Current disposition: PASS
-Current Attempt: 5
-Current head: 85083291df3788930aa0033c73578b7695929923
+Current Attempt: 6
+Current head: a23110b148d044fcaa5bb5038e56dd318a5293ce
 
 ## Attempt 1
 
@@ -15,7 +15,7 @@ Current head: 85083291df3788930aa0033c73578b7695929923
 
 ### Evaluate
 - **시각**: 2026-07-19T21:00:00
-- **수행 검증**: GitHub Actions Run #29686161262, Run #29686471761, Run #29686605653 실행.
+- **수행 검증**: GitHub Actions Run #29686161262 및 Run #29686605653 실행.
 - **결과**: `DltReplayServiceIntegrationTest` 10초 대기 시간 부족으로 타임아웃 실패.
 
 ### Failure Cause
@@ -32,6 +32,30 @@ Current head: 85083291df3788930aa0033c73578b7695929923
 
 
 ## Attempt 2
+
+### Generate
+- **시각**: 2026-07-19T21:10:00
+- **수행 작업**: 하네스 실행 모드(execution-mode) 설정 관련 조율 작업 진행.
+
+### Evaluate
+- **시각**: 2026-07-19T21:12:00
+- **수행 검증**: GitHub Actions Run #29686471761 실행.
+- **결과**: execution-mode mismatch로 인한 실패.
+
+### Failure Cause
+- STRICT/SOLO 모드 설정의 오정합 및 하네스 분류 정책 충돌로 인해 빌드 진입 시 실패가 발생했습니다.
+
+### Change Scope
+- 수정 파일: `docs/testing/evidence/issue-133/acceptance-criteria.md`
+
+### Reverification
+- 결과: FAIL (모드 정합성 위배)
+
+### Next Attempt
+- 계획: 실행 모드를 STRICT로 통일하고 개별 통합 테스트 타임아웃을 상향하여 재시도.
+
+
+## Attempt 3
 
 ### Generate
 - **시각**: 2026-07-19T21:40:00
@@ -55,7 +79,7 @@ Current head: 85083291df3788930aa0033c73578b7695929923
 - 계획: `@BeforeEach`에서 데이터베이스 및 Redis 상태 초기화(`cleanDatabase()`) 적용.
 
 
-## Attempt 3
+## Attempt 4
 
 ### Generate
 - **시각**: 2026-07-19T22:00:00
@@ -79,7 +103,7 @@ Current head: 85083291df3788930aa0033c73578b7695929923
 - 계획: 퍼블리셔 Mockito Stubbing을 통해 publish 전 락을 선제 삭제하고, `auto-offset-reset=earliest`로 오프셋 리셋 스킵 방지.
 
 
-## Attempt 4
+## Attempt 5
 
 ### Generate
 - **시각**: 2026-07-19T22:15:00
@@ -91,7 +115,7 @@ Current head: 85083291df3788930aa0033c73578b7695929923
 - **결과**: 빌드 성공 (BUILD SUCCESSFUL).
 
 ### Failure Cause
-- 없음 (빌드 통과). 다만, 해당 락 삭제 및 컨슈머 세팅 우회 처리는 Issue #133의 문서 전용 범위를 벗어난 조치이므로 롤배해 함.
+- 없음 (빌드 통과). 다만, 해당 락 삭제 및 컨슈머 세팅 우회 처리는 Issue #133의 문서 전용 범위를 벗어난 조치이므로 롤백해야 함.
 
 ### Change Scope
 - 수정 파일: `src/test/java/com/example/coffeeordersystem/recovery/DltReplayServiceIntegrationTest.java`
@@ -103,21 +127,24 @@ Current head: 85083291df3788930aa0033c73578b7695929923
 - 계획: 테스트 파일의 변경 사항을 완전히 롤백하고, ADR 문서의 세부 복구 계약 및 예외 격리 정책을 추가 확정하여 푸시.
 
 
-## Attempt 5
+## Attempt 6
 
 ### Generate
-- **시각**: 2026-07-20T01:10:00
+- **시각**: 2026-07-20T01:50:00
 - **수행 작업**:
-  - `DltReplayServiceIntegrationTest.java`를 `origin/main` 상태로 완전히 롤백함.
+  - `DltReplayServiceIntegrationTest.java`를 `origin/main` 상태로 완전히 롤백함 (테스트 우회/수정 모두 제거).
   - `ADR-008-ranking-recovery-ledger.md`에 신규/기존 pending RESERVED 구분, 마커 TTL 계산식 정의, REDIS_APPLIED 상태의 예외 격리 일원화, 수동 복구 Rebuild 유도 규칙 작성, #134 구현 대상/크래시 시나리오 명시.
+  - 상태표에 `COMMITTED + marker 존재(불일치)` 규칙 추가, 운영자 복구 시작 조건(점검창 진입, active member 0 검증) 추가 및 finally 블록 해제 정책 반영.
 
 ### Evaluate
-- **시각**: 2026-07-20T01:15:00
-- **수행 검증**: `python scripts/harness_gate.py` 실행.
-- **결과**: PASS (Level 0).
+- **시각**: 2026-07-20T02:00:00
+- **수행 검증**: GitHub Actions Run #29694556954 실행.
+- **결과**: CI 빌드 성공 (BUILD SUCCESSFUL).
+  - 테스트 코드가 `origin/main` 상태로 롤백되어 Java 소스 코드 파일의 변경사항이 없으므로, CI(Harness Quality) 상에서는 문서 검증(Level 0) 및 기본 빌드 검증(Level 1) 단계만 무사히 패스하여 빌드 성공으로 나타났습니다.
+  - 실제 비동기 경쟁 문제(Handoff)는 테스트 파일이 원복되었으므로 런타임 실행 시 다시 발생할 수 있으며, 이에 대한 독립적인 Codex Review와 QA 단계는 아직 진행되지 않아 `PENDING` 상태입니다.
 
 ### Failure Cause
-- 없음. 다만, 테스트 파일의 복원에 따라 향후 CI 빌드는 다시 실패하거나 흔들릴 수 있으며, 해당 락 핸드오프 비동기 타이밍 경쟁 문제는 별도의 P1 이슈로 제안하여 해결할 예정.
+- 없음 (하네스 빌드 통과).
 
 ### Change Scope
 - 수정 파일: `docs/adr/ADR-008-ranking-recovery-ledger.md`
