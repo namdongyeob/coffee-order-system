@@ -158,6 +158,19 @@ BUILD_FILES = {
     "gradlew.bat",
 }
 RUNTIME_FILES = {"Dockerfile", "docker-compose.yml", "docker-compose.yaml"}
+NON_RUNTIME_REPOSITORY_SCRIPT_FILES = {
+    "scripts/harness_gate.py",
+    "scripts/install_git_hooks.py",
+    "scripts/migrate_verification_log.py",
+    "scripts/rebuild_verification_log.py",
+    "scripts/start_codex_workspace.ps1",
+    "scripts/team_orchestration.py",
+    "scripts/tests/__init__.py",
+    "scripts/tests/test_harness_gate.py",
+    "scripts/tests/test_harness_gate_issue_137.py",
+    "scripts/tests/test_team_orchestration.py",
+}
+RUNTIME_SCRIPT_FILES = {"scripts/replay_dlt_message.ps1"}
 
 
 def _impact_category(path: str, issue: int) -> str:
@@ -175,10 +188,13 @@ def _impact_category(path: str, issue: int) -> str:
         return "migration-build-runtime"
     if normalized in RUNTIME_FILES or normalized.startswith("docker/"):
         return "migration-build-runtime"
+    if normalized in RUNTIME_SCRIPT_FILES:
+        return "migration-build-runtime"
+    if normalized in NON_RUNTIME_REPOSITORY_SCRIPT_FILES:
+        return "workflow-harness-policy"
     if normalized.startswith(
         (
             ".github/workflows/",
-            "scripts/",
             "docs/ai/",
             "docs/testing/",
             ".codex/skills/",

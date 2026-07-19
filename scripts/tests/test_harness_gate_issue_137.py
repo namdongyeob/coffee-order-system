@@ -140,6 +140,61 @@ class ImpactClassifierContractTest(unittest.TestCase):
         self.assertTrue(harness_gate.java_ci_required(issue=137, impact=lightweight))
         self.assertFalse(harness_gate.java_ci_required(issue=138, impact=lightweight))
 
+    def test_known_non_runtime_repository_scripts_use_an_exact_allowlist(self):
+        expected = {
+            "scripts/harness_gate.py",
+            "scripts/install_git_hooks.py",
+            "scripts/migrate_verification_log.py",
+            "scripts/rebuild_verification_log.py",
+            "scripts/start_codex_workspace.ps1",
+            "scripts/team_orchestration.py",
+            "scripts/tests/__init__.py",
+            "scripts/tests/test_harness_gate.py",
+            "scripts/tests/test_harness_gate_issue_137.py",
+            "scripts/tests/test_team_orchestration.py",
+        }
+
+        self.assertEqual(expected, harness_gate.NON_RUNTIME_REPOSITORY_SCRIPT_FILES)
+        for path in expected:
+            with self.subTest(path=path):
+                impact = harness_gate.classify_change_impact(
+                    [harness_gate.ChangeRecord("M", path)], issue=138
+                )
+                self.assertFalse(impact.requires_java_ci)
+                self.assertFalse(impact.invalidates_runtime_evidence)
+
+    def test_replay_dlt_script_is_runtime_heavy(self):
+        impact = harness_gate.classify_change_impact(
+            [harness_gate.ChangeRecord("M", "scripts/replay_dlt_message.ps1")],
+            issue=138,
+        )
+
+        self.assertEqual(harness_gate.FAIL_CLOSED_IMPACT, impact)
+
+    def test_unlisted_new_ops_script_fails_closed(self):
+        impact = harness_gate.classify_change_impact(
+            [harness_gate.ChangeRecord("A", "scripts/new_ops.ps1")], issue=138
+        )
+
+        self.assertEqual(harness_gate.FAIL_CLOSED_IMPACT, impact)
+
+    def test_runtime_mixed_and_rename_delete_stay_heavy(self):
+        cases = (
+            [
+                harness_gate.ChangeRecord("M", "README.md"),
+                harness_gate.ChangeRecord("M", "scripts/replay_dlt_message.ps1"),
+            ],
+            [harness_gate.ChangeRecord("R100", "scripts/tool-new.py", "scripts/tool.py")],
+            [harness_gate.ChangeRecord("D", "scripts/harness_gate.py")],
+        )
+
+        for changes in cases:
+            with self.subTest(changes=changes):
+                self.assertEqual(
+                    harness_gate.FAIL_CLOSED_IMPACT,
+                    harness_gate.classify_change_impact(changes, issue=138),
+                )
+
 
 class StaleAndMergeContractTest(unittest.TestCase):
     def test_execution_head_preserves_name_status_and_rejects_renamed_or_deleted_evidence(self):
