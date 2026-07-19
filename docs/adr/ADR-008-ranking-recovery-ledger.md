@@ -58,7 +58,7 @@ marker TTL은 DB ledger retention보다 짧아지면 안 됩니다. DB ledger는
 
 ### 보존
 
-ledger와 Redis marker는 `30일` 보존합니다. 구현은 DLT 보존 기간, Kafka retention, 최대 복구 window의 최댓값이 30일을 넘으면 배포를 거부하거나 retention을 함께 늘려야 합니다. 만료 삭제는 `COMMITTED` 행만 대상으로 하며, `RESERVED`·`REDIS_APPLIED`·미완료 rebuild run의 행은 자동 삭제하지 않습니다.
+ledger와 Redis marker는 안전 보존 공식에 맞게 보존합니다. 구현은 DLT 보존 기간, Kafka retention, 최대 복구 window의 최댓값을 고려한 안전 보존 공식을 충족하지 못하면 배포를 거부하도록 검증합니다. 만료 삭제는 안전 보존 공식을 충족하는 만료 기간이 지난 `COMMITTED` 행만 대상으로 하며, `RESERVED`·`REDIS_APPLIED`·미완료 rebuild run의 행은 자동 삭제하지 않습니다.
 
 ## 경로별 조회와 기록 순서
 
@@ -101,16 +101,81 @@ rebuild 시작은 normal consumer와 DLT replay가 공유하는 recovery lock을
 
 rebuild swap 뒤 ledger backfill을 실패한 채 lock을 해제하는 것은 금지합니다. 이 상태에서 “일단 DLT를 재발행”하거나 ledger를 만료 처리하면 불변조건을 잃습니다.
 
+## Redis marker 만료 복구 계약
+
+DB ledger 상태가 아직 `COMMITTED`로 전이되지 못하고 `RESERVED` 또는 `REDIS_APPLIED`인 상태에서 Redis의 marker가 만료/유실되는 예외 상황에 대한 세부 복구 계약을 정의합니다.
+
+### 1. 상태별 허용 동작 조합 및 흐름 계약
+
+이전에 처리 이력이 없는 신규 유입 이벤트와, DB에 이미 등록되어 있으나 완료되지 못한 채 재유입된 기존 pending 이벤트를 명확히 구분하여 처리 흐름을 일원화합니다.
+
+| DB Ledger 상태 | Redis Marker 상태 | 허용 동작 (Action) | 상세 조건 및 설명 |
+| --- | --- | --- | --- |
+| 새로 생성됨 (DB 행 없음 -> `RESERVED` 신규 추가) | 만료/없음 | Lua 호출 -> 적용 성공 시 `REDIS_APPLIED` 후 `COMMITTED` | 최초 유입 이벤트이므로 마커가 없는 것이 정상. Lua 실행 및 랭킹 점수 1회 안전 반영 |
+| 기존 pending (`RESERVED`) | 존재 (일치) | Lua 호출 -> 적용 성공 시 `REDIS_APPLIED` 후 `COMMITTED` | 이전 DB 트랜잭션 실패로 재시도. 마커가 존재하므로 Lua 재처리로 안전 반영 |
+| 기존 pending (`RESERVED`) | 존재 (불일치) | `EVENT_ID_PAYLOAD_CONFLICT` (Fail-Closed) | 동일한 eventId에 다른 payload를 가진 악의적/오염된 이벤트로 처리 차단 |
+| 기존 pending (`RESERVED`) | 만료/없음 | `PENDING_MARKER_EXPIRED_RECONCILE` (Fail-Closed) | 마커 유실로 Redis 반영 여부 증명 불가. 중복 집계 방지를 위해 fail-closed 및 알람 |
+| 기존 pending (`REDIS_APPLIED`) | 존재 (일치) | Lua 호출 생략 (no-op) -> `COMMITTED` 전이 | Redis에 이미 적용되었음이 확실하므로 DB 상태만 완료 처리함 |
+| 기존 pending (`REDIS_APPLIED`) | 존재 (불일치) | `EVENT_ID_PAYLOAD_CONFLICT` (Fail-Closed) | 동일 eventId payload 불일치 차단 |
+| 기존 pending (`REDIS_APPLIED`) | 만료/없음 | `PENDING_MARKER_EXPIRED_RECONCILE` (Fail-Closed) | 이미 적용 단계 진입 후 크래시가 났으나 마커가 만료됨. 반영 증명 불가로 fail-closed 및 알람 |
+| `COMMITTED` | 존재 (일치) | 성공 Ack (no-op) | 이미 처리가 완료된 중복 이벤트 |
+| `COMMITTED` | 만료/없음 | 성공 Ack (no-op) | 이미 완료된 이벤트이며, 마커 만료 여부와 무관하게 성공 ack 처리 |
+
+### 2. 안전 여유(Safe Margin) 및 임계값 정의
+
+- **계산 공식**:
+  $$\text{redisMarkerTtl} > \text{kafkaRetention} + \text{dltRetention} + \text{maximumRebuildRecoveryWindow} + \text{retryHorizon} + \text{segmentDelayMargin}$$
+  - `redisMarkerTtl`: Redis 마커의 TTL
+  - `kafkaRetention`: Kafka 원본 토픽의 최대 보존 주기
+  - `dltRetention`: DLT 토픽의 최대 보존 주기
+  - `maximumRebuildRecoveryWindow`: 재빌드 진행 시 커버 가능한 복구 윈도우 최대 크기
+  - `retryHorizon`: 컨슈머 그룹의 백오프 및 재시도에 따른 최대 지연 한계 시간
+  - `segmentDelayMargin`: Kafka 브로커의 세그먼트 롤링(Segment Roll), 클린업 주기(Check), 물리적 디스크 삭제(Delete) 지연 마진
+- **동일 설정값 금지**: 마커 TTL이 Kafka/DLT 보존 주기와 완전히 동일하게 설정되는 것은 마커의 선만료에 의한 중복 집계 위험이 있으므로 엄격히 금지합니다.
+- **기동 조건 검증 (Application Startup Check)**: 애플리케이션 시작 시 `RankingLedgerRetentionProperties` 바인딩 검증 단계에서 위의 계산 공식을 실제로 평가하여, `redisMarkerTtl`이 안전 임계값 합계를 넘지 못하면 즉시 `IllegalStateException`을 발생시키고 구동을 거부(fail-fast)합니다.
+- **DB Ledger Cleanup**: 안전 보존 공식을 충족하는 만료 기간이 지난 `COMMITTED` 상태의 행만 삭제합니다. `RESERVED` 또는 `REDIS_APPLIED` 상태의 미완료 행은 영구 보존하여 추적 가능하게 합니다.
+
+### 3. 마커 만료 후 동일 fingerprint pending event 유입 시 처리 및 예외 격리
+- **결정**: **Fail-Closed 및 예외 발생**
+- **오류 코드 명확화**: `PENDING_MARKER_EXPIRED_RECONCILE`은 DB ledger의 물리적인 `state`가 아니며, Consumer가 랭킹 이벤트 처리 시 마커 유실을 감지했을 때 던지는 **예외 오류 코드(Error Code / Exception Reason)**입니다. 이 오류 발생 시에도 DB ledger 상의 행은 기존 pending 상태(`RESERVED` 혹은 `REDIS_APPLIED`)와 증거를 그대로 유지하여 복구를 위한 추적 용도로 보존합니다.
+
+### 4. 마커 만료 미결 이벤트(`PENDING_MARKER_EXPIRED_RECONCILE`) 상태의 운영자 복구 절차
+
+1. 운영자는 랭킹 데이터의 정합성을 보장하기 위해, 동일 기간 동안 다른 rebuild나 DLT 재발행이 실행되지 않도록 **공유 복구 락(`ranking:rebuild:lock`)을 먼저 획득**합니다.
+2. Redis ZSET 랭킹 점수판에 ZINCRBY 수동 증량 등의 ad-hoc 쓰기를 직접 실행하는 방식을 금지합니다. ZSET은 실시간성이 결합된 캐시성 ZSET이므로 수동 직접 수정은 정합성 불일치를 가중시킵니다.
+3. RDBMS `orders` 테이블과 Redis ZSET의 데이터를 대조하고 검증합니다.
+4. 메뉴 랭킹 롤링 윈도우 집계를 완전 재빌드(`Ranking Rebuild`)하는 절차를 실행하여 Redis ZSET을 올바른 데이터로 동기화 및 갱신합니다.
+5. **Rebuild와 DB 대조가 모두 성공적으로 완료된 뒤에만**, pending 상태의 ledger 행을 `COMMITTED` 상태로 수동 업데이트하여 종료합니다.
+6. 만약 Rebuild가 실패하거나 대조 도중 오류가 발생하면, pending ledger 행은 기존 pending 상태(`RESERVED`/`REDIS_APPLIED`)와 증거를 그대로 유지하여 추후 분석 및 재시도가 가능하게 합니다.
+7. 복구 락을 해제합니다.
+
+### 5. 보존, 정리 및 관측 지표 계약
+- **보존**: `COMMITTED`가 아닌 미결 행은 자동 정리 대상에서 영구 제외합니다.
+- **관측 지표 (Metrics)**:
+  - `ranking_ledger_stale_reserved_count`: 24시간 이상 `RESERVED` 상태인 미결 행 수.
+  - `ranking_ledger_stale_applied_count`: 24시간 이상 `REDIS_APPLIED` 상태인 미결 행 수.
+  - 위 지표가 0보다 크면 알람(Alert)을 발생시켜 운영자가 인지하도록 합니다.
+
 ## 구현 이슈의 acceptance criteria
 
-후속 구현은 이 ADR을 다음 작업 단위로 나눕니다.
+이 설계에 기반한 후속 구현 작업(이슈 #134)은 다음 대상 파일의 수정과 테스트 명세를 통해 완수합니다.
 
-1. migration으로 `ranking_event_ledger`와 primary key, state·fingerprint·run 필드를 추가하고 `processed_event`를 삭제하거나 재의미화하지 않습니다.
-2. normal consumer와 DLT replay가 공통 `applyRankingEvent` 경로를 사용하고, same eventId/same fingerprint는 no-op, different fingerprint는 fail-closed임을 통합 테스트로 증명합니다.
-3. Redis Lua가 marker 기록과 ZSET 증가를 원자적으로 수행하고, Redis 뒤 DB crash 재시도에서 점수가 두 번 증가하지 않음을 검증합니다.
-4. rebuild run 상태와 shared recovery lock을 도입하고, swap 뒤 ledger bulk 완료 전 crash는 `SWAPPED_PENDING_LEDGER` recovery만 허용함을 검증합니다.
-5. `DLT → rebuild`, `rebuild → DLT`, concurrent normal/DLT/rebuild 순서별로 같은 eventId 점수가 최대 한 번임을 Kafka·Redis·DB 통합 테스트로 검증합니다.
-6. retention job은 30일 지난 `COMMITTED` 행과 marker만 삭제하며 pending 행을 삭제하지 않음을 검증합니다.
+### 1. 수정 대상 파일
+- [RankingEventProcessor.java](../../src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventProcessor.java) (공통 예외 격리, Fencing 제어 및 `PENDING_MARKER_EXPIRED_RECONCILE` 예외 발생 경계 구현)
+- [RankingEventLedger.java](../../src/main/java/com/example/coffeeordersystem/ranking/consumer/RankingEventLedger.java) (신규 insert `RESERVED`와 기존 pending `RESERVED` 구분 및 수동 복구 연동 인터페이스 구현)
+- [RankingLedgerRetentionProperties.java](../../src/main/java/com/example/coffeeordersystem/ranking/retention/RankingLedgerRetentionProperties.java) (보존 기간 공식 기동 검증 규칙 실제 평가 구현)
+
+### 2. #134 필수 검증 및 테스트 명세
+- **신규 RESERVED + marker 없음**: 처음 인서트된 행이 마커가 없는 상태로 유입 시, Lua 스크립트를 즉시 호출하여 마커를 기록하고 ZSET 점수를 안전하게 반영하는지 검증합니다.
+- **만료된 RESERVED + marker 없음**: 이미 `RESERVED`로 DB에 등록되어 있던 pending 행이 유입되었으나 Redis 마커가 유실/만료된 경우, 자동 처리하지 않고 `PENDING_MARKER_EXPIRED_RECONCILE` 예외를 발생시키며 fail-closed 되는지 검증합니다.
+- **REDIS_APPLIED + marker 없음**: DB 상태가 `REDIS_APPLIED`이나 Redis 마커가 없는 경우, `PENDING_MARKER_EXPIRED_RECONCILE` 예외를 던지고 fail-closed 처리되는지 검증합니다.
+- **marker 만료 후 DLT replay**: DLT 재발행 시점에 마커 만료 조건에 걸리는 경우, 중복 집계를 방지하기 위해 처리가 격리 및 거부되는 흐름을 검증합니다.
+- **불안전한 TTL 설정의 기동 거부**: $\text{redisMarkerTtl} \le \text{kafkaRetention} + \text{dltRetention} + \text{maximumRebuildRecoveryWindow} + \text{retryHorizon} + \text{segmentDelayMargin}$ 조건으로 설정을 주입했을 때, 컨텍스트 초기화 단계에서 구동을 차단하고 `IllegalStateException`을 던지는지 검증합니다. (검증 대상 테스트 파일: [RankingLedgerRetentionConfigurationTest.java](../../src/test/java/com/example/coffeeordersystem/ranking/retention/RankingLedgerRetentionConfigurationTest.java))
+- **DB Crash Injection Test**:
+  - Redis Lua 스크립트 실행(마커 기록 및 ZSET 점수 반영)은 성공하고 `REDIS_APPLIED` 상태로의 전이는 완료되었으나, 메인 DB 트랜잭션의 최종 커밋 직전에 강제로 애플리케이션/컨테이너 Crash를 주입(Mocking 또는 Testcontainers 제어)하여 `REDIS_APPLIED` 상태로 방치되는 시나리오를 구성합니다.
+  - 이후 재기동 시 해당 eventId가 재유입될 때 중복 점수 증가 없이 정상적으로 `COMMITTED`로 완료 전이되고 exactly-once 집계가 보장되는지 검증해야 합니다.
+
+- **retention 검증**: retention job은 만료 기간이 지난 `COMMITTED` 행과 marker만 삭제하며 pending 행을 삭제하지 않음을 검증합니다.
 
 ## 결과와 단점
 
