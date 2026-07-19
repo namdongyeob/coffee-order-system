@@ -593,7 +593,7 @@ class EvidenceValidationTest(unittest.TestCase):
 		errors = harness_gate.validate_execution_head_delta(
 			"d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8",
 			True,
-			["scripts/harness_gate.py"],
+			[harness_gate.ChangeRecord("M", "scripts/harness_gate.py")],
 			23,
 		)
 
@@ -607,8 +607,12 @@ class EvidenceValidationTest(unittest.TestCase):
 			"d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8",
 			True,
 			[
-				"docs/testing/evidence/issue-23/attempt-log.md",
-				"docs/testing/evidence/issue-23/verification.md",
+				harness_gate.ChangeRecord(
+					"M", "docs/testing/evidence/issue-23/attempt-log.md"
+				),
+				harness_gate.ChangeRecord(
+					"M", "docs/testing/evidence/issue-23/verification.md"
+				),
 			],
 			23,
 		)
@@ -968,9 +972,10 @@ class ChangedPathModeValidationTest(unittest.TestCase):
 				errors = harness_gate.validate_changed_path_mode(["scripts/harness_gate.py"], mode)
 				self.assertTrue(any("STRICT" in error for error in errors))
 
-	def test_docs_and_gradlew_notes_do_not_trigger_path_mode_rules(self):
-		self.assertEqual([], harness_gate.validate_changed_path_mode(["docs/guide.md"], "SOLO"))
-		self.assertEqual([], harness_gate.validate_changed_path_mode(["docs/gradlew-notes.md"], "SOLO"))
+	def test_unknown_docs_fail_closed_but_readme_is_allowlisted(self):
+		self.assertNotEqual([], harness_gate.validate_changed_path_mode(["docs/guide.md"], "SOLO"))
+		self.assertNotEqual([], harness_gate.validate_changed_path_mode(["docs/gradlew-notes.md"], "SOLO"))
+		self.assertEqual([], harness_gate.validate_changed_path_mode(["README.md"], "SOLO"))
 
 
 class LevelPathEnforcementTest(unittest.TestCase):
@@ -1274,12 +1279,17 @@ class OrchestrationContractTest(unittest.TestCase):
 			"base_sha": "base",
 			"head_sha": "head",
 			"acceptance_criteria": "12개 계약 테스트를 반영합니다.",
+			"allowed_write_scope": "scripts/harness_gate.py와 직접 harness 단위 테스트",
 			"required_documents": [
 				"AGENTS.md",
 				"docs/ai/orchestration-policy.md",
 				"docs/testing/test-strategy.md",
 			],
+			"focused_verification": "python -m unittest scripts.tests.test_harness_gate_issue_137",
 			"diff_scope": "scripts/harness_gate.py와 직접 harness 단위 테스트",
+			"fork_turns": "none",
+			"subagent_stop": ["superpowers:using-superpowers"],
+			"output_budget": "summary-only",
 			"previous_p0_p1_finding": "없음",
 		}
 
@@ -1292,12 +1302,17 @@ class OrchestrationContractTest(unittest.TestCase):
 			"base_sha": "base",
 			"head_sha": "head",
 			"acceptance_criteria": "본문",
+			"allowed_write_scope": "scripts/",
 			"required_documents": [
 				"AGENTS.md",
 				"docs/ai/orchestration-policy.md",
 				"docs/testing/test-strategy.md",
 			],
+			"focused_verification": "python -m unittest scripts.tests.test_harness_gate_issue_137",
 			"diff_scope": "scripts/",
+			"fork_turns": "none",
+			"subagent_stop": ["superpowers:using-superpowers"],
+			"output_budget": "summary-only",
 			"source_body": "def copied_source(): pass",
 			"conversation_history": "전체 대화 로그",
 			"prompt": "복사한 source snapshot",
@@ -1310,21 +1325,26 @@ class OrchestrationContractTest(unittest.TestCase):
 		self.assertIn("conversation_history", errors[1])
 		self.assertIn("prompt", errors[2])
 
-	def test_role_packet_requires_three_to_five_canonical_document_paths(self):
+	def test_role_packet_requires_one_to_five_canonical_document_paths(self):
 		packet = {
 			"issue_url": "https://github.com/namdongyeob/coffee-order-system/issues/78",
 			"worktree_path": "C:/worktrees/issue-78",
 			"base_sha": "base",
 			"head_sha": "head",
 			"acceptance_criteria": "본문",
-			"required_documents": ["AGENTS.md", "docs/ai/orchestration-policy.md"],
+			"allowed_write_scope": "scripts/",
+			"required_documents": [],
+			"focused_verification": "python -m unittest scripts.tests.test_harness_gate_issue_137",
 			"diff_scope": "scripts/",
+			"fork_turns": "none",
+			"subagent_stop": ["superpowers:using-superpowers"],
+			"output_budget": "summary-only",
 		}
 
 		errors = harness_gate.validate_role_packet(packet)
 
 		self.assertEqual(1, len(errors))
-		self.assertIn("3~5", errors[0])
+		self.assertIn("1~5", errors[0])
 
 		packet["required_documents"] = [
 			"AGENTS.md",
@@ -1345,12 +1365,17 @@ class OrchestrationContractTest(unittest.TestCase):
 			"base_sha": "base",
 			"head_sha": "head",
 			"acceptance_criteria": "본문",
+			"allowed_write_scope": "scripts/",
 			"required_documents": [
 				"AGENTS.md",
 				"docs/ai/orchestration-policy.md",
 				"docs/ai/orchestration-policy.md",
 			],
+			"focused_verification": "python -m unittest scripts.tests.test_harness_gate_issue_137",
 			"diff_scope": "scripts/",
+			"fork_turns": "none",
+			"subagent_stop": ["superpowers:using-superpowers"],
+			"output_budget": "summary-only",
 		}
 
 		errors = harness_gate.validate_role_packet(packet)
@@ -1371,7 +1396,7 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_unchanged_repository_after_qa_needs_no_docs_commit_or_second_review(self):
 		self.assertEqual(
 			{"docs_commit_required": False, "full_review_required": False, "qa_stale": False},
-			harness_gate.post_qa_requirements(repository_changed=False, changed_paths=[]),
+			harness_gate.post_qa_requirements(repository_changed=False, changes=[]),
 		)
 
 	def test_runtime_or_policy_change_after_qa_stales_review_and_qa(self):
@@ -1379,7 +1404,10 @@ class OrchestrationContractTest(unittest.TestCase):
 			with self.subTest(path=path):
 				self.assertEqual(
 					{"docs_commit_required": False, "full_review_required": True, "qa_stale": True},
-					harness_gate.post_qa_requirements(repository_changed=True, changed_paths=[path]),
+					harness_gate.post_qa_requirements(
+						repository_changed=True,
+						changes=[harness_gate.ChangeRecord("M", path)],
+					),
 				)
 
 	def test_github_only_state_update_does_not_require_repository_commit(self):
@@ -1461,35 +1489,69 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_production_or_test_changes_are_not_docs_metadata(self):
 		for path in ("src/main/java/App.java", "src/test/java/AppTest.java"):
 			with self.subTest(path=path):
-				self.assertFalse(harness_gate.qa_remains_valid("qa", "docs", [path], 71))
+				self.assertFalse(
+					harness_gate.qa_remains_valid(
+						"qa", "docs", [harness_gate.ChangeRecord("M", path)], 71
+					)
+				)
 
 	def test_qa_remains_valid_for_issue_evidence_only_delta(self):
 		paths = [
 			"docs/testing/evidence/issue-71/commands.md",
 			"docs/testing/evidence/issue-71/verification.md",
 		]
-		self.assertTrue(harness_gate.qa_remains_valid("qa-head", "docs-head", paths, 71))
-
-	def test_qa_is_stale_for_non_docs_delta(self):
-		paths = ["docs/testing/evidence/issue-71/commands.md", "scripts/harness_gate.py"]
-		self.assertFalse(harness_gate.qa_remains_valid("qa-head", "current-head", paths, 71))
-
-	def test_qa_is_current_when_head_did_not_change(self):
-		self.assertTrue(harness_gate.qa_remains_valid("same", "same", ["src/main/App.java"], 71))
-
-	def test_other_issue_evidence_does_not_preserve_qa(self):
-		self.assertFalse(
+		self.assertTrue(
 			harness_gate.qa_remains_valid(
-				"qa", "docs", ["docs/testing/evidence/issue-72/commands.md"], 71
+				"qa-head",
+				"docs-head",
+				[harness_gate.ChangeRecord("M", path) for path in paths],
+				71,
 			)
 		)
 
-	def test_qa_preservation_rejects_every_path_outside_fixed_markdown_allowlist(self):
+	def test_qa_is_stale_for_non_docs_delta(self):
+		paths = ["docs/testing/evidence/issue-71/commands.md", "scripts/harness_gate.py"]
+		self.assertFalse(
+			harness_gate.qa_remains_valid(
+				"qa-head",
+				"current-head",
+				[harness_gate.ChangeRecord("M", path) for path in paths],
+				71,
+			)
+		)
+
+	def test_qa_is_current_when_head_did_not_change(self):
+		self.assertTrue(
+			harness_gate.qa_remains_valid(
+				"same", "same", [harness_gate.ChangeRecord("M", "src/main/App.java")], 71
+			)
+		)
+
+	def test_other_issue_evidence_does_not_preserve_qa(self):
+		self.assertFalse(
+				harness_gate.qa_remains_valid(
+					"qa",
+					"docs",
+					[harness_gate.ChangeRecord("M", "docs/testing/evidence/issue-72/commands.md")],
+					71,
+				)
+		)
+
+	def test_qa_preservation_accepts_current_issue_raw_evidence_but_rejects_other_changes(self):
 		for path in (
 			"docs/testing/evidence/issue-71/screenshots/ui.png",
 			"docs/testing/evidence/issue-71/capture.png",
 			"docs/testing/evidence/issue-71/test-output.txt",
 			"docs/testing/evidence/issue-71/arbitrary.md",
+		):
+			with self.subTest(path=path):
+				self.assertTrue(
+					harness_gate.qa_remains_valid(
+						"qa", "current", [harness_gate.ChangeRecord("M", path)], 71
+					)
+				)
+
+		for path in (
 			"docs/testing/evidence/issue-72/commands.md",
 			"docs/ai/orchestration-policy.md",
 			"scripts/harness_gate.py",
@@ -1501,21 +1563,30 @@ class OrchestrationContractTest(unittest.TestCase):
 		):
 			with self.subTest(path=path):
 				self.assertFalse(
-					harness_gate.qa_remains_valid("qa", "current", [path], 71)
+					harness_gate.qa_remains_valid(
+						"qa", "current", [harness_gate.ChangeRecord("M", path)], 71
+					)
 				)
 
 	def test_autonomous_merge_requires_all_existing_gates(self):
 		inputs = {
-			"review_approved": True,
-			"qa_passed": True,
+			"writer_id": "writer",
+			"review_id": "review",
+			"qa_id": "qa",
+			"review_verdict": "APPROVED",
+			"qa_verdict": "PASS",
 			"docs_evidence_ready": True,
-			"ci_passed": True,
+			"ci_check_name": "quality-gates",
+			"ci_conclusion": "SUCCESS",
 			"review_head": "head",
-			"current_head": "head",
+			"qa_head": "head",
+			"source_tree_head": "head",
+			"review_qa_stale": False,
+			"ci_head": "head",
 			"mergeable_clean": True,
 		}
 		self.assertTrue(harness_gate.autonomous_merge_ready(**inputs))
-		for missing in ("review_approved", "qa_passed", "docs_evidence_ready", "ci_passed", "mergeable_clean"):
+		for missing in ("docs_evidence_ready", "mergeable_clean"):
 			case = dict(inputs)
 			case[missing] = False
 			with self.subTest(missing=missing):
@@ -1524,12 +1595,19 @@ class OrchestrationContractTest(unittest.TestCase):
 	def test_autonomous_merge_rejects_stale_review_head(self):
 		self.assertFalse(
 			harness_gate.autonomous_merge_ready(
-				review_approved=True,
-				qa_passed=True,
+				writer_id="writer",
+				review_id="review",
+				qa_id="qa",
+				review_verdict="APPROVED",
+				qa_verdict="PASS",
 				docs_evidence_ready=True,
-				ci_passed=True,
+				ci_check_name="quality-gates",
+				ci_conclusion="SUCCESS",
 				review_head="old",
-				current_head="new",
+				qa_head="new",
+				source_tree_head="new",
+				review_qa_stale=True,
+				ci_head="new",
 				mergeable_clean=True,
 			)
 		)
@@ -1549,16 +1627,17 @@ class OrchestrationContractTest(unittest.TestCase):
 		for requirement in (
 			"Do not restate those values in PR body prose.",
 			"observed results, decisions, and remaining risks",
-			"Record the Generate start timestamp when the Attempt starts and the Reverification end timestamp when it ends.",
-			"do not estimate: record `미측정`",
+			"기본 완료 정본은 `acceptance-criteria.md`와 `verification.md`",
+			"#137 자체는 전환 전 계약",
+			"metrics는 완료 gate가 아니며",
 			"temporary Markdown file outside the repository",
 			"python scripts/harness_gate.py --issue <number> --pr-body-file <temporary file>",
 			"Use that same passing file",
 			"gh pr create --body-file <temporary file>",
 			"gh pr edit <PR number> --body-file <temporary file>",
 			"Do not use an inline shell body.",
-			"Manual QA, Adversarial QA, cleanup receipt, read documents and roles, verification level and result, unverified items, and remaining risks remain required evidence.",
-			"The PR body must state material decisions and the remaining risk or gate status",
+			"PR 본문은 material decision과 남은 위험·gate 상태",
+			"Level 3~7 행은 검증한 source-tree SHA",
 			"These rules apply to PRs created or edited after Issue #55.",
 		):
 			with self.subTest(requirement=requirement):
@@ -1664,7 +1743,7 @@ class OrchestrationContractTest(unittest.TestCase):
 		).read_text(encoding="utf-8")
 
 		self.assertIn(
-			"machine ground truth는 현재 PR head의 GitHub Actions CI run conclusion",
+			"machine ground truth는 최종 source SHA의 고정 GitHub Actions `quality-gates` conclusion",
 			policy,
 		)
 		self.assertIn("기본 merge 거버넌스는 사람 도메인 오너의 최종 merge 승인", policy)
@@ -1723,7 +1802,7 @@ class OrchestrationContractTest(unittest.TestCase):
 		)
 		self.assertIn("metadata 불일치가 있을 때만", policy)
 		self.assertIn("실행 모드별 역할 구성은 `docs/ai/orchestration-policy.md`", agent_rules)
-		self.assertNotIn("Combined Verifier", agent_rules)
+		self.assertIn('`fork_turns="none"`', agent_rules)
 
 	def test_standard_verifier_timing_and_gate_policy_is_explicit(self):
 		repository_root = Path(__file__).resolve().parents[2]
@@ -1770,7 +1849,7 @@ class OrchestrationContractTest(unittest.TestCase):
 		)
 
 		self.assertIn(
-			"types: [opened, synchronize, reopened, edited, ready_for_review]", workflow
+			"types: [opened, synchronize, reopened, edited]", workflow
 		)
 
 	def test_issue_and_pr_templates_include_execution_mode_fields(self):

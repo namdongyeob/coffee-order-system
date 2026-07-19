@@ -1,6 +1,6 @@
 # Context Router
 
-작업 시작 시 `docs/`를 재귀적으로 읽지 않습니다. 아래 역할·도메인 hot path의 필수 문서 3~5개만 읽고, 조건이 충족될 때만 추가 문서를 읽습니다. 규칙의 단일 정본은 [규칙 정본 지도](rule-source-map.md)입니다.
+작업 시작 시 `docs/`를 재귀적으로 읽지 않습니다. 아래 역할·도메인 hot path에서 직접 관련된 필수 정본 1~5개만 선택하고, 조건이 충족될 때만 최대 5개 안에서 교체합니다. 규칙의 단일 정본은 [규칙 정본 지도](rule-source-map.md)입니다.
 
 ## 공통 진입
 
@@ -43,8 +43,8 @@
 
 ### Review
 
-- 필수. [Review Gate](review-gate.md), [구현 가드레일](implementation-guardrails.md), [테스트 전략](../testing/test-strategy.md), [반복 실수](agent-mistakes.md), [계층 설계 정책](../architecture/layered-design-policy.md), [코드 스타일 가이드](../architecture/code-style-guide.md)를 읽습니다.
-- 조건부. 변경 영역의 개발 hot path와 [오케스트레이션 정책](orchestration-policy.md)을 추가합니다.
+- 필수. [Review Gate](review-gate.md), [구현 가드레일](implementation-guardrails.md), [테스트 전략](../testing/test-strategy.md), [반복 실수](agent-mistakes.md), [계층 설계 정책](../architecture/layered-design-policy.md)을 읽습니다.
+- 조건부. 코드 스타일이 finding의 직접 근거이면 [코드 스타일 가이드](../architecture/code-style-guide.md)로 가장 덜 관련된 문서를 교체하고, 역할 정책이 쟁점이면 [오케스트레이션 정책](orchestration-policy.md)으로 교체합니다.
 - 제외. 변경과 무관한 도메인·ADR 전체는 읽지 않습니다.
 - 추가 탐색. 설계 원칙과 Issue 요구사항이 충돌할 때 [요구사항](../product/requirements.md)을 추가합니다.
 
