@@ -58,7 +58,7 @@ Skill은 역할 권한이나 테스트 수준을 복사하지 않습니다. 위 
 
 선택한 mode의 완료 입력은 `docs/ai/orchestration-policy.md`의 실행 모드 표를 그대로 따릅니다. 하나라도 없으면 `FAIL` 또는 `BLOCKED`이며 Main은 누락된 정책상 역할을 배정합니다.
 
-조건부 auto-merge 대상은 mode와 무관하게 서로 다른 Writer·Review·QA의 최종 판정이 필요합니다. `APPROVED`·`PASS`, 검증 source-tree SHA, 최신 required CI source SHA 중 하나가 누락·FAIL·BLOCKED·stale이면 merge-ready가 아닙니다.
+조건부 auto-merge 대상은 mode와 무관하게 서로 다른 Writer·Review·QA의 최종 판정이 필요합니다. `APPROVED`·`PASS`, 검증 source-tree SHA, 같은 SHA의 고정 source check `quality-gates: SUCCESS` 중 하나가 누락·FAIL·BLOCKED·stale이면 merge-ready가 아닙니다. `metadata-gates: SUCCESS`는 source gate를 대체하지 못합니다.
 
 동일 source/test/runtime 입력·정규화 명령·환경 profile의 비싼 Gradle·Docker·Level 3~7 PASS는 재사용합니다. 입력 변경, 이전 FAIL 진단, flaky 격리, 분류기 stale, 독립 QA 최종 증명만 재실행 근거이며 `verification.md` 또는 실패한 `attempt-log.md`에 이유를 남깁니다.
 

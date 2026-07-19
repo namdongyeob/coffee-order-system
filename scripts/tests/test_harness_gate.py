@@ -593,7 +593,7 @@ class EvidenceValidationTest(unittest.TestCase):
 		errors = harness_gate.validate_execution_head_delta(
 			"d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8",
 			True,
-			["scripts/harness_gate.py"],
+			[harness_gate.ChangeRecord("M", "scripts/harness_gate.py")],
 			23,
 		)
 
@@ -607,8 +607,12 @@ class EvidenceValidationTest(unittest.TestCase):
 			"d1326bdc81d4b2b62c9b11eb0083e7da99ea1de8",
 			True,
 			[
-				"docs/testing/evidence/issue-23/attempt-log.md",
-				"docs/testing/evidence/issue-23/verification.md",
+				harness_gate.ChangeRecord(
+					"M", "docs/testing/evidence/issue-23/attempt-log.md"
+				),
+				harness_gate.ChangeRecord(
+					"M", "docs/testing/evidence/issue-23/verification.md"
+				),
 			],
 			23,
 		)
@@ -1572,7 +1576,8 @@ class OrchestrationContractTest(unittest.TestCase):
 			"review_verdict": "APPROVED",
 			"qa_verdict": "PASS",
 			"docs_evidence_ready": True,
-			"ci_passed": True,
+			"ci_check_name": "quality-gates",
+			"ci_conclusion": "SUCCESS",
 			"review_head": "head",
 			"qa_head": "head",
 			"source_tree_head": "head",
@@ -1581,7 +1586,7 @@ class OrchestrationContractTest(unittest.TestCase):
 			"mergeable_clean": True,
 		}
 		self.assertTrue(harness_gate.autonomous_merge_ready(**inputs))
-		for missing in ("docs_evidence_ready", "ci_passed", "mergeable_clean"):
+		for missing in ("docs_evidence_ready", "mergeable_clean"):
 			case = dict(inputs)
 			case[missing] = False
 			with self.subTest(missing=missing):
@@ -1596,7 +1601,8 @@ class OrchestrationContractTest(unittest.TestCase):
 				review_verdict="APPROVED",
 				qa_verdict="PASS",
 				docs_evidence_ready=True,
-				ci_passed=True,
+				ci_check_name="quality-gates",
+				ci_conclusion="SUCCESS",
 				review_head="old",
 				qa_head="new",
 				source_tree_head="new",
@@ -1843,7 +1849,7 @@ class OrchestrationContractTest(unittest.TestCase):
 		)
 
 		self.assertIn(
-			"types: [opened, synchronize, reopened, edited, ready_for_review]", workflow
+			"types: [opened, synchronize, reopened, edited]", workflow
 		)
 
 	def test_issue_and_pr_templates_include_execution_mode_fields(self):

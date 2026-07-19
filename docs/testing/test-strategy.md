@@ -24,7 +24,7 @@
 - Testcontainers는 필요한 검증 레벨에서만 사용합니다. Controller 계약만 확인하는 Issue에 무거운 full context 테스트를 기본값으로 두지 않습니다.
 - Dev는 변경 범위 focused test를 기본 실행합니다. DB migration, 공통 transaction, event payload, Kafka 공통 consumer 설정, security, build/test infrastructure처럼 영향 범위가 넓은 변경만 push 전 로컬 전체 회귀(Windows: `.\gradlew.bat test --no-daemon`, macOS·Linux: `./gradlew test --no-daemon`)를 실행합니다. source/test/build/runtime 변경의 전체 Level 1 회귀는 GitHub Actions 고정 `quality-gates` job이 최종 source SHA에서 판정합니다.
 - Level 1 전체 회귀 smoke는 전체 suite 상태를 기록할 뿐이며 Level 2, Level 3, Level 4의 focused evidence를 대체하지 않습니다.
-- PR body `edited`는 source required check와 다른 `metadata-gates` 이름·concurrency에서 Python 하네스·링크 검사만 실행해 진행 중 source run을 취소하거나 그 판정을 대체하지 않습니다. docs/evidence-only와 workflow·검증 스크립트 변경도 source/test/build/runtime이 없으면 Gradle을 요구하지 않습니다. 링크 검사는 한 번, Gradle은 컴파일 의존성을 포함한 `test` 한 invocation만 실행합니다.
+- PR body `edited`는 source required check와 다른 `metadata-gates` 이름·concurrency에서 Python 하네스·링크 검사만 실행해 진행 중 source run을 취소하거나 그 판정을 대체하지 않습니다. `ready_for_review`는 동일 SHA source run을 다시 만들지 않습니다. #137 source run은 bootstrap 자기비소급 경계로 전체 Gradle을 실행하며, docs/evidence-only와 workflow·검증 스크립트 변경을 경량 처리하는 영향도 기준은 #138부터 적용합니다. 링크 검사는 한 번, Gradle은 컴파일 의존성을 포함한 `test` 한 invocation만 실행합니다.
 - Legacy evidence 인정과 backfill은 [Evidence Guide](evidence-guide.md)의 단일 정본을 따릅니다. 이 문서는 Legacy 여부를 별도로 판정하지 않습니다.
 - 전체 테스트가 느리거나 불안정하면 focused test 결과와 함께 원인, 재현 명령, 남은 미검증 항목을 evidence에 남깁니다.
 
@@ -40,7 +40,7 @@
 - QA Agent는 Dev와 독립적으로 필요한 focused test와 Level 3~6 실제 검증을 실행하고 결과를 보고합니다. STRICT에서 QA는 Level 1 전체 회귀 smoke를 로컬에서 재실행하지 않습니다.
 - Dev가 PR 전 evidence를 완성한 뒤 metadata 불일치가 확인된 경우에만 Docs Agent가 확정된 검증 명령과 결과를 해당 Issue evidence와 `verification.md`에 옮깁니다. preflight는 기본 Acceptance Criteria·verification과 존재하는 상세 evidence의 모순을 fail-closed로 발견하며 결과를 추측하거나 다시 실행하지 않습니다.
 - Main Coordinator는 테스트를 실행하거나 결과 내용을 재판정하지 않고 선택된 모드의 독립 검증 보고와 GitHub Actions 상태의 존재만 확인합니다.
-- GitHub Actions의 고정 `quality-gates` job이 최종·단독 독립 기계 gate입니다. 분류기가 `requires_java_ci=true`로 판정한 source/test/build/runtime 변경은 그 job에서 전체 Level 1을 실행합니다. CI가 unavailable, pending, 다른 source SHA 또는 FAIL이면 QA PASS로 대체할 수 없습니다.
+- GitHub Actions의 고정 `quality-gates` job이 최종·단독 독립 기계 gate입니다. #137은 그 source job에서 전체 Level 1을 실행하고, #138부터 분류기가 `requires_java_ci=true`로 판정한 source/test/build/runtime 변경만 전체 Level 1을 실행합니다. merge-ready 입력은 같은 SHA의 `quality-gates: SUCCESS`이며 `metadata-gates`는 대체 입력이 아닙니다. CI가 unavailable, pending, 다른 source SHA 또는 FAIL이면 QA PASS로 대체할 수 없습니다.
 - 같은 워크스페이스에서 Gradle 테스트를 병렬 실행하지 않습니다. 병렬 실행이 필요하면 별도 worktree 또는 별도 build directory를 사용합니다.
 
 ## QA Level 1 경량화와 재실행

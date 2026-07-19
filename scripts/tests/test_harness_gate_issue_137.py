@@ -132,8 +132,34 @@ class ImpactClassifierContractTest(unittest.TestCase):
         self.assertNotEqual([], harness_gate.validate_declared_mode_floor("STANDARD", impact))
         self.assertEqual([], harness_gate.validate_declared_mode_floor("STRICT", impact))
 
+    def test_issue_137_bootstrap_forces_java_ci_before_issue_138_impact_policy(self):
+        lightweight = harness_gate.classify_change_impact(
+            [harness_gate.ChangeRecord("M", "scripts/harness_gate.py")], issue=137
+        )
+
+        self.assertTrue(harness_gate.java_ci_required(issue=137, impact=lightweight))
+        self.assertFalse(harness_gate.java_ci_required(issue=138, impact=lightweight))
+
 
 class StaleAndMergeContractTest(unittest.TestCase):
+    def test_execution_head_preserves_name_status_and_rejects_renamed_or_deleted_evidence(self):
+        for change in (
+            harness_gate.ChangeRecord(
+                "R100",
+                "docs/testing/evidence/issue-137/verification-new.md",
+                "docs/testing/evidence/issue-137/verification.md",
+            ),
+            harness_gate.ChangeRecord(
+                "D", "docs/testing/evidence/issue-137/verification.md"
+            ),
+        ):
+            with self.subTest(status=change.status):
+                errors = harness_gate.validate_execution_head_delta(
+                    "verified-head", True, [change], 137
+                )
+
+                self.assertTrue(any("A/M" in error for error in errors))
+
     def test_post_qa_helpers_preserve_rename_and_delete_status(self):
         for change in (
             harness_gate.ChangeRecord("R100", "README-new.md", "README.md"),
@@ -202,7 +228,8 @@ class StaleAndMergeContractTest(unittest.TestCase):
             "source_tree_head": "source-sha",
             "review_qa_stale": False,
             "docs_evidence_ready": True,
-            "ci_passed": True,
+            "ci_check_name": "quality-gates",
+            "ci_conclusion": "SUCCESS",
             "ci_head": "source-sha",
             "mergeable_clean": True,
         }
@@ -214,7 +241,7 @@ class StaleAndMergeContractTest(unittest.TestCase):
             ("qa_verdict", "FAIL"),
             ("qa_verdict", "BLOCKED"),
             ("review_qa_stale", True),
-            ("ci_passed", False),
+            ("ci_conclusion", "FAILURE"),
         ):
             case = dict(inputs)
             case[field] = blocked_value
@@ -227,6 +254,13 @@ class StaleAndMergeContractTest(unittest.TestCase):
         stale_ci_head = dict(inputs, ci_head="old-source")
         for case in (same_agent, missing_agent, stale_qa_head, stale_ci_head):
             self.assertFalse(harness_gate.autonomous_merge_ready(**case))
+
+        metadata_only = dict(
+            inputs,
+            ci_check_name="metadata-gates",
+            ci_conclusion="SUCCESS",
+        )
+        self.assertFalse(harness_gate.autonomous_merge_ready(**metadata_only))
 
 
 class LightweightEvidenceAndRuntimeContractTest(unittest.TestCase):
@@ -426,6 +460,13 @@ class WorkflowContractTest(unittest.TestCase):
         self.assertEqual(1, self.workflow.count("./gradlew"))
         self.assertIn("./gradlew test --no-daemon", self.workflow)
         self.assertNotIn("compileJava", self.workflow)
+
+    def test_ready_for_review_does_not_create_a_duplicate_source_run(self):
+        self.assertIn(
+            "types: [opened, synchronize, reopened, edited]",
+            self.workflow,
+        )
+        self.assertNotIn("ready_for_review", self.workflow)
 
 
 if __name__ == "__main__":

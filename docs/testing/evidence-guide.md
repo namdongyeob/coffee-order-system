@@ -26,7 +26,7 @@ docs/testing/evidence/issue-{number}/
 | `verification.md` | 이 Issue의 최종 repository 검증 결과 행 정본. |
 | `test-output.txt` | 필요한 경우 테스트 출력 원문 또는 핵심 발췌. |
 
-기본 완료 정본은 `acceptance-criteria.md`와 `verification.md`입니다. 상세 파일이 없으면 `verification.md`에 명령, 결과, 미검증 Level과 남은 위험을 기록합니다. #137 자체는 전환 전 계약을 따라 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`, `verification.md` 6종과 기존 preflight를 모두 유지하며 새 기본값은 #137 merge 뒤 Issue부터 적용합니다.
+기본 완료 정본은 `acceptance-criteria.md`와 `verification.md`입니다. 상세 파일이 없으면 `verification.md`에 명령, 결과, 미검증 Level과 남은 위험을 기록합니다. #137 자체는 전환 전 계약을 따라 `acceptance-criteria.md`, `attempt-log.md`, `commands.md`, `manual-qa.md`, `metrics.md`, `verification.md` 6종과 기존 preflight 및 source `quality-gates` 전체 Gradle을 모두 유지하며 새 기본값은 #137 merge 뒤 Issue부터 적용합니다.
 
 ## Issue별 verification 정본과 전역 뷰
 

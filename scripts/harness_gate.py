@@ -27,6 +27,7 @@ REQUIRED_EVIDENCE_FILES = (
     "metrics.md",
 )
 LIGHTWEIGHT_EVIDENCE_START_ISSUE = 138
+REQUIRED_SOURCE_CI_CHECK = "quality-gates"
 ATTEMPT_LOG_SECTIONS = (
     "## Attempt",
     "### Generate",
@@ -204,6 +205,11 @@ def classify_change_impact(changes: list[ChangeRecord], issue: int) -> ChangeImp
     if len(substantive) != 1:
         return FAIL_CLOSED_IMPACT
     return IMPACT_BY_CATEGORY[next(iter(substantive))]
+
+
+def java_ci_required(*, issue: int, impact: ChangeImpact) -> bool:
+    """Keep #137 on the pre-transition full Gradle gate; classify #138+ by impact."""
+    return issue < LIGHTWEIGHT_EVIDENCE_START_ISSUE or impact.requires_java_ci
 
 
 def validate_declared_mode_floor(mode: str | None, impact: ChangeImpact) -> list[str]:
@@ -404,15 +410,16 @@ def autonomous_merge_ready(
     review_verdict: str,
     qa_verdict: str,
     docs_evidence_ready: bool,
-    ci_passed: bool,
     review_head: str,
     qa_head: str,
     source_tree_head: str,
     review_qa_stale: bool,
+    ci_check_name: str,
+    ci_conclusion: str,
     ci_head: str,
     mergeable_clean: bool,
 ) -> bool:
-    """Require distinct Writer, Review, and QA final verdicts at one source-tree SHA."""
+    """Require the fixed source quality gate plus final verdicts at one source-tree SHA."""
     identities = (writer_id, review_id, qa_id)
     return all(
         (
@@ -422,7 +429,8 @@ def autonomous_merge_ready(
             qa_verdict == "PASS",
             not review_qa_stale,
             docs_evidence_ready,
-            ci_passed,
+            ci_check_name == REQUIRED_SOURCE_CI_CHECK,
+            ci_conclusion == "SUCCESS",
             review_head == source_tree_head,
             qa_head == source_tree_head,
             ci_head == source_tree_head,
@@ -1189,14 +1197,29 @@ def changed_paths(repository_root: Path, base_ref: str) -> list[str]:
 
 
 def validate_execution_head_delta(
-    execution_head: str, is_ancestor: bool, changed_since_execution_head: list[str], issue: int
+    execution_head: str,
+    is_ancestor: bool,
+    changed_since_execution_head: list[ChangeRecord],
+    issue: int,
 ) -> list[str]:
-    """Allow only current-Issue evidence commits after the verified execution head."""
+    """Allow only added or modified current-Issue evidence after the execution head."""
     if not is_ancestor:
         return ["evidence reconciliation: execution head must be an ancestor of current Git HEAD."]
     evidence_prefix = f"docs/testing/evidence/issue-{issue}/"
+    invalid_status = sorted(
+        record.path
+        for record in changed_since_execution_head
+        if record.status[:1] not in {"A", "M"}
+    )
+    if invalid_status:
+        return [
+            "evidence reconciliation: changes after execution head allow only A/M "
+            f"status for Issue #{issue} evidence files: {', '.join(invalid_status)}"
+        ]
     disallowed = sorted(
-        path for path in set(changed_since_execution_head) if not path.startswith(evidence_prefix)
+        record.path
+        for record in changed_since_execution_head
+        if not record.path.startswith(evidence_prefix)
     )
     if not disallowed:
         return []
@@ -1222,10 +1245,18 @@ def validate_execution_head(repository_root: Path, execution_head: str, issue: i
         detail = ancestor.stderr.strip() or "git merge-base failed"
         return [f"evidence reconciliation: cannot validate execution head: {detail}"]
     try:
-        changed = _git_output(repository_root, "diff", "--name-only", f"{execution_head}..HEAD")
+        changed = _git_output(
+            repository_root,
+            "diff",
+            "--name-status",
+            "--find-renames",
+            f"{execution_head}..HEAD",
+        )
     except RuntimeError as error:
         return [f"evidence reconciliation: cannot read execution head delta: {error}"]
-    return validate_execution_head_delta(execution_head, True, changed.splitlines(), issue)
+    return validate_execution_head_delta(
+        execution_head, True, _parse_name_status(changed), issue
+    )
 
 
 def validate_changed_path_mode(paths: list[str], mode: str | None) -> list[str]:
@@ -1352,7 +1383,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         impact = classify_change_impact(records, issue)
         print(f"execution_mode_floor={impact.execution_mode_floor}")
-        print(f"requires_java_ci={str(impact.requires_java_ci).lower()}")
+        print(f"requires_java_ci={str(java_ci_required(issue=issue, impact=impact)).lower()}")
         print(f"invalidates_review_qa={str(impact.invalidates_review_qa).lower()}")
         print(
             "invalidates_runtime_evidence="
