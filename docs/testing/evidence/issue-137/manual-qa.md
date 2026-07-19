@@ -12,6 +12,8 @@
 - #137 bootstrap은 Java CI true, #138 동일 경량 diff는 false로 분리되고 source workflow에는 setup-java와 단일 `./gradlew test --no-daemon`이 유지됩니다.
 - execution-head rename/delete evidence는 A/M 전용 gate에서 거부되며 `metadata-gates: SUCCESS`만으로 merge-ready가 되지 않습니다.
 - `ready_for_review`가 trigger에 없고 source `quality-gates`와 edited `metadata-gates` identity는 고정돼 있습니다.
+- 현재 non-runtime repository script 열 개만 exact allowlist이며 replay DLT는 runtime-heavy, 신규 `scripts/new_ops.ps1`은 unknown heavy로 분류됩니다.
+- lightweight+replay mixed와 scripts rename/delete는 모두 Java CI·Review/QA stale·runtime evidence stale을 요구합니다.
 - production/test/runtime 파일, #132 branch·worktree·evidence와 저장소 설정은 변경하지 않았습니다.
 
 ## Adversarial QA

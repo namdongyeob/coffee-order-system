@@ -4,8 +4,8 @@ Issue: #137
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/137
 Branch: codex/issue-137-harness-lightweight
 Current disposition: PASS
-Current Attempt: 3
-Current head: 77c64de7d123fa2b9fdb7649c6b9786a384ad593
+Current Attempt: 4
+Current head: 804f651b2928791b4cec8e05978e2b194a9ca774
 
 ## Attempt 1
 
@@ -113,3 +113,37 @@ edited/source concurrency 분리, rename/delete stale 보존, optional evidence 
 ### Next Attempt
 
 없음. 새 final head를 확정해 fresh Review·QA에 넘기고 source `quality-gates`의 setup-java·Gradle SUCCESS를 확인합니다.
+
+## Attempt 4
+
+### Generate
+
+- 포괄 `scripts/` 경로 분류를 제거하고 앱 runtime을 실행하지 않는 현재 repository 도구와 직접 테스트만 정확한 파일 allowlist로 고정했습니다.
+- `scripts/replay_dlt_message.ps1`은 runtime-heavy로, allowlist 밖 신규 `scripts/**`는 unknown fail-closed로 분류했습니다.
+- replay script 본문과 기존 네 P1 구현은 변경하지 않았습니다.
+
+### Evaluate
+
+- exact allowlist 상수 부재, replay·신규 ops 경량 오분류 fixture가 구현 전 예상 RED였습니다.
+- mixed·rename/delete heavy fixture는 기존 보호가 이미 GREEN이었고 최소 수정 뒤 네 focused fixture가 모두 PASS했습니다.
+- 최종 focused 24개와 전체 scripts 188개가 PASS했습니다.
+
+### Failure Cause
+
+- `_impact_category`의 포괄 `scripts/` prefix가 runtime 도구와 미등록 신규 스크립트까지 workflow-harness-policy로 축소한 것이 원인이었습니다.
+
+### Change Scope
+
+- `scripts/harness_gate.py`, 직접 Issue #137 fixture와 evidence만 수정했습니다.
+- workflow, 정책 정본, production/API/DB/Kafka/Redis/Docker, replay script 본문과 기존 네 P1은 변경하지 않았습니다.
+
+### Reverification
+
+- `python -m unittest scripts.tests.test_harness_gate_issue_137`: 24 tests PASS.
+- `python -m unittest discover -s scripts/tests -p "test_*.py"`: 188 tests PASS.
+- repository gate와 `git diff --check`: PASS.
+- 새 final head의 source `quality-gates` 결과에서 Gradle step 상태를 확인합니다.
+
+### Next Attempt
+
+없음. 정확 파일 allowlist와 unknown/runtime fail-closed만 구현한 새 head를 fresh Review·QA로 넘깁니다.
