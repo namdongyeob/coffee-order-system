@@ -7,20 +7,27 @@ on:
 jobs:
   quality-gates:
     runs-on: ubuntu-latest
+    concurrency:
+      group: harness-quality-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
+      - name: Classify changed paths
+        id: impact
+        env:
+          ISSUE_BRANCH: ${{ github.head_ref }}
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          if [ "${{ github.event.action }}" = "edited" ]; then
+            echo "requires_java_ci=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/harness_gate.py --branch "$ISSUE_BRANCH" --base-ref "$BASE_REF" --impact-only >> "$GITHUB_OUTPUT"
+          fi
       - name: Harness unit tests
         run: python -m unittest discover -s scripts/tests -p "test_*.py"
       - name: Harness evidence gate
@@ -31,11 +38,15 @@ jobs:
         run: |
           printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
           python scripts/harness_gate.py --branch "$ISSUE_BRANCH" --base-ref "$BASE_REF" --check-links --pr-body-file "$RUNNER_TEMP/pr-body.md"
-      - name: Compile production Java
-        run: ./gradlew compileJava --no-daemon
+      - uses: actions/setup-java@v4
+        if: github.event.action != 'edited' && steps.impact.outputs.requires_java_ci == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Make Gradle wrapper executable
+        if: github.event.action != 'edited' && steps.impact.outputs.requires_java_ci == 'true'
+        run: chmod +x gradlew
       - name: Run Gradle tests
+        if: github.event.action != 'edited' && steps.impact.outputs.requires_java_ci == 'true'
         run: ./gradlew test --no-daemon
-      - name: Check changed Markdown links
-        env:
-          BASE_REF: origin/${{ github.base_ref }}
-        run: python scripts/harness_gate.py --links-only --base-ref "$BASE_REF"

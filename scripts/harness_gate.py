@@ -6,6 +6,7 @@ import argparse
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -25,6 +26,7 @@ REQUIRED_EVIDENCE_FILES = (
     "manual-qa.md",
     "metrics.md",
 )
+LIGHTWEIGHT_EVIDENCE_START_ISSUE = 138
 ATTEMPT_LOG_SECTIONS = (
     "## Attempt",
     "### Generate",
@@ -60,9 +62,6 @@ METRICS_COLUMNS = (
     "범위 밖 변경 파일 수",
     "읽은 핵심 문서 수",
 )
-SOLO_FORBIDDEN_PREFIXES = ("src/", "gradle/", "docker/")
-SOLO_FORBIDDEN_FILES = {"build.gradle", "settings.gradle", "gradlew", "gradlew.bat"}
-STRICT_ONLY_PREFIXES = ("scripts/", ".github/workflows/")
 # Issue #57 replay로 확정한 ENFORCE 매핑만 코드화한다(M1/M2/M3). OBSERVE(M4~M7)는 구현하지 않고,
 # src/test/**만 바뀐 경우(M8)는 이 패턴들이 src/main/java만 매치하므로 자연히 제외된다.
 LEVEL_PATH_ENFORCE_RULES: tuple[tuple[int, re.Pattern[str]], ...] = (
@@ -98,17 +97,6 @@ VALID_VERIFICATION_LEVELS = tuple(f"Level {level}" for level in range(8))
 VALID_VERIFICATION_RESULTS = ("PASS", "FAIL", "PARTIAL")
 VERIFICATION_LOG_HEADER = "# 검증 로그\n\n| " + " | ".join(VERIFICATION_LOG_COLUMNS) + " |\n| " + " | ".join("---" for _ in VERIFICATION_LOG_COLUMNS) + " |\n"
 STRICT_AGENT_ROLES = frozenset({"Dev", "Review", "QA", "Docs"})
-QA_PRESERVING_DOCS = frozenset()
-QA_PRESERVING_EVIDENCE_FILES = frozenset(
-    {
-        "acceptance-criteria.md",
-        "attempt-log.md",
-        "commands.md",
-        "manual-qa.md",
-        "metrics.md",
-        "verification.md",
-    }
-)
 ROLE_PACKET_REQUIRED_FIELDS = frozenset(
     {
         "issue_url",
@@ -116,13 +104,122 @@ ROLE_PACKET_REQUIRED_FIELDS = frozenset(
         "base_sha",
         "head_sha",
         "acceptance_criteria",
+        "allowed_write_scope",
         "required_documents",
+        "focused_verification",
         "diff_scope",
+        "fork_turns",
+        "subagent_stop",
+        "output_budget",
     }
 )
-ROLE_PACKET_ALLOWED_FIELDS = ROLE_PACKET_REQUIRED_FIELDS.union({"previous_p0_p1_finding"})
+ROLE_PACKET_ALLOWED_FIELDS = ROLE_PACKET_REQUIRED_FIELDS.union(
+    {"previous_p0_p1_finding", "last_failure_cause"}
+)
 ROLE_PACKET_DOCUMENT_PATH_PATTERN = re.compile(r"^(?:AGENTS\.md|docs/(?:ai|testing)/[^/]+\.md|\.codex/skills/[^/]+/SKILL\.md)$")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+@dataclass(frozen=True)
+class ChangeRecord:
+    """One name-status entry from Git, including the old path for a rename."""
+
+    status: str
+    path: str
+    previous_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ChangeImpact:
+    """The four independent outputs used by mode, CI, and stale gates."""
+
+    execution_mode_floor: str
+    requires_java_ci: bool
+    invalidates_review_qa: bool
+    invalidates_runtime_evidence: bool
+
+
+MODE_RANK = {"SOLO": 0, "STANDARD": 1, "STRICT": 2}
+FAIL_CLOSED_IMPACT = ChangeImpact("STRICT", True, True, True)
+IMPACT_BY_CATEGORY = {
+    "lightweight": ChangeImpact("SOLO", False, False, False),
+    "source-test": ChangeImpact("STANDARD", True, True, True),
+    "migration-build-runtime": ChangeImpact("STRICT", True, True, True),
+    "workflow-harness-policy": ChangeImpact("STRICT", False, True, False),
+    "api-domain-architecture": ChangeImpact("STANDARD", False, True, False),
+}
+BUILD_FILES = {
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
+    "gradlew",
+    "gradlew.bat",
+}
+RUNTIME_FILES = {"Dockerfile", "docker-compose.yml", "docker-compose.yaml"}
+
+
+def _impact_category(path: str, issue: int) -> str:
+    normalized = path.replace("\\", "/")
+    evidence_prefix = f"docs/testing/evidence/issue-{issue}/"
+    if normalized.startswith(evidence_prefix):
+        return "evidence-neutral"
+    if normalized == "README.md":
+        return "lightweight"
+    if normalized.startswith("src/main/resources/db/migration/"):
+        return "migration-build-runtime"
+    if normalized.startswith(("src/main/", "src/test/")):
+        return "source-test"
+    if normalized in BUILD_FILES or normalized.startswith("gradle/"):
+        return "migration-build-runtime"
+    if normalized in RUNTIME_FILES or normalized.startswith("docker/"):
+        return "migration-build-runtime"
+    if normalized.startswith(
+        (
+            ".github/workflows/",
+            "scripts/",
+            "docs/ai/",
+            "docs/testing/",
+            ".codex/skills/",
+        )
+    ) or normalized == "AGENTS.md":
+        return "workflow-harness-policy"
+    if normalized.startswith(("docs/api/", "docs/domain/", "docs/architecture/", "docs/adr/")):
+        return "api-domain-architecture"
+    return "unknown"
+
+
+def classify_change_impact(changes: list[ChangeRecord], issue: int) -> ChangeImpact:
+    """Classify a diff once; unknown, mixed, rename, and delete fail closed."""
+    if any(change.status[:1] in {"R", "D"} for change in changes):
+        return FAIL_CLOSED_IMPACT
+    categories = {_impact_category(change.path, issue) for change in changes}
+    if "unknown" in categories:
+        return FAIL_CLOSED_IMPACT
+    substantive = categories - {"evidence-neutral"}
+    if not substantive:
+        return IMPACT_BY_CATEGORY["lightweight"]
+    if len(substantive) != 1:
+        return FAIL_CLOSED_IMPACT
+    return IMPACT_BY_CATEGORY[next(iter(substantive))]
+
+
+def validate_declared_mode_floor(mode: str | None, impact: ChangeImpact) -> list[str]:
+    """Reject a declaration lower than the mode computed from the actual diff."""
+    if mode not in MODE_RANK:
+        return []
+    if MODE_RANK[mode] < MODE_RANK[impact.execution_mode_floor]:
+        return [
+            f"Execution mode {mode} is lower than computed floor "
+            f"{impact.execution_mode_floor}."
+        ]
+    return []
+
+
+def required_evidence_files(issue: int, include_verification: bool = False) -> tuple[str, ...]:
+    """Keep the old six-file bootstrap through #137, then require only AC and verification."""
+    files = REQUIRED_EVIDENCE_FILES if issue < LIGHTWEIGHT_EVIDENCE_START_ISSUE else ("acceptance-criteria.md",)
+    return files + (("verification.md",) if include_verification else ())
 
 
 def pre_review_ready(*, dev_verified: bool, evidence_ready: bool, pr_body_preflight_passed: bool) -> bool:
@@ -135,9 +232,11 @@ def strict_agent_role_count(roles: list[str]) -> int:
     return len(STRICT_AGENT_ROLES.intersection(roles))
 
 
-def required_evidence_exists(file_names: list[str] | tuple[str, ...]) -> bool:
+def required_evidence_exists(
+    file_names: list[str] | tuple[str, ...], issue: int = 137
+) -> bool:
     """Return whether the lightweight preflight has every base evidence file."""
-    return set(REQUIRED_EVIDENCE_FILES).issubset(file_names)
+    return set(required_evidence_files(issue)).issubset(file_names)
 
 
 def validate_role_packet(packet: dict[str, object]) -> list[str]:
@@ -145,7 +244,7 @@ def validate_role_packet(packet: dict[str, object]) -> list[str]:
     errors = [
         f"missing role packet field: {field}"
         for field in sorted(ROLE_PACKET_REQUIRED_FIELDS)
-        if not packet.get(field)
+        if field != "required_documents" and not packet.get(field)
     ]
     errors.extend(
         f"non-allowlisted role packet field: {field}"
@@ -153,8 +252,8 @@ def validate_role_packet(packet: dict[str, object]) -> list[str]:
         if field not in ROLE_PACKET_ALLOWED_FIELDS
     )
     documents = packet.get("required_documents")
-    if not isinstance(documents, list) or not 3 <= len(documents) <= 5:
-        errors.append("role packet requires 3~5 canonical document paths.")
+    if not isinstance(documents, list) or not 1 <= len(documents) <= 5:
+        errors.append("role packet requires 1~5 canonical document paths.")
     elif any(
         not isinstance(document, str)
         or ROLE_PACKET_DOCUMENT_PATH_PATTERN.fullmatch(document) is None
@@ -165,12 +264,25 @@ def validate_role_packet(packet: dict[str, object]) -> list[str]:
         errors.append("role packet requires distinct canonical document paths.")
     elif any(not (REPOSITORY_ROOT / document).is_file() for document in documents):
         errors.append("role packet requires existing canonical document paths.")
+    if packet.get("fork_turns") != "none":
+        errors.append('role packet requires fork_turns="none".')
+    if packet.get("subagent_stop") != ["superpowers:using-superpowers"]:
+        errors.append("role packet requires the exact SUBAGENT-STOP skill list.")
+    if packet.get("output_budget") != "summary-only":
+        errors.append("role packet requires summary-only output budget.")
+    if packet.get("previous_p0_p1_finding") and packet.get("last_failure_cause"):
+        errors.append("role packet allows only one prior P0/P1 or last failure input.")
     return errors
 
 
-def post_qa_requirements(*, repository_changed: bool, changed_paths: list[str]) -> dict[str, bool]:
-    """Require fresh Review and QA only after a repository change following QA."""
-    stale = repository_changed and bool(changed_paths)
+def post_qa_requirements(
+    *, repository_changed: bool, changed_paths: list[str], issue_number: int = 0
+) -> dict[str, bool]:
+    """Use the shared classifier for post-QA Review and QA validity."""
+    impact = classify_change_impact(
+        [ChangeRecord("M", path) for path in changed_paths], issue_number
+    )
+    stale = repository_changed and bool(changed_paths) and impact.invalidates_review_qa
     return {
         "docs_commit_required": False,
         "full_review_required": stale,
@@ -214,41 +326,111 @@ def blocked_wakeup_requires_work(*, external_state_changed: bool) -> bool:
     return external_state_changed
 
 
+def coordinator_wait_action(
+    *,
+    notification_available: bool,
+    wait_timed_out: bool,
+    stall_suspected: bool,
+    diagnostic_snapshots: int,
+) -> str:
+    """Prefer wait/notification and allow at most one diagnostic snapshot."""
+    if notification_available:
+        return "consume-notification"
+    if (wait_timed_out or stall_suspected) and diagnostic_snapshots == 0:
+        return "diagnostic-snapshot-once"
+    return "wait-for-notification"
+
+
+def expensive_command_action(
+    *,
+    active_handle: bool,
+    completed_same_input: bool,
+    input_changed: bool,
+    previous_failed: bool,
+    flaky_isolation: bool,
+    classifier_stale: bool,
+    independent_qa_required: bool,
+) -> str:
+    """Continue a live handle, reuse identical PASS, or run for an allowlisted reason."""
+    if active_handle:
+        return "continue-active-handle"
+    rerun_allowed = any(
+        (
+            input_changed,
+            previous_failed,
+            flaky_isolation,
+            classifier_stale,
+            independent_qa_required,
+        )
+    )
+    if completed_same_input and not rerun_allowed:
+        return "reuse-completed-result"
+    return "run"
+
+
 def qa_remains_valid(
     qa_head: str,
     current_head: str,
     changed_paths: list[str],
     issue_number: int,
 ) -> bool:
-    """Keep QA only when a later commit changes Issue evidence allowlist docs."""
+    """Keep QA when the shared classifier says the later delta is non-semantic evidence."""
     if qa_head == current_head:
         return True
     if not changed_paths:
         return False
-    evidence_directory = f"docs/testing/evidence/issue-{issue_number}"
-    allowed_paths = QA_PRESERVING_DOCS.union(
-        f"{evidence_directory}/{file_name}"
-        for file_name in QA_PRESERVING_EVIDENCE_FILES
+    impact = classify_change_impact(
+        [ChangeRecord("M", path) for path in changed_paths], issue_number
     )
-    return all(
-        path in allowed_paths
-        for path in changed_paths
+    return not impact.invalidates_review_qa
+
+
+def runtime_evidence_remains_valid(
+    *,
+    evidence_source_tree_sha: str,
+    current_source_tree_sha: str,
+    impact: ChangeImpact,
+) -> bool:
+    """Tie Level 3~7 evidence to source-tree SHA, not an evidence-only commit SHA."""
+    return (
+        evidence_source_tree_sha == current_source_tree_sha
+        and not impact.invalidates_runtime_evidence
     )
 
 
 def autonomous_merge_ready(
     *,
-    review_approved: bool,
-    qa_passed: bool,
+    writer_id: str,
+    review_id: str,
+    qa_id: str,
+    review_verdict: str,
+    qa_verdict: str,
     docs_evidence_ready: bool,
     ci_passed: bool,
     review_head: str,
-    current_head: str,
+    qa_head: str,
+    source_tree_head: str,
+    review_qa_stale: bool,
+    ci_head: str,
     mergeable_clean: bool,
 ) -> bool:
-    """Apply the existing #60 merge gate without storing mutable snapshots."""
-    return all((review_approved, qa_passed, docs_evidence_ready, ci_passed,
-                review_head == current_head, mergeable_clean))
+    """Require distinct Writer, Review, and QA final verdicts at one source-tree SHA."""
+    identities = (writer_id, review_id, qa_id)
+    return all(
+        (
+            all(identities),
+            len(set(identities)) == 3,
+            review_verdict == "APPROVED",
+            qa_verdict == "PASS",
+            not review_qa_stale,
+            docs_evidence_ready,
+            ci_passed,
+            review_head == source_tree_head,
+            qa_head == source_tree_head,
+            ci_head == source_tree_head,
+            mergeable_clean,
+        )
+    )
 
 
 def next_issue_allowed(merged: bool, issue_closed: bool, merge_commit_exists: bool) -> bool:
@@ -324,15 +506,16 @@ def extract_execution_mode(markdown: str) -> str | None:
 
 def validate_execution_mode_consistency(
     acceptance_markdown: str,
-    metrics_markdown: str,
+    metrics_markdown: str | None = None,
     pr_body_markdown: str | None = None,
 ) -> list[str]:
-    """Require acceptance, metrics, and optional PR body to declare one mode."""
+    """Require every evidence source that exists to declare the same mode."""
     acceptance_mode = extract_execution_mode(acceptance_markdown)
-    metrics_mode = extract_execution_mode(metrics_markdown)
     errors: list[str] = []
-    if acceptance_mode is not None and metrics_mode is not None and acceptance_mode != metrics_mode:
-        errors.append("Execution mode mismatch: acceptance-criteria.md and metrics.md must match.")
+    if metrics_markdown is not None:
+        metrics_mode = extract_execution_mode(metrics_markdown)
+        if acceptance_mode is not None and metrics_mode is not None and acceptance_mode != metrics_mode:
+            errors.append("Execution mode mismatch: acceptance-criteria.md and metrics.md must match.")
     if pr_body_markdown is not None:
         pr_mode = extract_execution_mode(pr_body_markdown)
         if acceptance_mode is not None and pr_mode is not None and acceptance_mode != pr_mode:
@@ -520,7 +703,12 @@ def metrics_row(markdown: str) -> list[str] | None:
 
 
 def validate_evidence_reconciliation(
-    acceptance: str, attempt_log: str, metrics: str, verification: str, issue: int
+    acceptance: str,
+    attempt_log: str,
+    metrics: str,
+    verification: str,
+    issue: int,
+    verification_rows: list[dict[str, str]] | None = None,
 ) -> list[str]:
     """Fail closed when current Issue evidence sources describe different completion states."""
     attempt_state, errors = attempt_reconciliation_state(attempt_log)
@@ -537,8 +725,11 @@ def validate_evidence_reconciliation(
     if int(row[3]) != int(attempt_state["attempt"]) - 1:
         errors.append("evidence reconciliation: metrics retry count must equal Current Attempt minus one.")
 
-    rows, row_errors = _verification_rows(verification)
-    errors.extend(row_errors)
+    if verification_rows is None:
+        rows, row_errors = _verification_rows(verification)
+        errors.extend(row_errors)
+    else:
+        rows = verification_rows
     issue_pattern = re.compile(rf"\bIssue\s*#\s*{issue}\b", re.IGNORECASE)
     has_pass = any(issue_pattern.search(row["Issue"]) and row["결과"] == "PASS" for row in rows)
     unchecked = re.findall(r"^- \[ \] .+", acceptance, re.MULTILINE)
@@ -562,6 +753,29 @@ def validate_evidence_reconciliation(
         errors.append("evidence reconciliation: PASS Current disposition requires every acceptance check to be checked.")
     if attempt_state["disposition"] == "BLOCKED" and checked and not unchecked:
         errors.append("evidence reconciliation: BLOCKED Current disposition requires an unchecked acceptance check.")
+    return errors
+
+
+def validate_lightweight_evidence_reconciliation(
+    acceptance: str,
+    verification: str,
+    issue: int,
+    verification_rows: list[dict[str, str]] | None = None,
+) -> list[str]:
+    """Gate post-bootstrap completion using only checked AC and final PASS verification."""
+    rows, errors = (
+        _verification_rows(verification)
+        if verification_rows is None
+        else (verification_rows, [])
+    )
+    issue_pattern = re.compile(rf"\bIssue\s*#\s*{issue}\b", re.IGNORECASE)
+    has_pass = any(issue_pattern.search(row["Issue"]) and row["결과"] == "PASS" for row in rows)
+    unchecked = re.findall(r"^- \[ \] .+", acceptance, re.MULTILINE)
+    checked = re.findall(r"^- \[[xX]\] .+", acceptance, re.MULTILINE)
+    if not has_pass:
+        errors.append("evidence reconciliation: completion requires PASS verification.")
+    if unchecked or not checked:
+        errors.append("evidence reconciliation: completion requires every acceptance check to be checked.")
     return errors
 
 
@@ -663,9 +877,10 @@ def validate_verification_log(
     issue: int,
     required_levels: tuple[int, ...] = (),
     required_result: str = "PASS",
+    parsed_rows: list[dict[str, str]] | None = None,
 ) -> list[str]:
     """Validate every log row and required terminal evidence for one Issue."""
-    rows, errors = _verification_rows(markdown)
+    rows, errors = _verification_rows(markdown) if parsed_rows is None else (parsed_rows, [])
     issue_pattern = re.compile(rf"\bIssue\s*#\s*{issue}\b", re.IGNORECASE)
     issue_rows = [row for row in rows if issue_pattern.search(row["Issue"])]
 
@@ -703,23 +918,38 @@ def required_verification_levels(acceptance_markdown: str) -> tuple[int, ...]:
     )
 
 
+def load_issue_evidence(repository_root: Path, issue: int) -> dict[str, str]:
+    """Read each known Issue evidence file at most once per gate invocation."""
+    evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
+    names = set(REQUIRED_EVIDENCE_FILES).union({"verification.md"})
+    return {
+        name: (evidence_dir / name).read_text(encoding="utf-8")
+        for name in names
+        if (evidence_dir / name).is_file()
+    }
+
+
 def validate_issue_evidence(
-    repository_root: Path, issue: int, changed_paths_for_level: list[str] | None = None
+    repository_root: Path,
+    issue: int,
+    changed_paths_for_level: list[str] | None = None,
+    evidence_files: dict[str, str] | None = None,
 ) -> list[str]:
     """Validate the minimum evidence needed to make an Issue completion claim."""
     evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
     errors: list[str] = []
+    evidence = evidence_files if evidence_files is not None else load_issue_evidence(repository_root, issue)
 
-    for name in REQUIRED_EVIDENCE_FILES:
+    for name in required_evidence_files(issue):
         path = evidence_dir / name
-        if not path.is_file():
+        if name not in evidence:
             errors.append(f"ERROR: missing required evidence file: {path}")
 
     for name in ("commands.md", "manual-qa.md"):
         path = evidence_dir / name
-        if path.is_file():
+        if name in evidence:
             meaningful_lines = [
-                line for line in path.read_text(encoding="utf-8").splitlines()
+                line for line in evidence[name].splitlines()
                 if line.strip() and not line.lstrip().startswith("#")
             ]
             if not meaningful_lines:
@@ -727,31 +957,33 @@ def validate_issue_evidence(
 
     acceptance = ""
     acceptance_path = evidence_dir / "acceptance-criteria.md"
-    if acceptance_path.is_file():
-        acceptance = acceptance_path.read_text(encoding="utf-8")
+    if "acceptance-criteria.md" in evidence:
+        acceptance = evidence["acceptance-criteria.md"]
         errors.extend(validate_acceptance_criteria(acceptance, acceptance_path))
         errors.extend(validate_level_exemptions(acceptance))
 
     metrics = ""
     metrics_path = evidence_dir / "metrics.md"
-    if metrics_path.is_file():
-        metrics = metrics_path.read_text(encoding="utf-8")
+    if "metrics.md" in evidence:
+        metrics = evidence["metrics.md"]
         errors.extend(validate_metrics(metrics, metrics_path))
     if acceptance and metrics:
         errors.extend(validate_execution_mode_consistency(acceptance, metrics))
 
     attempt_log_path = evidence_dir / "attempt-log.md"
-    if attempt_log_path.is_file():
-        attempt_log = attempt_log_path.read_text(encoding="utf-8")
+    if "attempt-log.md" in evidence:
+        attempt_log = evidence["attempt-log.md"]
         errors.extend(validate_attempt_log(attempt_log, attempt_log_path))
     else:
         attempt_log = ""
 
     verification_log = repository_root / verification_file_path(issue)
-    if not verification_log.is_file():
+    if "verification.md" not in evidence:
         errors.append(f"ERROR: missing Issue verification source: {verification_log}")
     else:
-        verification = verification_log.read_text(encoding="utf-8")
+        verification = evidence["verification.md"]
+        verification_rows, verification_parse_errors = _verification_rows(verification)
+        errors.extend(verification_parse_errors)
         required_levels = set(required_verification_levels(acceptance))
         if changed_paths_for_level is not None:
             required_levels.update(required_path_levels_needing_pass(changed_paths_for_level, acceptance))
@@ -766,10 +998,26 @@ def validate_issue_evidence(
                 issue,
                 tuple(sorted(required_levels)),
                 required_result,
+                verification_rows,
             )
         )
-        if acceptance and metrics and attempt_log:
-            errors.extend(validate_evidence_reconciliation(acceptance, attempt_log, metrics, verification, issue))
+        if issue < LIGHTWEIGHT_EVIDENCE_START_ISSUE and acceptance and metrics and attempt_log:
+            errors.extend(
+                validate_evidence_reconciliation(
+                    acceptance,
+                    attempt_log,
+                    metrics,
+                    verification,
+                    issue,
+                    verification_rows,
+                )
+            )
+        elif issue >= LIGHTWEIGHT_EVIDENCE_START_ISSUE and acceptance:
+            errors.extend(
+                validate_lightweight_evidence_reconciliation(
+                    acceptance, verification, issue, verification_rows
+                )
+            )
 
     return errors
 
@@ -863,40 +1111,66 @@ def changed_markdown_files(
     repository_root: Path, base_ref: str, include_worktree: bool = False
 ) -> list[Path]:
     """Find committed Markdown changes, optionally including the local worktree."""
-    changed = _git_output(repository_root, "diff", "--name-only", f"{base_ref}...HEAD")
-    worktree = ""
-    untracked = ""
-    if include_worktree:
-        worktree = _git_output(repository_root, "diff", "--name-only", "HEAD")
-        untracked = _git_output(repository_root, "ls-files", "--others", "--exclude-standard")
-    relative_paths = {
-        Path(line)
-        for line in (changed + worktree + untracked).splitlines()
-        if line.endswith(".md")
-    }
+    records = changed_path_records(repository_root, base_ref, include_worktree)
+    relative_paths = {Path(record.path) for record in records if record.path.endswith(".md")}
     return sorted((repository_root / relative_path for relative_path in relative_paths if (repository_root / relative_path).is_file()), key=str)
+
+
+def changed_markdown_files_from_records(
+    repository_root: Path, records: list[ChangeRecord]
+) -> list[Path]:
+    """Derive link-check inputs from the already-read name-status records."""
+    relative_paths = {Path(record.path) for record in records if record.path.endswith(".md")}
+    return sorted(
+        (
+            repository_root / relative_path
+            for relative_path in relative_paths
+            if (repository_root / relative_path).is_file()
+        ),
+        key=str,
+    )
+
+
+def _parse_name_status(output: str) -> list[ChangeRecord]:
+    records: list[ChangeRecord] = []
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) == 2:
+            records.append(ChangeRecord(fields[0], fields[1]))
+        elif len(fields) == 3 and fields[0].startswith(("R", "C")):
+            records.append(ChangeRecord(fields[0], fields[2], fields[1]))
+        elif line:
+            records.append(ChangeRecord("?", line))
+    return records
+
+
+def changed_path_records(
+    repository_root: Path, base_ref: str, include_worktree: bool = False
+) -> list[ChangeRecord]:
+    """Read Git name-status once so rename/delete remain visible to every gate."""
+    records = _parse_name_status(
+        _git_output(repository_root, "diff", "--name-status", "--find-renames", f"{base_ref}...HEAD")
+    )
+    if include_worktree:
+        records.extend(
+            _parse_name_status(
+                _git_output(repository_root, "diff", "--name-status", "--find-renames", "HEAD")
+            )
+        )
+        records.extend(
+            ChangeRecord("A", path)
+            for path in _git_output(
+                repository_root, "ls-files", "--others", "--exclude-standard"
+            ).splitlines()
+            if path
+        )
+    unique = {(record.status, record.path, record.previous_path): record for record in records}
+    return sorted(unique.values(), key=lambda record: (record.path, record.status))
 
 
 def changed_paths(repository_root: Path, base_ref: str) -> list[str]:
     """Return changed repository-relative paths between the base ref and HEAD."""
-    return [
-        path
-        for path in _git_output(repository_root, "diff", "--name-only", f"{base_ref}...HEAD").splitlines()
-        if path
-    ]
-
-
-def issue_evidence_allowlist(issue: int) -> set[str]:
-    """Return the only post-verification files allowed to advance an execution head."""
-    directory = f"docs/testing/evidence/issue-{issue}"
-    return {
-        f"{directory}/acceptance-criteria.md",
-        f"{directory}/attempt-log.md",
-        f"{directory}/commands.md",
-        f"{directory}/manual-qa.md",
-        f"{directory}/metrics.md",
-        f"{directory}/verification.md",
-    }
+    return [record.path for record in changed_path_records(repository_root, base_ref)]
 
 
 def validate_execution_head_delta(
@@ -905,7 +1179,10 @@ def validate_execution_head_delta(
     """Allow only current-Issue evidence commits after the verified execution head."""
     if not is_ancestor:
         return ["evidence reconciliation: execution head must be an ancestor of current Git HEAD."]
-    disallowed = sorted(set(changed_since_execution_head) - issue_evidence_allowlist(issue))
+    evidence_prefix = f"docs/testing/evidence/issue-{issue}/"
+    disallowed = sorted(
+        path for path in set(changed_since_execution_head) if not path.startswith(evidence_prefix)
+    )
     if not disallowed:
         return []
     return [
@@ -937,21 +1214,9 @@ def validate_execution_head(repository_root: Path, execution_head: str, issue: i
 
 
 def validate_changed_path_mode(paths: list[str], mode: str | None) -> list[str]:
-    """Reject execution modes that do not cover changed production or gate paths."""
-    if mode is None:
-        return []
-    normalized_paths = [path.replace("\\", "/") for path in paths]
-    errors: list[str] = []
-    if mode == "SOLO" and any(
-        path.startswith(SOLO_FORBIDDEN_PREFIXES) or path in SOLO_FORBIDDEN_FILES
-        for path in normalized_paths
-    ):
-        errors.append("Execution mode SOLO is not allowed when production, build, or Docker paths change.")
-    if mode != "STRICT" and any(
-        path.startswith(STRICT_ONLY_PREFIXES) for path in normalized_paths
-    ):
-        errors.append("Execution mode STRICT is required when scripts/ or .github/workflows/ paths change.")
-    return errors
+    """Compatibility wrapper around the single fail-closed classifier."""
+    impact = classify_change_impact([ChangeRecord("M", path) for path in paths], issue=0)
+    return validate_declared_mode_floor(mode, impact)
 
 
 def required_path_levels(paths: list[str]) -> dict[int, list[str]]:
@@ -1032,6 +1297,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--check-branch", action="store_true", help="Check whether the current branch allows direct commits.")
     parser.add_argument("--include-worktree", action="store_true", help="Include uncommitted and untracked Markdown files in link checks.")
     parser.add_argument(
+        "--impact-only",
+        action="store_true",
+        help="Print GitHub-output-compatible impact classification and skip evidence validation.",
+    )
+    parser.add_argument(
         "--pr-body-file",
         type=Path,
         help="Read and validate Execution mode fields from a pull request body file.",
@@ -1052,6 +1322,28 @@ def main(argv: list[str] | None = None) -> int:
         errors.extend(validate_branch(branch))
     issue = args.issue if args.issue is not None else infer_issue_number(branch)
     pr_body = None
+    records: list[ChangeRecord] | None = None
+
+    if args.impact_only:
+        if issue is None:
+            print("Harness gate FAILED:\nERROR: issue number is required for impact classification.")
+            return 1
+        try:
+            records = changed_path_records(
+                repository_root, args.base_ref, args.include_worktree
+            )
+        except RuntimeError as error:
+            print(f"Harness gate FAILED:\nERROR: cannot determine changed paths from {args.base_ref}: {error}")
+            return 1
+        impact = classify_change_impact(records, issue)
+        print(f"execution_mode_floor={impact.execution_mode_floor}")
+        print(f"requires_java_ci={str(impact.requires_java_ci).lower()}")
+        print(f"invalidates_review_qa={str(impact.invalidates_review_qa).lower()}")
+        print(
+            "invalidates_runtime_evidence="
+            f"{str(impact.invalidates_runtime_evidence).lower()}"
+        )
+        return 0
 
     if args.pr_body_file is not None:
         try:
@@ -1068,43 +1360,55 @@ def main(argv: list[str] | None = None) -> int:
         else:
             issue_changed_paths: list[str] | None = None
             try:
-                issue_changed_paths = changed_paths(repository_root, args.base_ref)
+                records = changed_path_records(
+                    repository_root, args.base_ref, args.include_worktree
+                )
+                issue_changed_paths = [record.path for record in records]
             except RuntimeError as error:
                 errors.append(f"ERROR: cannot determine changed paths from {args.base_ref}: {error}")
-            errors.extend(validate_issue_evidence(repository_root, issue, issue_changed_paths))
+            evidence_files = load_issue_evidence(repository_root, issue)
+            errors.extend(
+                validate_issue_evidence(
+                    repository_root, issue, issue_changed_paths, evidence_files
+                )
+            )
             evidence_dir = repository_root / "docs" / "testing" / "evidence" / f"issue-{issue}"
             acceptance_path = evidence_dir / "acceptance-criteria.md"
             metrics_path = evidence_dir / "metrics.md"
             attempt_path = evidence_dir / "attempt-log.md"
-            if attempt_path.is_file():
+            if "attempt-log.md" in evidence_files:
                 attempt_state, attempt_errors = attempt_reconciliation_state(
-                    attempt_path.read_text(encoding="utf-8")
+                    evidence_files["attempt-log.md"]
                 )
                 errors.extend(attempt_errors)
                 if attempt_state is not None:
                     errors.extend(
                         validate_execution_head(repository_root, attempt_state["head"], issue)
                     )
-            if pr_body is not None:
-                if acceptance_path.is_file() and metrics_path.is_file():
-                    errors.extend(
-                        validate_execution_mode_consistency(
-                            acceptance_path.read_text(encoding="utf-8"),
-                            metrics_path.read_text(encoding="utf-8"),
-                            pr_body,
-                        )
-                    )
-            if acceptance_path.is_file() and issue_changed_paths is not None:
+            if pr_body is not None and "acceptance-criteria.md" in evidence_files:
                 errors.extend(
-                    validate_changed_path_mode(
-                        issue_changed_paths,
-                        extract_execution_mode(acceptance_path.read_text(encoding="utf-8")),
+                    validate_execution_mode_consistency(
+                        evidence_files["acceptance-criteria.md"],
+                        evidence_files.get("metrics.md"),
+                        pr_body,
+                    )
+                )
+            if "acceptance-criteria.md" in evidence_files and issue_changed_paths is not None:
+                impact = classify_change_impact(records or [], issue)
+                errors.extend(
+                    validate_declared_mode_floor(
+                        extract_execution_mode(evidence_files["acceptance-criteria.md"]),
+                        impact,
                     )
                 )
 
     if args.check_links or args.links_only:
         try:
-            markdown_files = changed_markdown_files(repository_root, args.base_ref, args.include_worktree)
+            if records is None:
+                records = changed_path_records(
+                    repository_root, args.base_ref, args.include_worktree
+                )
+            markdown_files = changed_markdown_files_from_records(repository_root, records)
             errors.extend(check_relative_links(repository_root, markdown_files))
             errors.extend(validate_context_router_paths(repository_root))
         except RuntimeError as error:

@@ -9,12 +9,15 @@
 5. 검증 레벨과 실행 소유권은 `docs/testing/test-strategy.md`를 따릅니다.
 6. 문서 반영은 실행 모드 표에 지정된 경우에만 확정된 결과를 기록합니다.
 7. `STANDARD`와 `STRICT`의 FAIL은 Main Coordinator가 Skill의 제한된 재시도 패킷으로 원래 Dev Agent에게 반환합니다. Main은 직접 수정하거나 리뷰하지 않습니다.
-8. GitHub Actions가 `STANDARD`와 `STRICT`의 컴파일과 전체 테스트를 최종 기계 판정합니다.
+8. GitHub Actions의 고정 required job이 모든 PR head를 최종 기계 판정합니다. 단일 영향도 분류기가 `requires_java_ci=true`로 판정한 source/test/build/runtime 변경에서만 그 job 안의 전체 Gradle을 실행하며 PR body `edited`와 docs/evidence-only 변경은 Python gate·링크 검사만 실행합니다.
 9. draft PR은 독립 검증과 CI를 시작하기 위한 중간 상태이며 완료가 아닙니다. Main Coordinator는 `docs/ai/orchestration-policy.md`가 정한 모드별 필수 독립 검증 보고와 CI PASS를 모두 확인한 뒤에만 `READY_FOR_HUMAN`으로 표시하며, pending 상태를 `READY_FOR_HUMAN`으로 표시하지 않습니다.
 10. 고정 자율 Issue 큐 실험 밖에서는 사람이 PR merge와 Issue close를 결정합니다. merge 거버넌스 기본값은 `docs/ai/orchestration-policy.md`, 실험의 적용 저장소·고정 큐·bootstrap 경계·조건부 merge·close·안전 정지 상세는 `docs/ai/autonomous-queue-runbook.md`를 따릅니다.
-11. fresh Review·QA와 metadata 불일치가 있을 때만 호출하는 Docs에는 Issue URL, worktree 경로, base/head SHA, Acceptance Criteria, 서로 다른 실제 필수 정본 문서 3~5개 경로, diff 범위, 직전 P0/P1 finding만 전달합니다. 이 allowlist 밖 packet key는 허용하지 않고 문서 경로는 `AGENTS.md`, `docs/ai/*.md`, `docs/testing/*.md`, `.codex/skills/*/SKILL.md`의 canonical repository-relative 경로만 사용합니다. source 본문·전체 conversation·별도 source snapshot을 전달하거나 저장소에 만들지 않으며 역할은 worktree와 GitHub 정본을 직접 읽습니다.
-12. 고정 자율 Issue 큐의 순서는 `Dev 구현·focused 검증과 evidence·PR body preflight -> fresh Review -> independent QA -> 최신 CI -> merge·close`입니다. preflight는 current disposition·Attempt·head, acceptance checkbox, verification PASS 행, metrics 재시도 수의 모순을 fail-closed로 발견합니다. QA 뒤 repository HEAD가 같으면 Docs commit과 두 번째 전체 Review를 만들지 않습니다. GitHub-only 상태 갱신은 repository commit을 요구하지 않으며, production·test·build·runtime·workflow·API 또는 도메인 정책 문서 변경은 Review와 필요한 QA를 stale 처리합니다.
-13. Dev는 focused 검증, QA는 Dev와 중복되지 않는 실제 미검증 위험, `quality-gates`는 전체 Level 1 회귀를 소유합니다. broad-risk 변경의 Dev 전체 회귀 예외와 current diff 관련 실패의 flaky 금지는 `docs/ai/orchestration-policy.md`를 따릅니다.
+11. Dev·Review·QA·Docs·Combined Verifier는 `fork_turns="none"`으로 시작합니다. packet은 Issue URL, worktree, base/head SHA, Acceptance Criteria, 허용 쓰기 범위, 직접 관련 canonical 정본 1~5개 경로, diff 범위, focused 검증, 직전 P0/P1 또는 마지막 실패 하나, `SUBAGENT-STOP: superpowers:using-superpowers`, `summary-only` 출력 예산만 허용합니다. source 본문·전체 conversation·전체 tool/test log·전체 PR conversation은 전달하거나 별도 snapshot으로 저장하지 않습니다.
+12. 고정 자율 Issue 큐의 순서는 `Dev 구현·focused 검증과 evidence·PR body preflight -> fresh Review -> independent QA -> 최신 CI -> merge·close`입니다. preflight는 기본 Acceptance Criteria·verification과 존재하는 상세 evidence의 모순을 fail-closed로 발견합니다. QA 뒤 evidence·PR metadata·raw artifact만 바뀌면 source-tree SHA에 묶인 판정을 재사용하고, 단일 영향도 분류기가 Review·QA 또는 runtime evidence stale로 판정한 변경만 재검증합니다.
+13. Dev는 RED와 최종 focused 검증, QA는 Dev와 중복되지 않는 실제 미검증 위험, `quality-gates`는 분류기가 요구한 전체 Level 1 회귀를 소유합니다. Review는 테스트를 실행하지 않습니다. broad-risk 변경의 Dev 전체 회귀 예외와 current diff 관련 실패의 flaky 금지는 `docs/ai/orchestration-policy.md`를 따릅니다.
 14. 범위 밖 flaky는 clean process 1회 격리 PASS와 current head CI PASS가 함께 있을 때만 후보로 기록합니다. 격리 FAIL은 test-only blocker의 원인 진단·조건 기반 동기화 1회까지만 허용하며, production 변경 필요·원인 불명·안정화 실패 또는 무변경 `BLOCKED` wake-up은 안전 정지합니다.
+15. Agent 진행은 `wait_agent` 또는 완료 알림으로 기다립니다. timeout 또는 명시적 stall 의심 때만 process·git·docker 진단 snapshot을 한 번 허용하고 상태 변화 없는 snapshot을 반복하지 않습니다. 장기 명령의 session/cell handle은 새 명령 대신 이어받습니다.
+16. 비싼 Gradle·Docker·Level 3~7 명령은 source/test/runtime 입력, 정규화 명령, 환경 profile이 같고 PASS가 있으면 재사용합니다. 입력 변경, 이전 FAIL 진단, flaky 격리, 분류기 stale, 독립 QA 최종 증명만 재실행하며 근거를 `verification.md` 또는 실패한 `attempt-log.md`에 남깁니다.
+17. 조건부 auto-merge는 mode와 무관하게 서로 다른 Writer·Review·QA가 같은 source-tree SHA에 남긴 최종 `APPROVED`·`PASS`, 그 SHA의 required CI PASS를 요구합니다. 역할·판정·SHA가 누락되거나 FAIL·BLOCKED·stale이면 안전 정지합니다.
 
 역할과 쓰기 권한은 `docs/ai/orchestration-policy.md`, 검증 기준은 `docs/testing/test-strategy.md`, evidence 형식은 `docs/testing/evidence-guide.md`를 따릅니다.
