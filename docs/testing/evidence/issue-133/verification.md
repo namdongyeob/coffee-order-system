@@ -7,7 +7,7 @@ Head: a23110b148d044fcaa5bb5038e56dd318a5293ce
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-07-20 | Issue #133 Redis marker expiration contracts | Level 0 | PASS | marker expiration, safe margin, operator recovery, metrics contracts | `commands.md` | repository gate, links-only gate PASS |
 | 2026-07-20 | Issue #133 Local java compile checking | Level 1 | PASS | Java Compile | `commands.md` | 로컬 자바 코드 및 테스트 컴파일 성공 |
-| 2026-07-20 | Issue #133 Local focused DLT test run | Level 4 | PASS | DltReplayServiceIntegrationTest | `commands.md` | STALE (과거 참고 결과 - 테스트 파일을 origin/main 상태로 복구하기 전 결과) |
+| 2026-07-20 | Issue #133 Local focused DLT test run | Level 4 | PARTIAL | DltReplayServiceIntegrationTest | `commands.md` | STALE (과거 참고 결과 - 테스트 파일을 origin/main 상태로 복구하기 전 결과이므로 현재 완료 근거로 사용하지 않음) |
 
 ## 미검증과 남은 위험
 
