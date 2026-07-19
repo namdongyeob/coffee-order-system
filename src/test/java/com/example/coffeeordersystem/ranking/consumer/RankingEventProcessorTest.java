@@ -7,11 +7,13 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.coffeeordersystem.event.domain.ProcessedEvent;
 import com.example.coffeeordersystem.event.repository.ProcessedEventRepository;
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
+import com.example.coffeeordersystem.ranking.rebuild.RankingRebuildLock;
 import com.example.coffeeordersystem.ranking.service.PopularMenuRankingService;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -34,11 +36,15 @@ class RankingEventProcessorTest {
 	@Mock
 	RankingEventLedger rankingEventLedger;
 
+	@Mock
+	RankingRebuildLock recoveryLock;
+
 	RankingEventProcessor processor;
 
 	@BeforeEach
 	void setUp() {
-		processor = new RankingEventProcessor(processedEventRepository, rankingService, rankingEventLedger);
+		processor = new RankingEventProcessor(processedEventRepository, rankingService, rankingEventLedger, recoveryLock);
+		when(recoveryLock.acquire(any())).thenReturn(true);
 	}
 
 	@Test
@@ -59,6 +65,19 @@ class RankingEventProcessorTest {
 		inOrder.verify(rankingEventLedger).markRedisApplied(event.eventId().toString());
 		inOrder.verify(rankingEventLedger).markCommitted(event.eventId().toString());
 		inOrder.verify(processedEventRepository).saveAndFlush(any(ProcessedEvent.class));
+	}
+
+	@Test
+	void rebuildFenceBusyStopsBeforeLedgerAndRedisMutation() {
+		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
+		when(recoveryLock.acquire(any())).thenReturn(false);
+
+		assertThatThrownBy(() -> processor.process(event))
+				.isInstanceOf(RankingRebuildInProgressException.class)
+				.hasMessageContaining(event.eventId().toString());
+
+		verifyNoInteractions(rankingEventLedger, rankingService, processedEventRepository);
+		verify(recoveryLock, never()).release(any());
 	}
 
 	@Test

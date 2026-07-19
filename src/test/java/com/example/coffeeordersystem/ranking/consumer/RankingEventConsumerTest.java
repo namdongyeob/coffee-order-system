@@ -31,21 +31,21 @@ class RankingEventConsumerTest {
 
 	@Test
 	void missingReplayHeaderUsesNormalConsumerSource() {
-		consumer.consume(event, null);
+		consumer.consume(event, null, 1, 10L);
 
 		verify(processor).process(event);
 	}
 
 	@Test
 	void dltReplayHeaderUsesDltSource() {
-		consumer.consume(event, RankingReplayHeaders.DLT_REPLAY.getBytes(StandardCharsets.UTF_8));
+		consumer.consume(event, RankingReplayHeaders.DLT_REPLAY.getBytes(StandardCharsets.UTF_8), 1, 10L);
 
 		verify(processor).process(event, RankingEventSource.DLT_REPLAY);
 	}
 
 	@Test
 	void unknownReplayHeaderFailsClosedBeforeProcessor() {
-		assertThatThrownBy(() -> consumer.consume(event, "UNTRUSTED".getBytes(StandardCharsets.UTF_8)))
+		assertThatThrownBy(() -> consumer.consume(event, "UNTRUSTED".getBytes(StandardCharsets.UTF_8), 1, 10L))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("지원하지 않는");
 

@@ -112,6 +112,8 @@ public class RankingRebuildService {
 		if (!lock.acquire(token)) {
 			throw new RankingRebuildException("다른 rebuild가 이미 실행 중입니다");
 		}
+		UUID runId = UUID.randomUUID();
+		log.info("ranking_rebuild_fence_acquired runId={} reason=RECOVERY_LOCK_ACQUIRED", runId);
 
 		Instant snapshot = configuredSnapshot == null ? Instant.now() : configuredSnapshot;
 		LocalDateTime upper = LocalDateTime.ofInstant(snapshot, SEOUL);
@@ -122,7 +124,7 @@ public class RankingRebuildService {
 		boolean keepLock = false;
 
 		try (AdminClient admin = adminClient()) {
-			assertNormalConsumerStopped(admin);
+			assertNormalConsumerStopped(admin, runId, "START");
 			try {
 				if (recoverIncomplete(admin, token)) {
 					return new RankingRebuildResult(Map.of(), Map.of(), 0, 0, 0);
@@ -135,6 +137,9 @@ public class RankingRebuildService {
 				throw recoveryFailure;
 			}
 			Map<TopicPartition, Long> capturedEnds = captureEndOffsets(admin);
+			capturedEnds.forEach((partition, offset) -> log.info(
+					"ranking_rebuild_offset_captured runId={} partition={} offset={}",
+					runId, partition.partition(), offset));
 			RankingRebuildOffsetManager.OffsetSnapshot previousOffsets =
 					offsetManager.capture(admin, capturedEnds.keySet());
 			ReplayResult replay = replay(capturedEnds, lower, upper, namespace);
@@ -143,10 +148,25 @@ public class RankingRebuildService {
 				throw new RankingRebuildException("Kafka replay와 DB 집계가 일치하지 않습니다");
 			}
 			requireLease(token);
-			UUID runId = UUID.randomUUID();
 			ledger.prepare(runId, replay.events().values(), namespace, dates, capturedEnds, previousOffsets,
 					() -> requireLease(token));
 			requireLease(token);
+			try {
+				assertNormalConsumerStopped(admin, runId, "PRE_SWAP");
+			} catch (Exception fenceFailure) {
+				RankingRebuildException abort = fenceFailure instanceof RankingRebuildException rebuildFailure
+						? rebuildFailure
+						: new RankingRebuildException("swap 직전 normal consumer 상태를 확인하지 못했습니다", fenceFailure);
+				try {
+					ledger.cancel(runId);
+				} catch (RuntimeException cancelFailure) {
+					keepLock = true;
+					abort.addSuppressed(cancelFailure);
+				}
+				log.warn("ranking_rebuild_aborted reason=LATE_NORMAL_CONSUMER runId={} capturedOffsets={}",
+						runId, capturedEnds);
+				throw abort;
+			}
 			try {
 				atomicSwap(namespace, dates, runId);
 			} catch (RuntimeException swapFailure) {
@@ -352,11 +372,17 @@ public class RankingRebuildService {
 		return AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
 	}
 
-	private void assertNormalConsumerStopped(AdminClient admin) throws Exception {
+	private void assertNormalConsumerStopped(AdminClient admin, UUID runId, String phase) throws Exception {
 		try {
 			ConsumerGroupDescription description = admin.describeConsumerGroups(List.of(NORMAL_GROUP))
 					.describedGroups().get(NORMAL_GROUP).get(10, TimeUnit.SECONDS);
 			if (!description.members().isEmpty()) {
+				log.warn("ranking_rebuild_fence_blocked reason=ACTIVE_NORMAL_CONSUMER runId={} phase={} memberCount={}",
+						runId, phase, description.members().size());
+				if ("PRE_SWAP".equals(phase)) {
+					throw new RankingRebuildException(
+							"swap 직전 ranking-consumer-group 활성 consumer가 감지되어 rebuild를 중단했습니다");
+				}
 				throw new RankingRebuildException("ranking-consumer-group 활성 consumer가 있어 rebuild를 시작할 수 없습니다");
 			}
 		} catch (ExecutionException exception) {
