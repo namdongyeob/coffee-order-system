@@ -4,8 +4,8 @@ Issue: #132
 Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/132
 Branch: codex/issue-132-ranking-rebuild-fence
 Current disposition: PASS
-Current Attempt: 1
-Current head: edf3984688fbfe5efb9a9e3753da48f71dfbf08e
+Current Attempt: 2
+Current head: d5f5bb55d236350c7055d6f69b5611cdd24a956a
 
 ## Attempt 1
 
@@ -44,4 +44,46 @@ Current head: edf3984688fbfe5efb9a9e3753da48f71dfbf08e
 
 ### Next Attempt
 
-없음. draft PR에서 fresh Review·QA와 최신 PR-head CI를 확인합니다.
+- 최초 Review의 owner/run 관찰성 P1과 결정적 경쟁 테스트 P1을 허용된 Attempt 2에서 처리합니다.
+
+## Attempt 2
+
+### Generate
+
+- Review P1 #1에 따라 rebuild runId를 lock 획득 전에 만들고 token을 `owner=REBUILD,runId=<UUID>`로 구조화했습니다.
+- normal processor token은 `owner=CONSUMER,eventId=<UUID>,attemptId=<UUID>`로 구조화하고, lock 실패 시 Redis의 실제 owner를 fence 예외와 consumer 로그에 전달했습니다.
+- rebuild 획득 실패는 `SHARED_RECOVERY_LOCK_BUSY`로 분류해 attemptedRunId와 실제 lockOwner를 함께 기록하며 더 이상 consumer owner를 다른 rebuild로 단정하지 않습니다.
+- Review P1 #2에 따라 test-only `@MockitoSpyBean`과 latch로 실제 consumer `acquire()` 실패를 동기화하고 임의 1.5초/5초 sleep을 제거했습니다.
+- 기존 세 순서에 release 전 원 offset 미커밋·DLT end 불변을 추가하고 consumer-first→rebuild-second 순서를 신규 검증했습니다.
+
+### Evaluate
+
+- unit RED는 새 owner 인자를 받는 fence 예외와 processor Redis owner 조회 생성자가 없어 compile 2건으로 실패했습니다.
+- production 최소 수정 뒤 owner/log focused unit 13건이 PASS했습니다.
+- 결정적 late-join 4건은 processor fence attempt/owner latch, offset, DLT와 최종 ledger·marker·score를 모두 확인해 PASS했습니다.
+- focused Level 3/4 첫 52건 중 기존 lock message 호환 1건이 실패했고, owner를 rebuild로 단정하지 않으면서 `이미 실행 중` 계약을 유지해 최종 52/52 PASS했습니다.
+- 실제 Level 5 consumer-first와 rebuild-first에서 structured owner/run이 양쪽 로그에 연결되고 두 이벤트 모두 최종 score 1·ledger COMMITTED·lag 0·DLT 0으로 수렴했습니다.
+
+### Failure Cause
+
+- P1 #1 원인은 Redis lock 값이 opaque UUID이고 rebuild runId를 획득 뒤 별도로 만들어 shared owner와 run을 연결할 수 없었던 것입니다.
+- P1 #2 원인은 member 존재와 임의 sleep만으로 processor의 실제 lock 실패, offset 미커밋과 DLT 미발행을 증명하지 못했던 것입니다.
+- focused 조합 실행에서 shared topic이 2 partitions로 확장되면 test helper가 assignment 1을 고정해 실패했습니다. production partition을 바꾸지 않고 실제 topic partition 수를 조회하도록 test-only helper를 수정했습니다.
+- 기능 blocker는 없습니다.
+
+### Change Scope
+
+- 허용된 consumer/processor/fence exception/rebuild service와 직접 unit·late-join integration test, Issue #132 evidence만 수정했습니다.
+- `RankingRebuildLock`, DLT replay, marker TTL/pending ledger, topic/payload/partition, ranking 정책과 ADR 문서는 변경하지 않았습니다.
+
+### Reverification
+
+- Reverification end: 2026-07-19T18:07:57+09:00.
+- owner/log focused unit: 13 tests PASS, `BUILD SUCCESSFUL in 36s`.
+- deterministic late-join: 4 tests PASS, `BUILD SUCCESSFUL in 1m 34s`.
+- final Level 1·3·4 focused: 52 tests PASS, failures/errors/skipped 0, `BUILD SUCCESSFUL in 2m 45s`.
+- actual Compose Level 5 consumer-first·rebuild-first owner/run 관찰성과 최종 ledger/marker/offset/score·DLT 정합 및 cleanup PASS.
+
+### Next Attempt
+
+없음. 최신 PR head에서 fresh Review와 CI를 확인합니다. 고정 head `8eaa526`의 독립 QA PASS는 production 변경으로 stale입니다.
