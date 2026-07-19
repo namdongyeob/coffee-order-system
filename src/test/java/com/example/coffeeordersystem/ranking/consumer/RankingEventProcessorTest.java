@@ -7,11 +7,13 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.coffeeordersystem.event.domain.ProcessedEvent;
 import com.example.coffeeordersystem.event.repository.ProcessedEventRepository;
 import com.example.coffeeordersystem.order.event.OrderCompletedEvent;
+import com.example.coffeeordersystem.ranking.rebuild.RankingRebuildLock;
 import com.example.coffeeordersystem.ranking.service.PopularMenuRankingService;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -21,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 @ExtendWith(MockitoExtension.class)
 class RankingEventProcessorTest {
@@ -34,11 +38,22 @@ class RankingEventProcessorTest {
 	@Mock
 	RankingEventLedger rankingEventLedger;
 
+	@Mock
+	RankingRebuildLock recoveryLock;
+
+	@Mock
+	StringRedisTemplate redis;
+
+	@Mock
+	ValueOperations<String, String> values;
+
 	RankingEventProcessor processor;
 
 	@BeforeEach
 	void setUp() {
-		processor = new RankingEventProcessor(processedEventRepository, rankingService, rankingEventLedger);
+		processor = new RankingEventProcessor(
+				processedEventRepository, rankingService, rankingEventLedger, recoveryLock, redis);
+		when(recoveryLock.acquire(any())).thenReturn(true);
 	}
 
 	@Test
@@ -59,6 +74,23 @@ class RankingEventProcessorTest {
 		inOrder.verify(rankingEventLedger).markRedisApplied(event.eventId().toString());
 		inOrder.verify(rankingEventLedger).markCommitted(event.eventId().toString());
 		inOrder.verify(processedEventRepository).saveAndFlush(any(ProcessedEvent.class));
+	}
+
+	@Test
+	void rebuildFenceBusyStopsBeforeLedgerAndRedisMutation() {
+		OrderCompletedEvent event = event(UUID.randomUUID(), 11L);
+		String lockOwner = "owner=REBUILD,runId=" + UUID.randomUUID();
+		when(recoveryLock.acquire(any())).thenReturn(false);
+		when(redis.opsForValue()).thenReturn(values);
+		when(values.get("ranking:rebuild:lock")).thenReturn(lockOwner);
+
+		assertThatThrownBy(() -> processor.process(event))
+				.isInstanceOf(RankingRebuildInProgressException.class)
+				.hasMessageContaining(event.eventId().toString())
+				.hasMessageContaining(lockOwner);
+
+		verifyNoInteractions(rankingEventLedger, rankingService, processedEventRepository);
+		verify(recoveryLock, never()).release(any());
 	}
 
 	@Test
