@@ -17,8 +17,6 @@ import time
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
-from scripts import harness_gate
-
 
 def harden_console_encoding() -> None:
     """cp949 등 non-UTF-8 콘솔에서 인코딩 불가 문자로 인한 UnicodeEncodeError 크래시를 막는다."""
@@ -35,6 +33,27 @@ MESSAGE_TYPES = frozenset({"FINDING", "NEED", "BLOCKED", "SCOPE_CONFLICT"})
 TERMINAL_AGENT_STATUSES = frozenset({"TIMEOUT", "BLOCKED"})
 DEFAULT_STATE_DIR = ".team-orchestration-state"
 DEFAULT_STATE_FILE = "state.json"
+
+
+def _worktree_path_action(worktree_path: str, *, java_or_gradle_required: bool) -> str:
+    """Keep this portable module independent from harness_gate's repository import graph."""
+    if not java_or_gradle_required:
+        return "ALLOW"
+    try:
+        str(worktree_path).encode("ascii")
+    except UnicodeEncodeError:
+        return "BLOCKED: NON_ASCII_WORKTREE_PATH"
+    return "ALLOW"
+
+
+def _retry_action(*, retry_count: int, user_approved_new_run: bool = False) -> str:
+    if retry_count < 0:
+        raise ValueError("retry_count must be non-negative")
+    if retry_count == 0:
+        return "RETRY_ONCE"
+    if user_approved_new_run:
+        return "START_APPROVED_NEW_RUN"
+    return "BLOCKED: RETRY_LIMIT"
 
 
 class TeamOrchestrationError(Exception):
@@ -142,7 +161,7 @@ class TeamState:
         if assignment.agent_id in self.assignments:
             return RegistrationResult("BLOCKED", f"agent_id '{assignment.agent_id}' is already registered.")
 
-        worktree_action = harness_gate.worktree_path_action(
+        worktree_action = _worktree_path_action(
             assignment.worktree_path,
             java_or_gradle_required=assignment.java_or_gradle_required,
         )
@@ -192,6 +211,16 @@ class TeamState:
         )
         return True
 
+    def retry_decision(self, *, user_approved_new_run: bool = False) -> str:
+        """Consume the single automatic retry without silently resetting the ledger."""
+        action = _retry_action(
+            retry_count=self.retries,
+            user_approved_new_run=user_approved_new_run,
+        )
+        if action == "RETRY_ONCE":
+            self.retries += 1
+        return action
+
     def lifecycle_status(self, agent_id: str, *, now: float, heartbeat_timeout: float) -> str:
         assignment = self.assignments[agent_id]
         if assignment.status in TERMINAL_AGENT_STATUSES:
@@ -203,6 +232,11 @@ class TeamState:
             self.assignments[agent_id] = replace(assignment, status="STALLED")
             return "STALLED"
         return "RUNNING"
+
+    def lifecycle_action(self, agent_id: str, *, now: float, heartbeat_timeout: float) -> str:
+        """Return WAIT while live, or the persisted terminal/stalled action otherwise."""
+        status = self.lifecycle_status(agent_id, now=now, heartbeat_timeout=heartbeat_timeout)
+        return "WAIT" if status == "RUNNING" else status
 
     def mark_terminal(self, agent_id: str, *, status: str) -> None:
         if status not in TERMINAL_AGENT_STATUSES:
@@ -303,6 +337,11 @@ def main(argv: list[str] | None = None) -> int:
     register_parser.add_argument("--worktree", required=True)
     register_parser.add_argument("--owned-path", action="append", required=True, dest="owned_paths")
     register_parser.add_argument("--reader", action="store_true", help="Register as a non-writer (does not consume a writer slot).")
+    register_parser.add_argument(
+        "--java-or-gradle-required",
+        action="store_true",
+        help="Apply the ASCII worktree gate before Java/Gradle execution.",
+    )
 
     release_parser = subparsers.add_parser("release", help="Release an agent's slot.")
     release_parser.add_argument("--agent-id", required=True)
@@ -332,10 +371,11 @@ def main(argv: list[str] | None = None) -> int:
             assignment = AgentAssignment(
                 agent_id=args.agent_id,
                 role=args.role,
-                worktree_path=args.worktree,
-                owned_paths=tuple(args.owned_paths),
-                is_writer=not args.reader,
-            )
+				worktree_path=args.worktree,
+				owned_paths=tuple(args.owned_paths),
+				is_writer=not args.reader,
+				java_or_gradle_required=args.java_or_gradle_required,
+			)
             result = state.register_agent(assignment)
             save_state(repository_root, state)
             print(f"{result.status}: {result.detail}")

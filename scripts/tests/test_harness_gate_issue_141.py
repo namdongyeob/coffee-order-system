@@ -1,6 +1,8 @@
 # Coordinator 실행 안전 게이트의 경로·재시도·heartbeat 판정을 검증하는 테스트
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import harness_gate
 from scripts import team_orchestration as team
@@ -55,6 +57,14 @@ class RetryCircuitBreakerTest(unittest.TestCase):
 		with self.assertRaises(ValueError):
 			harness_gate.retry_action(retry_count=-1)
 
+	def test_team_state_enforces_retry_budget_without_resetting_it(self):
+		state = team.TeamState.new()
+		self.assertEqual("RETRY_ONCE", state.retry_decision())
+		self.assertEqual(1, state.retries)
+		self.assertEqual("BLOCKED: RETRY_LIMIT", state.retry_decision())
+		self.assertEqual("START_APPROVED_NEW_RUN", state.retry_decision(user_approved_new_run=True))
+		self.assertEqual(1, state.retries)
+
 
 class AssignmentLifecycleTest(unittest.TestCase):
 	def assignment(self):
@@ -102,6 +112,28 @@ class AssignmentLifecycleTest(unittest.TestCase):
 		)
 		self.assertEqual("TIMEOUT", state.assignments["dev-menu"].status)
 
+	def test_live_assignment_returns_wait_action_without_polling(self):
+		state = team.TeamState.new()
+		state.register_agent(self.assignment())
+		self.assertEqual(
+			"WAIT",
+			state.lifecycle_action("dev-menu", now=120.0, heartbeat_timeout=30.0),
+		)
+
+	def test_lifecycle_fields_survive_state_round_trip(self):
+		state = team.TeamState.new()
+		state.register_agent(self.assignment())
+		state.heartbeat("dev-menu", now=110.0, phase="VERIFY")
+		with tempfile.TemporaryDirectory() as temp_dir:
+			team.save_state(Path(temp_dir), state)
+			loaded = team.load_state(Path(temp_dir))
+		assignment = loaded.assignments["dev-menu"]
+		self.assertEqual("VERIFY", assignment.phase)
+		self.assertEqual("RUNNING", assignment.status)
+		self.assertEqual(100.0, assignment.started_at)
+		self.assertEqual(110.0, assignment.last_heartbeat_at)
+		self.assertEqual(200.0, assignment.deadline_at)
+
 	def test_heartbeat_cannot_resurrect_terminal_assignment(self):
 		state = team.TeamState.new()
 		state.register_agent(self.assignment())
@@ -120,6 +152,26 @@ class AssignmentLifecycleTest(unittest.TestCase):
 		result = state.register_agent(assignment)
 		self.assertEqual("BLOCKED", result.status)
 		self.assertIn("NON_ASCII_WORKTREE_PATH", result.detail)
+		self.assertEqual(0, state.active_count())
+
+	def test_cli_registration_exposes_java_worktree_gate(self):
+		state = team.TeamState.new()
+		with patch.object(team, "load_state", return_value=state), patch.object(team, "save_state"), patch(
+			"builtins.print"
+		):
+			result = team.main(
+				[
+					"register",
+					"--agent-id",
+					"dev-korean-path",
+					"--worktree",
+					"C:/Users/user/Documents/커피 주문 시스템/issue-141",
+					"--owned-path",
+					"src/main/**",
+					"--java-or-gradle-required",
+				]
+			)
+		self.assertEqual(1, result)
 		self.assertEqual(0, state.active_count())
 
 

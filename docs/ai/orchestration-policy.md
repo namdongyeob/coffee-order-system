@@ -85,7 +85,7 @@ evidence 정본 위치와 PR 전 preflight는 [Evidence Guide](../testing/eviden
 
 Main은 변경 파일 목록, 역할별 완료 보고, 필수 evidence 존재, GitHub Actions 상태만 확인합니다. 진행은 wait/notification으로 기다리고 timeout·stall 때만 진단 snapshot을 한 번 허용합니다. 장기 명령 handle은 이어받고 상태 변화 없는 shell polling은 반복하지 않습니다. Agent가 멈추면 한 번 상태를 요청하고 재배정하며 두 번째 실패는 `BLOCKED`입니다.
 
-Runtime guard tokens: `NON_ASCII_WORKTREE_PATH`, `RETRY_LIMIT`, `heartbeat`, `deadline`.
+Runtime guard tokens: `NON_ASCII_WORKTREE_PATH`, `RETRY_LIMIT`, `heartbeat`, `deadline`, `lifecycle_action`, `retry_decision`.
 
 고정 자율 Issue 큐 실험 밖에서는 어떤 Agent도 merge 또는 Issue close를 실행하지 않습니다. Review, QA, CI와 evidence가 있어도 사람의 명시적 승인 뒤에만 사람이 merge 또는 close를 실행합니다. 고정 자율 Issue 큐 실험에서는 아래 열거된 모든 조건을 충족한 Main Coordinator만 merge 또는 Issue close를 실행할 수 있습니다.
 
