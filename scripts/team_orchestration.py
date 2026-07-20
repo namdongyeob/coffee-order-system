@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -33,6 +34,10 @@ MESSAGE_TYPES = frozenset({"FINDING", "NEED", "BLOCKED", "SCOPE_CONFLICT"})
 TERMINAL_AGENT_STATUSES = frozenset({"STALLED", "TIMEOUT", "BLOCKED", "COMPLETED"})
 DEFAULT_STATE_DIR = ".team-orchestration-state"
 DEFAULT_STATE_FILE = "state.json"
+
+
+def _is_finite_time(value: object) -> bool:
+    return isinstance(value, (int, float)) and math.isfinite(value)
 
 
 def _worktree_path_action(worktree_path: str, *, java_or_gradle_required: bool) -> str:
@@ -147,7 +152,9 @@ class TeamState:
     messages: list[dict[str, str]] = field(default_factory=list)
     retries: int = 0
     retry_ledger: dict[str, int] = field(default_factory=dict)
+    legacy_retry_ledger_unresolved: bool = False
     diagnostic_snapshots: set[str] = field(default_factory=set)
+    reset_history: list[dict[str, object]] = field(default_factory=list)
     stalls: int = 0
     out_of_scope_changes: int = 0
     review_qa_defects: int = 0
@@ -175,6 +182,11 @@ class TeamState:
             return RegistrationResult("BLOCKED", "BLOCKED: IMPACT_UNDECLARED")
         if assignment.deadline_at is None:
             return RegistrationResult("BLOCKED", "BLOCKED: DEADLINE_UNDECLARED")
+        if not all(
+            _is_finite_time(value)
+            for value in (assignment.started_at, assignment.last_heartbeat_at, assignment.deadline_at)
+        ):
+            return RegistrationResult("BLOCKED", "BLOCKED: INVALID_TIME")
         if assignment.java_or_gradle_required is None:
             return RegistrationResult("BLOCKED", "BLOCKED: JAVA_REQUIREMENT_UNDECLARED")
 
@@ -186,6 +198,8 @@ class TeamState:
             return RegistrationResult("BLOCKED", worktree_action)
 
         for existing in self.assignments.values():
+            if existing.status != "RUNNING":
+                continue
             overlap = owned_paths_overlap(assignment.owned_paths, existing.owned_paths)
             if overlap is not None:
                 return RegistrationResult(
@@ -222,11 +236,14 @@ class TeamState:
         assignment = self.assignments.get(agent_id)
         if assignment is None or assignment.status != "RUNNING":
             return False
+        heartbeat_at = time.time() if now is None else now
+        if not _is_finite_time(heartbeat_at):
+            raise TeamOrchestrationError("BLOCKED: INVALID_TIME")
         self.assignments[agent_id] = replace(
             assignment,
             phase=phase or assignment.phase,
             status="RUNNING",
-            last_heartbeat_at=time.time() if now is None else now,
+            last_heartbeat_at=heartbeat_at,
         )
         return True
 
@@ -234,6 +251,8 @@ class TeamState:
         """Consume one retry per stable Issue/failure key in the persisted state ledger."""
         if issue < 1 or not failure_key.strip():
             raise TeamOrchestrationError("issue and non-empty failure_key are required for retry.")
+        if self.legacy_retry_ledger_unresolved:
+            return "BLOCKED: LEGACY_RETRY_LEDGER_REQUIRED"
         ledger_key = f"{issue}:{failure_key.strip()}"
         action = _retry_action(retry_count=self.retry_ledger.get(ledger_key, 0))
         if action == "RETRY_ONCE":
@@ -243,6 +262,13 @@ class TeamState:
 
     def lifecycle_status(self, agent_id: str, *, now: float, heartbeat_timeout: float) -> str:
         assignment = self.assignments[agent_id]
+        if not all(
+            _is_finite_time(value)
+            for value in (now, heartbeat_timeout, assignment.last_heartbeat_at)
+        ) or heartbeat_timeout < 0 or (
+            assignment.deadline_at is not None and not _is_finite_time(assignment.deadline_at)
+        ):
+            raise TeamOrchestrationError("BLOCKED: INVALID_TIME")
         if assignment.status != "RUNNING":
             return assignment.status
         if assignment.deadline_at is not None and now >= assignment.deadline_at:
@@ -259,12 +285,14 @@ class TeamState:
         status = self.lifecycle_status(agent_id, now=now, heartbeat_timeout=heartbeat_timeout)
         return "WAIT" if status == "RUNNING" else status
 
-    def mark_terminal(self, agent_id: str, *, status: str) -> None:
+    def mark_terminal(self, agent_id: str, *, status: str) -> bool:
         if status not in TERMINAL_AGENT_STATUSES:
             raise ValueError(f"status must be terminal: {sorted(TERMINAL_AGENT_STATUSES)}")
         assignment = self.assignments[agent_id]
         if assignment.status == "RUNNING":
             self.assignments[agent_id] = replace(assignment, status=status)
+            return True
+        return False
 
     def complete_agent(self, agent_id: str) -> bool:
         assignment = self.assignments.get(agent_id)
@@ -282,7 +310,22 @@ class TeamState:
         return "SNAPSHOT_RECORDED"
 
     def release_agent(self, agent_id: str) -> bool:
-        return self.assignments.pop(agent_id, None) is not None
+        released = self.assignments.pop(agent_id, None) is not None
+        if released:
+            self.diagnostic_snapshots.discard(agent_id)
+        return released
+
+    def reset_for_new_run(self, approval_ref: str, *, now: float | None = None) -> "TeamState":
+        if not approval_ref.strip():
+            raise TeamOrchestrationError("BLOCKED: APPROVAL_REFERENCE_REQUIRED")
+        reset_at = time.time() if now is None else now
+        if not _is_finite_time(reset_at):
+            raise TeamOrchestrationError("BLOCKED: INVALID_TIME")
+        return TeamState(
+            config=self.config,
+            created_at=reset_at,
+            reset_history=[*self.reset_history, {"approval_ref": approval_ref.strip(), "reset_at": reset_at}],
+        )
 
     def send_message(self, agent_id: str, message_type: str, body: str) -> None:
         if message_type not in MESSAGE_TYPES:
@@ -325,7 +368,9 @@ class TeamState:
             "messages": self.messages,
             "retries": self.retries,
             "retry_ledger": self.retry_ledger,
+            "legacy_retry_ledger_unresolved": self.legacy_retry_ledger_unresolved,
             "diagnostic_snapshots": sorted(self.diagnostic_snapshots),
+            "reset_history": self.reset_history,
             "stalls": self.stalls,
             "out_of_scope_changes": self.out_of_scope_changes,
             "review_qa_defects": self.review_qa_defects,
@@ -338,14 +383,20 @@ class TeamState:
             agent_id: AgentAssignment(**{**value, "owned_paths": tuple(value["owned_paths"])})
             for agent_id, value in data.get("assignments", {}).items()
         }
+        retry_ledger_present = "retry_ledger" in data
+        retries = data.get("retries", 0)
         return cls(
             config=TeamOrchestrationConfig(**data["config"]),
             created_at=data["created_at"],
             assignments=assignments,
             messages=list(data.get("messages", [])),
-            retries=data.get("retries", 0),
+            retries=retries,
             retry_ledger=dict(data.get("retry_ledger", {})),
+            legacy_retry_ledger_unresolved=bool(
+                data.get("legacy_retry_ledger_unresolved", not retry_ledger_present and retries > 0)
+            ),
             diagnostic_snapshots=set(data.get("diagnostic_snapshots", [])),
+            reset_history=list(data.get("reset_history", [])),
             stalls=data.get("stalls", 0),
             out_of_scope_changes=data.get("out_of_scope_changes", 0),
             review_qa_defects=data.get("review_qa_defects", 0),
@@ -420,8 +471,11 @@ def main(argv: list[str] | None = None) -> int:
     complete_parser = subparsers.add_parser("complete", help="Persist completion and release active/writer slot accounting.")
     complete_parser.add_argument("--agent-id", required=True)
 
+    block_parser = subparsers.add_parser("block", help="Persist an explicit BLOCKED terminal assignment.")
+    block_parser.add_argument("--agent-id", required=True)
+
     subparsers.add_parser("status", help="Print current assignments and metrics.")
-    reset_parser = subparsers.add_parser("reset", aliases=["new-run"], help="Delete runtime team-state after explicit approval.")
+    reset_parser = subparsers.add_parser("reset", aliases=["new-run"], help="Start audited empty runtime state after explicit approval.")
     reset_parser.add_argument("--approval-ref", required=True, help="Non-empty approval reference authorizing the reset/new run.")
 
     args = parser.parse_args(argv)
@@ -431,16 +485,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in {"reset", "new-run"}:
             if not args.approval_ref.strip():
                 raise TeamOrchestrationError("BLOCKED: APPROVAL_REFERENCE_REQUIRED")
-            path = state_file_path(repository_root)
-            if path.is_file():
-                path.unlink()
+            state = load_state(repository_root).reset_for_new_run(args.approval_ref)
+            save_state(repository_root, state)
             print("team-orchestration state reset.")
             return 0
 
         state = load_state(repository_root)
 
         if args.command == "register":
-            if args.deadline_seconds <= 0:
+            if not _is_finite_time(args.deadline_seconds) or args.deadline_seconds <= 0:
                 raise TeamOrchestrationError("BLOCKED: INVALID_DEADLINE")
             assignment = AgentAssignment(
                 agent_id=args.agent_id,
@@ -502,6 +555,12 @@ def main(argv: list[str] | None = None) -> int:
             save_state(repository_root, state)
             print("COMPLETED" if completed else "BLOCKED: AGENT_NOT_RUNNING")
             return 0 if completed else 1
+
+        if args.command == "block":
+            blocked = state.mark_terminal(args.agent_id, status="BLOCKED")
+            save_state(repository_root, state)
+            print("BLOCKED" if blocked else "BLOCKED: AGENT_NOT_RUNNING")
+            return 0 if blocked else 1
 
         if args.command == "status":
             print(json.dumps({"assignments": state.to_dict()["assignments"], "metrics": state.metrics_snapshot()}, ensure_ascii=False, indent=2))

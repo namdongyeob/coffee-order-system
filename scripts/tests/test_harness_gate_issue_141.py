@@ -360,6 +360,98 @@ class CoordinatorStateCliFlowTest(unittest.TestCase):
 			self.assertIn("APPROVAL_REFERENCE_REQUIRED", output)
 			self.assertTrue(state_path.exists())
 
+	def test_terminal_or_stalled_assignment_no_longer_reserves_owned_paths(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			worktree = Path(temp_dir) / "worktree"
+			worktree.mkdir()
+			state = team.TeamState.new()
+			first = team.AgentAssignment(
+				agent_id="old", role="Dev", worktree_path=str(worktree), owned_paths=("scripts/**",),
+				impact="harness", java_or_gradle_required=False, started_at=100.0,
+				last_heartbeat_at=100.0, deadline_at=200.0,
+			)
+			self.assertEqual("REGISTERED", state.register_agent(first).status)
+			self.assertEqual("STALLED", state.lifecycle_status("old", now=131.0, heartbeat_timeout=30.0))
+			replacement = team.AgentAssignment(
+				agent_id="new", role="Dev", worktree_path=str(worktree), owned_paths=("scripts/**",),
+				impact="harness retry", java_or_gradle_required=False, started_at=140.0,
+				last_heartbeat_at=140.0, deadline_at=240.0,
+			)
+			self.assertEqual("REGISTERED", state.register_agent(replacement).status)
+
+	def test_cli_block_persists_blocked_terminal_status(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			repository_root = Path(temp_dir)
+			worktree = repository_root / "worktree"
+			worktree.mkdir()
+			self.assertEqual(
+				0,
+				self.run_cli(
+					repository_root, "register", "--agent-id", "dev-141", "--worktree", str(worktree),
+					"--owned-path", "scripts/**", "--impact", "harness", "--deadline-seconds", "60",
+					"--no-java-required",
+				)[0],
+			)
+			self.assertEqual(0, self.run_cli(repository_root, "block", "--agent-id", "dev-141")[0])
+			self.assertEqual("BLOCKED", team.load_state(repository_root).assignments["dev-141"].status)
+
+	def test_legacy_retry_count_without_ledger_fails_closed(self):
+		state = team.TeamState.from_dict(
+			{
+				"config": {"max_active_agents": 3, "max_writer_agents": 2}, "created_at": 1.0,
+				"assignments": {}, "messages": [], "retries": 1, "stalls": 0,
+				"out_of_scope_changes": 0, "review_qa_defects": 0, "human_interventions": 0,
+			}
+		)
+		self.assertEqual("BLOCKED: LEGACY_RETRY_LEDGER_REQUIRED", state.retry_decision(issue=141, failure_key="new"))
+		self.assertEqual({}, state.retry_ledger)
+
+	def test_non_finite_times_are_blocked_in_registration_heartbeat_and_lifecycle(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			worktree = Path(temp_dir) / "worktree"
+			worktree.mkdir()
+			state = team.TeamState.new()
+			nan_deadline = team.AgentAssignment(
+				agent_id="nan", role="Dev", worktree_path=str(worktree), owned_paths=("scripts/**",),
+				impact="harness", java_or_gradle_required=False, deadline_at=float("nan"),
+			)
+			self.assertIn("INVALID_TIME", state.register_agent(nan_deadline).detail)
+			live = team.AgentAssignment(
+				agent_id="live", role="Dev", worktree_path=str(worktree), owned_paths=("docs/**",),
+				impact="docs", java_or_gradle_required=False, started_at=100.0,
+				last_heartbeat_at=100.0, deadline_at=200.0,
+			)
+			self.assertEqual("REGISTERED", state.register_agent(live).status)
+			with self.assertRaises(team.TeamOrchestrationError):
+				state.heartbeat("live", now=float("inf"))
+			with self.assertRaises(team.TeamOrchestrationError):
+				state.lifecycle_status("live", now=float("nan"), heartbeat_timeout=30.0)
+
+	def test_reset_keeps_auditable_approval_history_and_release_renews_snapshot_budget(self):
+		with tempfile.TemporaryDirectory() as temp_dir:
+			repository_root = Path(temp_dir)
+			worktree = repository_root / "worktree"
+			worktree.mkdir()
+			register = (
+				"register", "--agent-id", "dev-141", "--worktree", str(worktree), "--owned-path", "scripts/**",
+				"--impact", "harness", "--deadline-seconds", "60", "--no-java-required",
+			)
+			self.assertEqual(0, self.run_cli(repository_root, *register)[0])
+			self.assertEqual(0, self.run_cli(repository_root, "snapshot", "--agent-id", "dev-141")[0])
+			self.assertEqual(0, self.run_cli(repository_root, "release", "--agent-id", "dev-141")[0])
+			self.assertEqual(0, self.run_cli(repository_root, *register)[0])
+			self.assertEqual(0, self.run_cli(repository_root, "snapshot", "--agent-id", "dev-141")[0])
+			self.assertEqual(0, self.run_cli(repository_root, "reset", "--approval-ref", "human-141")[0])
+			state = team.load_state(repository_root)
+			self.assertEqual({}, state.assignments)
+			self.assertEqual("human-141", state.reset_history[-1]["approval_ref"])
+			self.assertIsInstance(state.reset_history[-1]["reset_at"], float)
+			self.assertEqual(0, self.run_cli(repository_root, "new-run", "--approval-ref", "human-142")[0])
+			self.assertEqual(
+				["human-141", "human-142"],
+				[entry["approval_ref"] for entry in team.load_state(repository_root).reset_history],
+			)
+
 
 if __name__ == "__main__":
 	unittest.main()
