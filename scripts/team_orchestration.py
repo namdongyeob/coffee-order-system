@@ -14,8 +14,10 @@ import json
 import os
 import sys
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+
+from scripts import harness_gate
 
 
 def harden_console_encoding() -> None:
@@ -30,6 +32,7 @@ DEFAULT_MAX_WRITER_AGENTS = 2
 # not a default that a config file can raise.
 MAX_WRITER_AGENTS_CEILING = 2
 MESSAGE_TYPES = frozenset({"FINDING", "NEED", "BLOCKED", "SCOPE_CONFLICT"})
+TERMINAL_AGENT_STATUSES = frozenset({"TIMEOUT", "BLOCKED"})
 DEFAULT_STATE_DIR = ".team-orchestration-state"
 DEFAULT_STATE_FILE = "state.json"
 
@@ -70,6 +73,12 @@ class AgentAssignment:
     worktree_path: str
     owned_paths: tuple[str, ...]
     is_writer: bool = True
+    java_or_gradle_required: bool = False
+    phase: str = "INTAKE"
+    status: str = "RUNNING"
+    started_at: float = 0.0
+    last_heartbeat_at: float = 0.0
+    deadline_at: float | None = None
 
 
 @dataclass
@@ -133,6 +142,13 @@ class TeamState:
         if assignment.agent_id in self.assignments:
             return RegistrationResult("BLOCKED", f"agent_id '{assignment.agent_id}' is already registered.")
 
+        worktree_action = harness_gate.worktree_path_action(
+            assignment.worktree_path,
+            java_or_gradle_required=assignment.java_or_gradle_required,
+        )
+        if worktree_action != "ALLOW":
+            return RegistrationResult("BLOCKED", worktree_action)
+
         for existing in self.assignments.values():
             overlap = owned_paths_overlap(assignment.owned_paths, existing.owned_paths)
             if overlap is not None:
@@ -154,8 +170,45 @@ class TeamState:
                 "(Issue #91 1차 excludes a 3-writer exception).",
             )
 
-        self.assignments[assignment.agent_id] = assignment
+        now = time.time()
+        self.assignments[assignment.agent_id] = replace(
+            assignment,
+            phase=assignment.phase or "INTAKE",
+            status="RUNNING",
+            started_at=assignment.started_at or now,
+            last_heartbeat_at=assignment.last_heartbeat_at or now,
+        )
         return RegistrationResult("REGISTERED", f"agent '{assignment.agent_id}' registered.")
+
+    def heartbeat(self, agent_id: str, *, now: float | None = None, phase: str | None = None) -> bool:
+        assignment = self.assignments.get(agent_id)
+        if assignment is None or assignment.status in TERMINAL_AGENT_STATUSES:
+            return False
+        self.assignments[agent_id] = replace(
+            assignment,
+            phase=phase or assignment.phase,
+            status="RUNNING",
+            last_heartbeat_at=time.time() if now is None else now,
+        )
+        return True
+
+    def lifecycle_status(self, agent_id: str, *, now: float, heartbeat_timeout: float) -> str:
+        assignment = self.assignments[agent_id]
+        if assignment.status in TERMINAL_AGENT_STATUSES:
+            return assignment.status
+        if assignment.deadline_at is not None and now >= assignment.deadline_at:
+            self.assignments[agent_id] = replace(assignment, status="TIMEOUT")
+            return "TIMEOUT"
+        if now - assignment.last_heartbeat_at > heartbeat_timeout:
+            self.assignments[agent_id] = replace(assignment, status="STALLED")
+            return "STALLED"
+        return "RUNNING"
+
+    def mark_terminal(self, agent_id: str, *, status: str) -> None:
+        if status not in TERMINAL_AGENT_STATUSES:
+            raise ValueError(f"status must be terminal: {sorted(TERMINAL_AGENT_STATUSES)}")
+        assignment = self.assignments[agent_id]
+        self.assignments[agent_id] = replace(assignment, status=status)
 
     def release_agent(self, agent_id: str) -> bool:
         return self.assignments.pop(agent_id, None) is not None
