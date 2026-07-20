@@ -5,7 +5,8 @@ Issue URL: https://github.com/namdongyeob/coffee-order-system/issues/133
 Branch: codex/issue-133-ranking-ledger-docs
 Current disposition: PASS
 Current Attempt: 6
-Current head: 12aede66998c269b9768740d634f976ee5c62a49
+Current head: 60d71da8280441d388f0ef872991904c585b26dc
+
 > [!NOTE]
 > `Current head`는 실제 PR HEAD와 구분되는 소스 트리 검증 대상 커밋 SHA를 나타냅니다.
 
