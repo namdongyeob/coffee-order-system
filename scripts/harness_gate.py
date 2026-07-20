@@ -167,6 +167,7 @@ NON_RUNTIME_REPOSITORY_SCRIPT_FILES = {
     "scripts/team_orchestration.py",
     "scripts/tests/__init__.py",
     "scripts/tests/test_harness_gate.py",
+    "scripts/tests/test_harness_gate_issue_141.py",
     "scripts/tests/test_harness_gate_issue_137.py",
     "scripts/tests/test_team_orchestration.py",
 }
@@ -346,6 +347,31 @@ def flaky_next_action(
 def blocked_wakeup_requires_work(*, external_state_changed: bool) -> bool:
     """Prevent repeated dispatch and verification while a blocker is unchanged."""
     return external_state_changed
+
+
+def worktree_path_action(worktree_path: str, *, java_or_gradle_required: bool) -> str:
+    """Reject missing worktrees and resolved non-ASCII Java paths before execution."""
+    resolved = Path(worktree_path).expanduser().resolve(strict=False)
+    if not resolved.is_dir():
+        return "BLOCKED: WORKTREE_NOT_FOUND"
+    if not java_or_gradle_required:
+        return "ALLOW"
+    try:
+        str(resolved).encode("ascii")
+    except UnicodeEncodeError:
+        return "BLOCKED: NON_ASCII_WORKTREE_PATH"
+    return "ALLOW"
+
+
+def retry_action(*, retry_count: int, user_approved_new_run: bool = False) -> str:
+    """Allow one automatic retry without silently resetting the attempt ledger."""
+    if retry_count < 0:
+        raise ValueError("retry_count must be non-negative")
+    if retry_count == 0:
+        return "RETRY_ONCE"
+    if user_approved_new_run:
+        return "START_APPROVED_NEW_RUN"
+    return "BLOCKED: RETRY_LIMIT"
 
 
 def coordinator_wait_action(

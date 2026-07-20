@@ -53,6 +53,8 @@ Skill은 역할 권한이나 테스트 수준을 복사하지 않습니다. 위 
 5. 재배정 Agent도 멈추면 `BLOCKED: AGENT STALLED`로 전환합니다.
 6. 진행 확인은 `wait_agent` 또는 완료 알림을 사용합니다. timeout 또는 명시적 stall 의심 때만 진단 snapshot을 한 번 허용하고 같은 process·git·docker snapshot을 반복하지 않습니다.
 7. 장기 명령의 session/cell handle이 있으면 새 명령을 시작하지 않고 기존 handle을 이어받습니다.
+8. Coordinator는 spawn 직전에 실제 worktree에서 `python scripts/team_orchestration.py register --agent-id <id> --worktree <absolute-path> --owned-path <path> --impact <impact> --deadline-seconds <seconds> (--java-required|--no-java-required)`를 한 번 실행합니다. register는 missing path와 Java의 `NON_ASCII_WORKTREE_PATH`를 차단합니다. 기다리는 동안 알림 뒤에는 `heartbeat --agent-id <id> --phase <phase>`를, timeout·stall 의심 뒤에는 `lifecycle --agent-id <id> --heartbeat-timeout-seconds <seconds>`와 필요 시 `snapshot --agent-id <id>`를 한 번만 실행합니다. 명시적 중단은 `block --agent-id <id>`로 기록합니다. 실패는 `retry --issue <issue> --failure-key <stable-key>`로 기록하며 다음 동일 실패는 `RETRY_LIMIT`입니다. terminal/stalled assignment는 slot과 owned path를 예약하지 않습니다. `release` 뒤 같은 id의 snapshot budget은 새로 시작합니다. `reset`/`new-run`은 비어 있지 않은 `--approval-ref`와 audit history를 state.json에 남깁니다. 이 CLI는 Codex 도구를 가로채지 않습니다.
+9. 한국어 Issue/PR metadata는 PowerShell 표준입력 pipe 대신 UTF-8 `body-file`로 전송하고, 저장 후 한글 존재와 replacement `?` 부재를 read-back 확인합니다. `Execution mode:`와 `Execution mode reason:`은 Markdown 목록 기호 없이 줄 첫 글자에 둡니다.
 
 ## Completion Gate
 

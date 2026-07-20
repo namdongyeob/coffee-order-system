@@ -150,6 +150,7 @@ class ImpactClassifierContractTest(unittest.TestCase):
             "scripts/team_orchestration.py",
             "scripts/tests/__init__.py",
             "scripts/tests/test_harness_gate.py",
+            "scripts/tests/test_harness_gate_issue_141.py",
             "scripts/tests/test_harness_gate_issue_137.py",
             "scripts/tests/test_team_orchestration.py",
         }
