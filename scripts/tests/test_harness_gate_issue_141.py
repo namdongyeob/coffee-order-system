@@ -195,6 +195,23 @@ class DocumentationContractTest(unittest.TestCase):
 		self.assertIn("shell polling", policy)
 		self.assertIn("Agent가 멈추면", policy)
 
+	def test_pr_metadata_requires_unbulleted_execution_mode_declarations(self):
+		valid = "Execution mode: STRICT\nExecution mode reason: focused harness regression"
+		self.assertEqual([], harness_gate.validate_execution_mode_fields(valid))
+		invalid = "- Execution mode: STRICT\n- Execution mode reason: focused harness regression"
+		self.assertTrue(harness_gate.validate_execution_mode_fields(invalid))
+
+	def test_github_korean_metadata_rule_uses_utf8_body_file(self):
+		repository_root = Path(__file__).resolve().parents[2]
+		contents = (
+			(repository_root / "docs/ai/orchestration-policy.md").read_text(encoding="utf-8"),
+			(repository_root / "docs/ai/agent-rules.md").read_text(encoding="utf-8"),
+			(repository_root / ".codex/skills/coffee-order-issue-loop/SKILL.md").read_text(encoding="utf-8"),
+		)
+		for content in contents:
+			self.assertIn("UTF-8", content)
+			self.assertIn("body-file", content)
+
 
 class ImpactClassificationTest(unittest.TestCase):
 	def test_issue_141_python_fixture_does_not_require_java_ci(self):

@@ -54,6 +54,7 @@ Skill은 역할 권한이나 테스트 수준을 복사하지 않습니다. 위 
 6. 진행 확인은 `wait_agent` 또는 완료 알림을 사용합니다. timeout 또는 명시적 stall 의심 때만 진단 snapshot을 한 번 허용하고 같은 process·git·docker snapshot을 반복하지 않습니다.
 7. 장기 명령의 session/cell handle이 있으면 새 명령을 시작하지 않고 기존 handle을 이어받습니다.
 8. Java·Gradle 작업은 Agent 등록 전에 ASCII worktree와 `worktree_path_action`을 확인합니다. non-ASCII 경로는 `BLOCKED: NON_ASCII_WORKTREE_PATH`로 차단합니다. assignment의 `heartbeat`가 `deadline`을 넘기면 `TIMEOUT`, heartbeat가 끊기면 `STALLED`, 살아 있으면 `lifecycle_action`이 `WAIT`를 반환합니다. `retry_decision`은 첫 실패 뒤 한 번만 retry를 소비하고 다음 실패는 `BLOCKED: RETRY_LIMIT`입니다. 이 판정은 외부 명령을 실행하지 않는 lightweight state check입니다.
+9. 한국어 Issue/PR metadata는 PowerShell 표준입력 pipe 대신 UTF-8 `body-file`로 전송하고, 저장 후 한글 존재와 replacement `?` 부재를 read-back 확인합니다. `Execution mode:`와 `Execution mode reason:`은 Markdown 목록 기호 없이 줄 첫 글자에 둡니다.
 
 ## Completion Gate
 
