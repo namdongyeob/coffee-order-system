@@ -1,11 +1,10 @@
 # 검증 로그
 
-Attempt: 2
-Head: c6a82e83bfe4247fd04a3a5f4805b6a07aee1a85
+Execution head: 4a2ad35fa2478bc70efe0111ea32d22d82118b72
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-20 | Issue #141 Coordinator safety gates | Level 0 | PASS | path gate, retry circuit breaker, assignment lifecycle WAIT/heartbeat/deadline, CLI admission, UTF-8 PR metadata, impact allowlist, policy contract | `commands.md` | Python 209 tests; Java CI false; no external runtime command |
+| 2026-07-20 | Issue #141 Coordinator safety gates | Level 0 | PASS | physical path gate, scoped retry ledger, stateful lifecycle/snapshot CLI, policy contract | `commands.md` | focused 56 tests, full 214 tests; Java CI false; no external runtime command |
 
 ## 미검증과 남은 위험
 
