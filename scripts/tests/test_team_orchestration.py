@@ -11,9 +11,12 @@ def menu_assignment(agent_id="dev-menu", is_writer=True):
 	return team.AgentAssignment(
 		agent_id=agent_id,
 		role="Dev",
-		worktree_path="../wt-menu",
+		worktree_path=str(Path.cwd()),
 		owned_paths=("src/main/java/com/example/coffeeordersystem/menu/**",),
 		is_writer=is_writer,
+		impact="menu module",
+		java_or_gradle_required=False,
+		deadline_at=4_102_444_800.0,
 	)
 
 
@@ -21,9 +24,12 @@ def point_assignment(agent_id="dev-point", is_writer=True):
 	return team.AgentAssignment(
 		agent_id=agent_id,
 		role="Dev",
-		worktree_path="../wt-point",
+		worktree_path=str(Path.cwd()),
 		owned_paths=("src/main/java/com/example/coffeeordersystem/point/**",),
 		is_writer=is_writer,
+		impact="point module",
+		java_or_gradle_required=False,
+		deadline_at=4_102_444_800.0,
 	)
 
 
@@ -105,8 +111,9 @@ class RegistrationTest(unittest.TestCase):
 		third = team.AgentAssignment(
 			agent_id="dev-order",
 			role="Dev",
-			worktree_path="../wt-order",
+			worktree_path=str(Path.cwd()),
 			owned_paths=("src/main/java/com/example/coffeeordersystem/order/**",),
+			impact="order module", java_or_gradle_required=False, deadline_at=4_102_444_800.0,
 		)
 		result = state.register_agent(third)
 		self.assertEqual("BLOCKED", result.status)
@@ -118,8 +125,9 @@ class RegistrationTest(unittest.TestCase):
 		conflicting = team.AgentAssignment(
 			agent_id="dev-menu-2",
 			role="Dev",
-			worktree_path="../wt-menu-2",
+			worktree_path=str(Path.cwd()),
 			owned_paths=("src/main/java/com/example/coffeeordersystem/menu/service/**",),
+			impact="menu service", java_or_gradle_required=False, deadline_at=4_102_444_800.0,
 		)
 		result = state.register_agent(conflicting)
 		self.assertEqual("SCOPE_CONFLICT", result.status)
@@ -139,9 +147,10 @@ class RegistrationTest(unittest.TestCase):
 		reader = team.AgentAssignment(
 			agent_id="reader-1",
 			role="Review",
-			worktree_path="../wt-review",
+			worktree_path=str(Path.cwd()),
 			owned_paths=("docs/**",),
 			is_writer=False,
+			impact="documentation", java_or_gradle_required=False, deadline_at=4_102_444_800.0,
 		)
 		result = state.register_agent(reader)
 		self.assertEqual("REGISTERED", result.status)
@@ -156,8 +165,9 @@ class RegistrationTest(unittest.TestCase):
 		third = team.AgentAssignment(
 			agent_id="dev-order",
 			role="Dev",
-			worktree_path="../wt-order",
+			worktree_path=str(Path.cwd()),
 			owned_paths=("src/main/java/com/example/coffeeordersystem/order/**",),
+			impact="order module", java_or_gradle_required=False, deadline_at=4_102_444_800.0,
 		)
 		result = state.register_agent(third)
 		self.assertEqual("REGISTERED", result.status)
@@ -296,6 +306,8 @@ class SyntheticSmokeTest(unittest.TestCase):
 			"agent_count",
 			"token_measurable",
 			"retries",
+			"retry_ledger",
+			"diagnostic_snapshots",
 			"stalls",
 			"out_of_scope_changes",
 			"review_qa_defects",
@@ -313,8 +325,9 @@ class SyntheticSmokeTest(unittest.TestCase):
 		overlapping = team.AgentAssignment(
 			agent_id="synthetic-menu-dev-2",
 			role="Dev",
-			worktree_path="../wt-menu-2",
+			worktree_path=str(Path.cwd()),
 			owned_paths=("src/main/java/com/example/coffeeordersystem/menu/controller/**",),
+			impact="menu controller", java_or_gradle_required=False, deadline_at=4_102_444_800.0,
 		)
 		result = state.register_agent(overlapping)
 		self.assertEqual("SCOPE_CONFLICT", result.status)

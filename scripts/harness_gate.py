@@ -350,11 +350,14 @@ def blocked_wakeup_requires_work(*, external_state_changed: bool) -> bool:
 
 
 def worktree_path_action(worktree_path: str, *, java_or_gradle_required: bool) -> str:
-    """Reject non-ASCII worktree paths before Windows JVM/Gradle execution."""
+    """Reject missing worktrees and resolved non-ASCII Java paths before execution."""
+    resolved = Path(worktree_path).expanduser().resolve(strict=False)
+    if not resolved.is_dir():
+        return "BLOCKED: WORKTREE_NOT_FOUND"
     if not java_or_gradle_required:
         return "ALLOW"
     try:
-        str(worktree_path).encode("ascii")
+        str(resolved).encode("ascii")
     except UnicodeEncodeError:
         return "BLOCKED: NON_ASCII_WORKTREE_PATH"
     return "ALLOW"
