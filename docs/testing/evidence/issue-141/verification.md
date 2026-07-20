@@ -1,10 +1,10 @@
 # 검증 로그
 
-Execution head: 4a2ad35fa2478bc70efe0111ea32d22d82118b72
+Execution head: 308f495fb8bbc76c9e985de18934273aa3b598aa
 
 | 날짜 | Issue | Level | 결과 | 검증 범위 | 명령/Evidence | 비고 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-20 | Issue #141 Coordinator safety gates | Level 0 | PASS | physical path gate, scoped retry ledger, stateful lifecycle/snapshot CLI, policy contract | `commands.md` | focused 56 tests, full 214 tests; Java CI false; no external runtime command |
+| 2026-07-20 | Issue #141 Coordinator safety gates | Level 0 | PASS | physical path gate, terminal scope release/block CLI, legacy retry migration, finite-time and reset audit state | `commands.md` | focused 61 tests, full 219 tests; Java CI false; no external runtime command |
 
 ## 미검증과 남은 위험
 
